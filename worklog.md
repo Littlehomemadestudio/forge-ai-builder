@@ -168,3 +168,68 @@ Stage Summary:
 - All core flows verified end-to-end
 - Landing → Auth → Dashboard → Builder → Editor all working
 - Application is fully functional and production-quality
+
+---
+Task ID: Editor Core
+Agent: Main Coordinator
+Task: Build fully functional visual website editor with iframe bridge, postMessage communication, real CSS editing, undo/redo, export
+
+Work Log:
+- Added EditorComponentCategory type to /src/lib/editor/types.ts (was missing, referenced by components.ts)
+- Completely rewrote /src/components/editor/EditorPage.tsx (~2165 lines) as a REAL functional visual website editor
+- Key architecture: iframe (srcDoc) renders website, JavaScript bridge script injected into iframe enables bidirectional communication via postMessage API
+
+- IFRAME BRIDGE SCRIPT (getIframeInjectScript):
+  * Assigns unique data-fid attributes to every element (f-el-0, f-el-1, etc.)
+  * Hover highlighting: semi-transparent blue overlay on mouseover
+  * Click selection: sends element info (tag, computed styles, rect, attributes, content) to parent via postMessage
+  * Double-click text editing: enables contentEditable on text-only elements
+  * Accepts parent commands: apply-style, apply-content, add-component, remove-element, select-element, highlight-element, update-html, get-elements-tree
+  * Selection indicator: blue border + label showing tag name + 4 resize handles at corners
+  * Prevents link navigation and form submissions
+  * MutationObserver watches for DOM changes and re-assigns IDs
+
+- DEFAULT WEBSITE HTML (getDefaultWebsiteHTML): Professional SaaS landing page with nav, hero, features (6 cards), pricing (3 tiers), CTA, footer
+
+- EDITOR LAYOUT:
+  * Top Toolbar (48px): Forge logo, project name, undo/redo, device selector (5 devices), zoom controls, code view toggle, export/save/deploy buttons
+  * Left Panel (280px, collapsible): 3 tabs - Layers, Components, Design Library
+  * Center: iframe preview with device frame simulation and zoom
+  * Right Panel (320px, collapsible): Inspector with all CSS property groups
+  * Bottom: Code panel toggle (textarea for direct HTML editing)
+
+- LEFT PANEL - Layers Tab: Shows DOM tree from iframe, click to select, hover to highlight in iframe, expand/collapse, delete button
+- LEFT PANEL - Components Tab: All EDITOR_COMPONENT_CATEGORIES with search, click to insert into iframe
+- LEFT PANEL - Design Tab: Color palettes (12 presets), typography presets (4), background presets (6) - one-click apply to selected element
+
+- RIGHT PANEL - Inspector: All 13 CSS property groups with full controls
+  * text: Input field
+  * number: Input field with unit suffix
+  * select: Select dropdown with all options
+  * color: HTML5 color picker + text field
+  * slider: shadcn Slider + number input + unit label
+  * toggle: Switch component
+  * composite: Collapsible group of sub-properties (margin, padding, border, border-radius, outline)
+
+- CONTENT EDITING: Text content textarea, innerHTML editor, special editors for img (src, alt), a (href, target), input/textarea (placeholder)
+
+- UNDO/REDO: History array of HTML snapshots, debounced (500ms after changes), undo/redo buttons in toolbar
+
+- EXPORT: 3 export formats all download REAL files:
+  * HTML: Downloads clean .html file (strips injection script, data-fid attributes)
+  * React: Downloads .tsx component file with extracted styles
+  * Next.js: Downloads layout.tsx, page.tsx, globals.css
+
+- RESPONSIVE PREVIEW: 5 device configurations (desktop, laptop, tablet, mobile, mobile-landscape), zoom from 25% to 200%
+
+- Panel toggle buttons: Collapse/expand left and right panels
+
+- All controls are REAL and FUNCTIONAL - every button, slider, and input actually modifies the website in the iframe
+
+Stage Summary:
+- Fully functional visual website editor with bidirectional iframe communication
+- Every CSS property control works - changes are applied in real-time to the iframe
+- Components can be added, elements can be deleted, content can be edited
+- Undo/redo with history snapshots
+- 3 export formats download real files
+- Professional dark theme UI (bg-[#0a0a0f], bg-[#1a1a2e], accent #7c3aed)
