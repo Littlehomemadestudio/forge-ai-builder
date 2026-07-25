@@ -1,0 +1,2002 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useCallback, useRef, useEffect } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import { useAppStore } from '@/lib/store'
+     6→import { Button } from '@/components/ui/button'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    11→import { Slider } from '@/components/ui/slider'
+    12→import { Switch } from '@/components/ui/switch'
+    13→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    14→import { Separator } from '@/components/ui/separator'
+    15→import { Badge } from '@/components/ui/badge'
+    16→import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+    17→import { ScrollArea } from '@/components/ui/scroll-area'
+    18→import { toast } from '@/hooks/use-toast'
+    19→
+    20→import {
+    21→  Undo2, Redo2, Monitor, Smartphone, Tablet, Code2, Save, Download, Rocket,
+    22→  ArrowLeft, Eye, EyeOff, Lock, Unlock, Trash2, Copy, Plus, Search, Layers,
+    23→  Grid3X3, Palette, Type, Layout, Square, Circle, ChevronDown, ChevronRight,
+    24→  Move, Maximize2, ZoomIn, ZoomOut, Sparkles, Wand2, Bold, Italic, Underline,
+    25→  AlignLeft, AlignCenter, AlignRight, Image, Link, Settings2, FileCode, Globe,
+    26→  Hash, ToggleLeft, ToggleRight
+    27→} from 'lucide-react'
+    28→
+    29→// ─── Default Website HTML for the iframe preview ───────────────────────────
+    30→const defaultWebsiteHTML = `
+    31→<!DOCTYPE html>
+    32→<html lang="en">
+    33→<head>
+    34→<meta charset="UTF-8">
+    35→<meta name="viewport" content=device-width, initial-scale=1.0">
+    36→<title>Nexus — AI-Powered Analytics Platform</title>
+    37→<style>
+    38→  * { margin: 0; padding: 0; box-sizing: border-box; }
+    39→  :root {
+    40→    --primary: #6C5CE7;
+    41→    --primary-light: #A29BFE;
+    42→    --accent: #00CEC9;
+    43→    --dark: #0A0A1A;
+    44→    --dark-surface: #12122A;
+    45→    --dark-card: #1A1A3A;
+    46→    --text: #E8E8F0;
+    47→    --text-muted: #8888AA;
+    48→    --gradient-1: linear-gradient(135deg, #6C5CE7 0%, #00CEC9 100%);
+    49→    --gradient-2: linear-gradient(135deg, #0A0A1A 0%, #1A1A3A 100%);
+    50→  }
+    51→  body {
+    52→    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    53→    background: var(--dark);
+    54→    color: var(--text);
+    55→    line-height: 1.6;
+    56→    overflow-x: hidden;
+    57→  }
+    58→  .nav { padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; background: rgba(10,10,26,0.8); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(108,92,231,0.1); }
+    59→  .nav-logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+    60→  .nav-logo span { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    61→  .nav-links { display: flex; gap: 2rem; list-style: none; }
+    62→  .nav-links a { color: var(--text-muted); text-decoration: none; transition: color 0.3s; font-size: 0.9rem; }
+    63→  .nav-links a:hover { color: var(--text); }
+    64→  .nav-cta { background: var(--gradient-1); color: white; padding: 0.5rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; border: none; transition: transform 0.2s, box-shadow 0.2s; }
+    65→  .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(108,92,231,0.4); }
+    66→  .hero { padding: 6rem 2rem; text-align: center; position: relative; overflow: hidden; min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    67→  .hero::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 50% 50%, rgba(108,92,231,0.08) 0%, transparent 50%); animation: pulse 8s ease-in-out infinite; }
+    68→  @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } }
+    69→  .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(108,92,231,0.15); border: 1px solid rgba(108,92,231,0.3); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; color: var(--primary-light); margin-bottom: 1.5rem; }
+    70→  .hero h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; max-width: 800px; }
+    71→  .hero h1 .gradient { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    72→  .hero p { font-size: 1.2rem; color: var(--text-muted); max-width: 600px; margin-bottom: 2rem; }
+    73→  .hero-buttons { display: flex; gap: 1rem; }
+    74→  .btn-primary { background: var(--gradient-1); color: white; padding: 0.75rem 2rem; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; transition: transform 0.2s, box-shadow 0.2s; }
+    75→  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 35px rgba(108,92,231,0.4); }
+    76→  .btn-secondary { background: transparent; color: var(--text); padding: 0.75rem 2rem; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 1rem; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
+    77→  .btn-secondary:hover { border-color: var(--primary); color: var(--primary-light); }
+    78→  .stats { padding: 4rem 2rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; max-width: 900px; margin: 0 auto; }
+    79→  .stat-card { text-align: center; padding: 2rem; background: var(--dark-card); border-radius: 16px; border: 1px solid rgba(108,92,231,0.1); }
+    80→  .stat-number { font-size: 2.5rem; font-weight: 800; background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    81→  .stat-label { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem; }
+    82→  .features { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+    83→  .features h2 { text-align: center; font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+    84→  .features h2 .gradient { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    85→  .features .subtitle { text-align: center; color: var(--text-muted); margin-bottom: 3rem; font-size: 1.1rem; }
+    86→  .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    87→  .feature-card { padding: 2rem; background: var(--dark-card); border-radius: 16px; border: 1px solid rgba(108,92,231,0.1); transition: all 0.3s; cursor: pointer; }
+    88→  .feature-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: 0 16px 40px rgba(108,92,231,0.15); }
+    89→  .feature-icon { width: 48px; height: 48px; background: var(--gradient-1); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; font-size: 1.5rem; }
+    90→  .feature-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    91→  .feature-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+    92→  .pricing { padding: 6rem 2rem; text-align: center; }
+    93→  .pricing h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+    94→  .pricing h2 .gradient { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    95→  .pricing .subtitle { color: var(--text-muted); margin-bottom: 3rem; font-size: 1.1rem; }
+    96→  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1000px; margin: 0 auto; }
+    97→  .pricing-card { padding: 2.5rem 2rem; background: var(--dark-card); border-radius: 16px; border: 1px solid rgba(108,92,231,0.1); text-align: center; transition: all 0.3s; }
+    98→  .pricing-card:hover { transform: translateY(-4px); }
+    99→  .pricing-card.popular { border-color: var(--primary); position: relative; }
+   100→  .pricing-card.popular::before { content: 'Most Popular'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--gradient-1); color: white; padding: 0.25rem 1rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+   101→  .pricing-tier { font-size: 1.1rem; color: var(--text-muted); font-weight: 600; }
+   102→  .pricing-price { font-size: 3rem; font-weight: 800; margin: 1rem 0; }
+   103→  .pricing-price .month { font-size: 0.9rem; color: var(--text-muted); }
+   104→  .pricing-features { list-style: none; padding: 0; margin: 1.5rem 0; }
+   105→  .pricing-features li { padding: 0.5rem 0; color: var(--text-muted); font-size: 0.9rem; }
+   106→  .pricing-features li::before { content: '✓'; color: var(--accent); margin-right: 0.5rem; }
+   107→  .cta-section { padding: 6rem 2rem; text-align: center; background: var(--gradient-2); position: relative; }
+   108→  .cta-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(108,92,231,0.15), transparent 70%); }
+   109→  .cta-section h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
+   110→  .cta-section p { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto; }
+   111→  .cta-buttons { display: flex; gap: 1rem; justify-content: center; }
+   112→  .footer { padding: 3rem 2rem; border-top: 1px solid rgba(108,92,231,0.1); }
+   113→  .footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; }
+   114→  .footer-brand .logo { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem; }
+   115→  .footer-brand p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }
+   116→  .footer-col h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); }
+   117→  .footer-col ul { list-style: none; }
+   118→  .footer-col ul li { padding: 0.3rem 0; }
+   119→  .footer-col ul li a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; transition: color 0.3s; }
+   120→  .footer-col ul li a:hover { color: var(--primary-light); }
+   121→  .footer-bottom { max-width: 1200px; margin: 2rem auto 0; padding-top: 1rem; border-top: 1px solid rgba(108,92,231,0.05); display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8rem; }
+   122→  .element-highlight { outline: 2px solid #6C5CE7; outline-offset: 2px; cursor: pointer; transition: outline-color 0.2s; }
+   123→  .element-highlight:hover { outline-color: #A29BFE; }
+   124→  [data-element-id] { cursor: pointer; transition: outline 0.2s, outline-offset 0.2s; }
+   125→  [data-element-id].selected { outline: 2px solid #6C5CE7; outline-offset: 2px; }
+   126→  [data-element-id]:hover { outline: 1px dashed rgba(108,92,231,0.5); outline-offset: 2px; }
+   127→</style>
+   128→</head>
+   129→<body>
+   130→  <nav data-element-id="nav" class="nav">
+   131→    <div class="nav-logo"><span>Nexus</span></div>
+   132→    <ul class="nav-links">
+   133→      <li><a href="#features">Features</a></li>
+   134→      <li><a href="#pricing">Pricing</a></li>
+   135→      <li><a href="#about">About</a></li>
+   136→      <li><a href="#docs">Docs</a></li>
+   137→    </ul>
+   138→    <button class="nav-cta">Get Started Free</button>
+   139→  </nav>
+   140→
+   141→  <section data-element-id="hero" class="hero">
+   142→    <div class="hero-badge">&#9733; New: AI Insights Engine v2.0</div>
+   143→    <h1>Transform Data Into <span class="gradient">Actionable Intelligence</span></h1>
+   144→    <p>Nexus uses advanced AI models to analyze your data streams in real-time, delivering insights that drive growth and efficiency.</p>
+   145→    <div class="hero-buttons">
+   146→      <button class="btn-primary">Start Free Trial</button>
+   147→      <button class="btn-secondary">Watch Demo &#9654;</button>
+   148→    </div>
+   149→  </section>
+   150→
+   151→  <section data-element-id="stats" class="stats">
+   152→    <div class="stat-card">
+   153→      <div class="stat-number">10M+</div>
+   154→      <div class="stat-label">Data Points Processed</div>
+   155→    </div>
+   156→    <div class="stat-card">
+   157→      <div class="stat-number">500+</div>
+   158→      <div class="stat-label">Enterprise Clients</div>
+   159→    </div>
+   160→    <div class="stat-card">
+   161→      <div class="stat-number">99.9%</div>
+   162→      <div class="stat-label">Uptime Guarantee</div>
+   163→    </div>
+   164→  </section>
+   165→
+   166→  <section data-element-id="features" class="features">
+   167→    <h2>Powerful <span class="gradient">Features</span></h2>
+   168→    <p class="subtitle">Everything you need to turn data into decisions</p>
+   169→    <div class="features-grid">
+   170→      <div data-element-id="feature-1" class="feature-card">
+   171→        <div class="feature-icon">&#128202;</div>
+   172→        <h3>Real-time Analytics</h3>
+   173→        <p>Process millions of data points in milliseconds with our distributed computing engine.</p>
+   174→      </div>
+   175→      <div data-element-id="feature-2" class="feature-card">
+   176→        <div class="feature-icon">&#129302;</div>
+   177→        <h3>AI-Powered Insights</h3>
+   178→        <p>Our ML models identify patterns and anomalies humans miss, delivering predictive intelligence.</p>
+   179→      </div>
+   180→      <div data-element-id="feature-3" class="feature-card">
+   181→        <div class="feature-icon">&#128274;</div>
+   182→        <h3>Enterprise Security</h3>
+   183→        <p>SOC 2 Type II certified with end-to-end encryption and role-based access controls.</p>
+   184→      </div>
+   185→      <div data-element-id="feature-4" class="feature-card">
+   186→        <div class="feature-icon">&#9881;</div>
+   187→        <h3>Custom Dashboards</h3>
+   188→        <p>Build personalized dashboards with drag-and-drop widgets and real-time data feeds.</p>
+   189→      </div>
+   190→      <div data-element-id="feature-5" class="feature-card">
+   191→        <div class="feature-icon">&#128279;</div>
+   192→        <h3>Seamless Integrations</h3>
+   193→        <p>Connect to 200+ data sources including Salesforce, HubSpot, and custom APIs.</p>
+   194→      </div>
+   195→      <div data-element-id="feature-6" class="feature-card">
+   196→        <div class="feature-icon">&#128640;</div>
+   197→        <h3>Auto-scaling Infrastructure</h3>
+   198→        <p>Cloud-native architecture that scales from 1 to 100M requests without configuration.</p>
+   199→      </div>
+   200→    </div>
+   201→  </section>
+   202→
+   203→  <section data-element-id="pricing" class="pricing">
+   204→    <h2>Simple <span class="gradient">Pricing</span></h2>
+   205→    <p class="subtitle">Start free. Scale as you grow. No hidden fees.</p>
+   206→    <div class="pricing-grid">
+   207→      <div data-element-id="pricing-starter" class="pricing-card">
+   208→        <div class="pricing-tier">Starter</div>
+   209→        <div class="pricing-price">$0<span class="month">/mo</span></div>
+   210→        <ul class="pricing-features">
+   211→          <li>5,000 data points/day</li>
+   212→          <li>3 dashboards</li>
+   213→          <li>Basic AI insights</li>
+   214→          <li>Email support</li>
+   215→        </ul>
+   216→        <button class="btn-secondary" style="width:100%">Get Started</button>
+   217→      </div>
+   218→      <div data-element-id="pricing-pro" class="pricing-card popular">
+   219→        <div class="pricing-tier">Professional</div>
+   220→        <div class="pricing-price">$49<span class="month">/mo</span></div>
+   221→        <ul class="pricing-features">
+   222→          <li>Unlimited data points</li>
+   223→          <li>Unlimited dashboards</li>
+   224→          <li>Advanced AI insights</li>
+   225→          <li>Priority support</li>
+   226→          <li>Custom integrations</li>
+   227→        </ul>
+   228→        <button class="btn-primary" style="width:100%">Start Trial</button>
+   229→      </div>
+   230→      <div data-element-id="pricing-enterprise" class="pricing-card">
+   231→        <div class="pricing-tier">Enterprise</div>
+   232→        <div class="pricing-price">Custom</div>
+   233→        <ul class="pricing-features">
+   234→          <li>Everything in Pro</li>
+   235→          <li>Dedicated infrastructure</li>
+   236→          <li>Custom ML models</li>
+   237→          <li>24/7 phone support</li>
+   238→          <li>SLA guarantees</li>
+   239→        </ul>
+   240→        <button class="btn-secondary" style="width:100%">Contact Sales</button>
+   241→      </div>
+   242→    </div>
+   243→  </section>
+   244→
+   245→  <section data-element-id="cta" class="cta-section">
+   246→    <h2>Ready to <span style="background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Transform</span> Your Data?</h2>
+   247→    <p>Join 500+ companies already using Nexus to drive smarter decisions.</p>
+   248→    <div class="cta-buttons">
+   249→      <button class="btn-primary">Start Free Trial</button>
+   250→      <button class="btn-secondary">Schedule Demo</button>
+   251→    </div>
+   252→  </section>
+   253→
+   254→  <footer data-element-id="footer" class="footer">
+   255→    <div class="footer-inner">
+   256→      <div class="footer-brand">
+   257→        <div class="logo">Nexus</div>
+   258→        <p>AI-powered analytics platform that transforms raw data into actionable business intelligence.</p>
+   259→      </div>
+   260→      <div class="footer-col">
+   261→        <h4>Product</h4>
+   262→        <ul>
+   263→          <li><a href="#">Features</a></li>
+   264→          <li><a href="#">Pricing</a></li>
+   265→          <li><a href="#">Integrations</a></li>
+   266→          <li><a href="#">Changelog</a></li>
+   267→        </ul>
+   268→      </div>
+   269→      <div class="footer-col">
+   270→        <h4>Company</h4>
+   271→        <ul>
+   272→          <li><a href="#">About</a></li>
+   273→          <li><a href="#">Blog</a></li>
+   274→          <li><a href="#">Careers</a></li>
+   275→          <li><a href="#">Press</a></li>
+   276→        </ul>
+   277→      </div>
+   278→      <div class="footer-col">
+   279→        <h4>Legal</h4>
+   280→        <ul>
+   281→          <li><a href="#">Privacy</a></li>
+   282→          <li><a href="#">Terms</a></li>
+   283→          <li><a href="#">Security</a></li>
+   284→          <li><a href="#">GDPR</a></li>
+   285→        </ul>
+   286→      </div>
+   287→    </div>
+   288→    <div class="footer-bottom">
+   289→      <span>&copy; 2025 Nexus. All rights reserved.</span>
+   290→      <span>Made with &#10084; by Forge</span>
+   291→    </div>
+   292→  </footer>
+   293→</body>
+   294→</html>
+   295→`
+   296→
+   297→// ─── Layer Tree Data ───────────────────────────────────────────────────────
+   298→interface LayerItem {
+   299→  id: string
+   300→  name: string
+   301→  type: string
+   302→  icon: React.ReactNode
+   303→  children?: LayerItem[]
+   304→  visible: boolean
+   305→  locked: boolean
+   306→}
+   307→
+   308→const defaultLayers: LayerItem[] = [
+   309→  {
+   310→    id: 'nav', name: 'Navigation Bar', type: 'nav', icon: <Layout size={14} />,
+   311→    visible: true, locked: false
+   312→  },
+   313→  {
+   314→    id: 'hero', name: 'Hero Section', type: 'section', icon: <Maximize2 size={14} />,
+   315→    visible: true, locked: false
+   316→  },
+   317→  {
+   318→    id: 'stats', name: 'Stats Section', type: 'section', icon: <Grid3X3 size={14} />,
+   319→    visible: true, locked: false
+   320→  },
+   321→  {
+   322→    id: 'features', name: 'Features Section', type: 'section', icon: <Sparkles size={14} />,
+   323→    visible: true, locked: false,
+   324→    children: [
+   325→      { id: 'feature-1', name: 'Feature Card 1', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   326→      { id: 'feature-2', name: 'Feature Card 2', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   327→      { id: 'feature-3', name: 'Feature Card 3', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   328→      { id: 'feature-4', name: 'Feature Card 4', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   329→      { id: 'feature-5', name: 'Feature Card 5', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   330→      { id: 'feature-6', name: 'Feature Card 6', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   331→    ]
+   332→  },
+   333→  {
+   334→    id: 'pricing', name: 'Pricing Section', type: 'section', icon: <Hash size={14} />,
+   335→    visible: true, locked: false,
+   336→    children: [
+   337→      { id: 'pricing-starter', name: 'Starter Card', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   338→      { id: 'pricing-pro', name: 'Pro Card', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   339→      { id: 'pricing-enterprise', name: 'Enterprise Card', type: 'card', icon: <Square size={12} />, visible: true, locked: false },
+   340→    ]
+   341→  },
+   342→  {
+   343→    id: 'cta', name: 'CTA Section', type: 'section', icon: <Wand2 size={14} />,
+   344→    visible: true, locked: false
+   345→  },
+   346→  {
+   347→    id: 'footer', name: 'Footer', type: 'footer', icon: <Globe size={14} />,
+   348→    visible: true, locked: false
+   349→  },
+   350→]
+   351→
+   352→// ─── Component Library Data ────────────────────────────────────────────────
+   353→interface ComponentItem {
+   354→  id: string
+   355→  name: string
+   356→  category: string
+   357→  preview: string
+   358→  description: string
+   359→}
+   360→
+   361→const componentCategories = [
+   362→  { id: 'navigation', name: 'Navigation', icon: <Layout size={16} /> },
+   363→  { id: 'hero', name: 'Hero', icon: <Maximize2 size={16} /> },
+   364→  { id: 'content', name: 'Content', icon: <Type size={16} /> },
+   365→  { id: 'cards', name: 'Cards', icon: <Square size={16} /> },
+   366→  { id: 'forms', name: 'Forms', icon: <Move size={16} /> },
+   367→  { id: 'footer', name: 'Footer', icon: <Globe size={16} /> },
+   368→  { id: 'media', name: 'Media', icon: <Image size={16} /> },
+   369→]
+   370→
+   371→const componentItems: ComponentItem[] = [
+   372→  { id: 'comp-nav-simple', name: 'Simple Nav', category: 'navigation', preview: '≡', description: 'Clean minimal navigation bar' },
+   373→  { id: 'comp-nav-sticky', name: 'Sticky Nav', category: 'navigation', preview: '≡⊙', description: 'Sticky navigation with CTA' },
+   374→  { id: 'comp-nav-mega', name: 'Mega Nav', category: 'navigation', preview: '≡≡≡', description: 'Full mega menu navigation' },
+   375→  { id: 'comp-hero-classic', name: 'Classic Hero', category: 'hero', preview: 'H↕', description: 'Centered hero with gradient' },
+   376→  { id: 'comp-hero-split', name: 'Split Hero', category: 'hero', preview: 'H|↕', description: 'Side-by-side hero layout' },
+   377→  { id: 'comp-hero-video', name: 'Video Hero', category: 'hero', preview: 'H▶', description: 'Hero with video background' },
+   378→  { id: 'comp-content-text', name: 'Text Block', category: 'content', preview: 'T¶', description: 'Rich text content section' },
+   379→  { id: 'comp-content-timeline', name: 'Timeline', category: 'content', preview: 'T↕↕', description: 'Vertical timeline layout' },
+   380→  { id: 'comp-content-testimonial', name: 'Testimonials', category: 'content', preview: 'T💬', description: 'Customer testimonial carousel' },
+   381→  { id: 'comp-card-basic', name: 'Basic Card', category: 'cards', preview: '□', description: 'Simple content card' },
+   382→  { id: 'comp-card-pricing', name: 'Pricing Card', category: 'cards', preview: '□$', description: 'Pricing tier card' },
+   383→  { id: 'comp-card-team', name: 'Team Card', category: 'cards', preview: '□☺', description: 'Team member profile card' },
+   384→  { id: 'comp-card-feature', name: 'Feature Card', category: 'cards', preview: '□✦', description: 'Feature showcase card' },
+   385→  { id: 'comp-card-stats', name: 'Stats Card', category: 'cards', preview: '□#', description: 'Statistics display card' },
+   386→  { id: 'comp-form-contact', name: 'Contact Form', category: 'forms', preview: 'F✉', description: 'Contact form with validation' },
+   387→  { id: 'comp-form-signup', name: 'Signup Form', category: 'forms', preview: 'F+', description: 'Registration/signup form' },
+   388→  { id: 'comp-form-search', name: 'Search Bar', category: 'forms', preview: 'F🔍', description: 'Search input component' },
+   389→  { id: 'comp-footer-minimal', name: 'Minimal Footer', category: 'footer', preview: '—', description: 'Simple centered footer' },
+   390→  { id: 'comp-footer-full', name: 'Full Footer', category: 'footer', preview: '≡≡', description: 'Multi-column footer' },
+   391→  { id: 'comp-media-gallery', name: 'Gallery', category: 'media', preview: '🖼', description: 'Image gallery grid' },
+   392→  { id: 'comp-media-carousel', name: 'Carousel', category: 'media', preview: '🖼▸', description: 'Image carousel slider' },
+   393→]
+   394→
+   395→// ─── Design Library Data ───────────────────────────────────────────────────
+   396→interface DesignBlock {
+   397→  id: string
+   398→  name: string
+   399→  category: string
+   400→  preview: string
+   401→}
+   402→
+   403→const designBlocks: DesignBlock[] = [
+   404→  // Buttons
+   405→  { id: 'btn-primary-gradient', name: 'Gradient Primary', category: 'buttons', preview: 'Primary →' },
+   406→  { id: 'btn-outline-glow', name: 'Outline Glow', category: 'buttons', preview: 'Outline →' },
+   407→  { id: 'btn-pill-glass', name: 'Pill Glass', category: 'buttons', preview: '( Pill )' },
+   408→  { id: 'btn-icon-arrow', name: 'Icon Arrow', category: 'buttons', preview: '→ Arrow' },
+   409→  { id: 'btn-3d-shadow', name: '3D Shadow', category: 'buttons', preview: '3D Btn' },
+   410→  { id: 'btn-neon-border', name: 'Neon Border', category: 'buttons', preview: '⚡ Neon' },
+   411→  // Cards
+   412→  { id: 'card-dark-glass', name: 'Dark Glass', category: 'cards', preview: '□ Glass' },
+   413→  { id: 'card-gradient-border', name: 'Gradient Border', category: 'cards', preview: '□ Grad' },
+   414→  { id: 'card-hover-lift', name: 'Hover Lift', category: 'cards', preview: '□ Lift' },
+   415→  { id: 'card-glow-effect', name: 'Glow Effect', category: 'cards', preview: '□ Glow' },
+   416→  { id: 'card-minimal-flat', name: 'Minimal Flat', category: 'cards', preview: '□ Flat' },
+   417→  { id: 'card-pattern-bg', name: 'Pattern BG', category: 'cards', preview: '□ Pat' },
+   418→  // Inputs
+   419→  { id: 'input-glass-border', name: 'Glass Border', category: 'inputs', preview: '[ Glass ]' },
+   420→  { id: 'input-underlined', name: 'Underlined', category: 'inputs', preview: 'Underline_' },
+   421→  { id: 'input-floating-label', name: 'Floating Label', category: 'inputs', preview: '[ Float ]' },
+   422→  // Colors
+   423→  { id: 'palette-neon', name: 'Neon Palette', category: 'colors', preview: '🟣🟢🔴' },
+   424→  { id: 'palette-ocean', name: 'Ocean Palette', category: 'colors', preview: '🔵🟢⚪' },
+   425→  { id: 'palette-sunset', name: 'Sunset Palette', category: 'colors', preview: '🟡🟠🔴' },
+   426→  // Typography
+   427→  { id: 'typo-display-bold', name: 'Display Bold', category: 'typography', preview: 'ABCD' },
+   428→  { id: 'typo-serif-elegant', name: 'Serif Elegant', category: 'typography', preview: 'Abcd' },
+   429→  { id: 'typo-mono-tech', name: 'Mono Tech', category: 'typography', preview: '0x00' },
+   430→  // Animations
+   431→  { id: 'anim-fade-up', name: 'Fade Up', category: 'animations', preview: '↑ Fade' },
+   432→  { id: 'anim-slide-in', name: 'Slide In', category: 'animations', preview: '← Slide' },
+   433→  { id: 'anim-scale-pop', name: 'Scale Pop', category: 'animations', preview: '⊙ Pop' },
+   434→  { id: 'anim-rotate-in', name: 'Rotate In', category: 'animations', preview: '↻ Rotate' },
+   435→]
+   436→
+   437→const designCategories = ['buttons', 'cards', 'inputs', 'colors', 'typography', 'animations']
+   438→
+   439→// ─── Main Component ─────────────────────────────────────────────────────────
+   440→
+   441→export default function EditorPage() {
+   442→  const store = useAppStore()
+   443→  const {
+   444→    editorPanel, inspectorTab, devicePreview, selectedElementId,
+   445→    showCodePanel, historyIndex, editorHistory,
+   446→    setEditorPanel, setInspectorTab, setDevicePreview,
+   447→    setSelectedElement, undo, redo, setShowCodePanel,
+   448→    navigate
+   449→  } = store
+   450→
+   451→  const [layers, setLayers] = useState<LayerItem[]>(defaultLayers)
+   452→  const [componentSearch, setComponentSearch] = useState('')
+   453→  const [designSearch, setDesignSearch] = useState('')
+   454→  const [expandedLayers, setExpandedLayers] = useState<string[]>(['features', 'pricing'])
+   455→  const [zoom, setZoom] = useState(100)
+   456→  const [iframeLoaded, setIframeLoaded] = useState(false)
+   457→  const iframeRef = useRef<HTMLIFrameElement>(null)
+   458→
+   459→  // Inspector local states
+   460→  const [fontFamily, setFontFamily] = useState('Inter')
+   461→  const [fontSize, setFontSize] = useState(16)
+   462→  const [fontWeight, setFontWeight] = useState('400')
+   463→  const [fontColor, setFontColor] = useState('#E8E8F0')
+   464→  const [bgColor, setBgColor] = useState('#0A0A1A')
+   465→  const [bgGradient, setBgGradient] = useState('linear-gradient(135deg, #6C5CE7, #00CEC9)')
+   466→  const [bgType, setBgType] = useState<'color' | 'gradient' | 'image'>('color')
+   467→  const [borderWidth, setBorderWidth] = useState(0)
+   468→  const [borderStyle, setBorderStyle] = useState('solid')
+   469→  const [borderColor, setBorderColor] = useState('#6C5CE7')
+   470→  const [borderRadius, setBorderRadius] = useState(0)
+   471→  const [shadowType, setShadowType] = useState('none')
+   472→  const [shadowBlur, setShadowBlur] = useState(0)
+   473→  const [shadowOffset, setShadowOffset] = useState(0)
+   474→  const [shadowColor, setShadowColor] = useState('#6C5CE740')
+   475→  const [opacity, setOpacity] = useState(100)
+   476→  // Layout
+   477→  const [padding, setPadding] = useState({ top: 0, right: 0, bottom: 0, left: 0 })
+   478→  const [margin, setMargin] = useState({ top: 0, right: 0, bottom: 0, left: 0 })
+   479→  const [width, setWidth] = useState('auto')
+   480→  const [height, setHeight] = useState('auto')
+   481→  const [displayType, setDisplayType] = useState('block')
+   482→  const [flexDirection, setFlexDirection] = useState('row')
+   483→  const [flexAlign, setFlexAlign] = useState('center')
+   484→  const [flexJustify, setFlexJustify] = useState('center')
+   485→  const [positionType, setPositionType] = useState('relative')
+   486→  // Animation
+   487→  const [animType, setAnimType] = useState('fade')
+   488→  const [animDuration, setAnimDuration] = useState(500)
+   489→  const [animDelay, setAnimDelay] = useState(0)
+   490→  const [animEasing, setAnimEasing] = useState('ease')
+   491→  const [hoverEffect, setHoverEffect] = useState('none')
+   492→  const [scrollAnim, setScrollAnim] = useState('none')
+   493→  // SEO
+   494→  const [pageTitle, setPageTitle] = useState('Nexus — AI-Powered Analytics Platform')
+   495→  const [pageDescription, setPageDescription] = useState('Advanced AI analytics platform transforming data into actionable business intelligence.')
+   496→  const [ogImage, setOgImage] = useState('')
+   497→  const [keywords, setKeywords] = useState('analytics, AI, data, business intelligence')
+   498→  const [canonicalUrl, setCanonicalUrl] = useState('https://nexus.example.com')
+   499→  const [sitemapEnabled, setSitemapEnabled] = useState(true)
+   500→  // Code panel
+   501→  const [codeTab, setCodeTab] = useState<'html' | 'css' | 'js'>('html')
+   502→  const [htmlCode, setHtmlCode] = useState(defaultWebsiteHTML)
+   503→  const [cssCode, setCssCode] = useState('')
+   504→  const [jsCode, setJsCode] = useState('')
+   505→
+   506→  // ─── iframe message handling ──────────────────────────────────────────
+   507→  useEffect(() => {
+   508→    const handleMessage = (e: MessageEvent) => {
+   509→      if (e.data?.type === 'element-selected') {
+   510→        setSelectedElement(e.data.elementId)
+   511→      }
+   512→    }
+   513→    window.addEventListener('message', handleMessage)
+   514→    return () => window.removeEventListener('message', handleMessage)
+   515→  }, [setSelectedElement])
+   516→
+   517→  // ─── Send selection highlight to iframe ───────────────────────────────
+   518→  useEffect(() => {
+   519→    if (iframeRef.current && iframeRef.current.contentWindow) {
+   520→      iframeRef.current.contentWindow.postMessage({
+   521→        type: 'highlight-element',
+   522→        elementId: selectedElementId
+   523→      }, '*')
+   524→    }
+   525→  }, [selectedElementId])
+   526→
+   527→  // ─── Inject click listener into iframe on load ────────────────────────
+   528→  const handleIframeLoad = useCallback(() => {
+   529→    setIframeLoaded(true)
+   530→    try {
+   531→      const iframeDoc = iframeRef.current?.contentDocument
+   532→      if (!iframeDoc) return
+   533→
+   534→      // Inject a script that handles click events and selection
+   535→      const script = iframeDoc.createElement('script')
+   536→      script.textContent = `
+   537→        (function() {
+   538→          document.addEventListener('click', function(e) {
+   539→            var target = e.target;
+   540→            // Find closest element with data-element-id
+   541→            while (target && !target.getAttribute('data-element-id')) {
+   542→              target = target.parentElement;
+   543→            }
+   544→            if (target && target.getAttribute('data-element-id')) {
+   545→              e.preventDefault();
+   546→              e.stopPropagation();
+   547→              // Remove previous selection
+   548→              var prev = document.querySelector('.selected');
+   549→              if (prev) prev.classList.remove('selected');
+   550→              // Add selection
+   551→              target.classList.add('selected');
+   552→              // Notify parent
+   553→              window.parent.postMessage({
+   554→                type: 'element-selected',
+   555→                elementId: target.getAttribute('data-element-id')
+   556→              }, '*');
+   557→            }
+   558→          }, true);
+   559→
+   560→          // Listen for highlight messages from parent
+   561→          window.addEventListener('message', function(e) {
+   562→            if (e.data && e.data.type === 'highlight-element') {
+   563→              var prev = document.querySelector('.selected');
+   564→              if (prev) prev.classList.remove('selected');
+   565→              if (e.data.elementId) {
+   566→                var el = document.querySelector('[data-element-id="' + e.data.elementId + '"]');
+   567→                if (el) el.classList.add('selected');
+   568→              }
+   569→            }
+   570→          });
+   571→        })();
+   572→      `
+   573→      iframeDoc.body.appendChild(script)
+   574→    } catch {
+   575→      // Cross-origin restrictions may prevent this
+   576→    }
+   577→  }, [])
+   578→
+   579→  // ─── Layer visibility/lock toggles ────────────────────────────────────
+   580→  const toggleLayerVisibility = (id: string) => {
+   581→    setLayers(prev => prev.map(l => {
+   582→      if (l.id === id) return { ...l, visible: !l.visible }
+   583→      if (l.children) return { ...l, children: l.children.map(c => c.id === id ? { ...c, visible: !c.visible } : c) }
+   584→      return l
+   585→    }))
+   586→    toast({ title: `Element visibility toggled`, description: `${id} visibility changed` })
+   587→  }
+   588→
+   589→  const toggleLayerLock = (id: string) => {
+   590→    setLayers(prev => prev.map(l => {
+   591→      if (l.id === id) return { ...l, locked: !l.locked }
+   592→      if (l.children) return { ...l, children: l.children.map(c => c.id === id ? { ...c, locked: !c.locked } : c) }
+   593→      return l
+   594→    }))
+   595→  }
+   596→
+   597→  const duplicateLayer = (id: string) => {
+   598→    toast({ title: 'Element duplicated', description: `${id} has been duplicated` })
+   599→  }
+   600→
+   601→  const deleteLayer = (id: string) => {
+   602→    setLayers(prev => prev.filter(l => l.id !== id).map(l => ({
+   603→      ...l,
+   604→      children: l.children?.filter(c => c.id !== id)
+   605→    })))
+   606→    if (selectedElementId === id) setSelectedElement(null)
+   607→    toast({ title: 'Element deleted', description: `${id} has been removed` })
+   608→  }
+   609→
+   610→  const toggleExpand = (id: string) => {
+   611→    setExpandedLayers(prev =>
+   612→      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+   613→    )
+   614→  }
+   615→
+   616→  // ─── Component add ────────────────────────────────────────────────────
+   617→  const addComponent = (comp: ComponentItem) => {
+   618→    toast({ title: 'Component added', description: `${comp.name} has been added to the canvas` })
+   619→  }
+   620→
+   621→  // ─── Design block add ─────────────────────────────────────────────────
+   622→  const addDesignBlock = (block: DesignBlock) => {
+   623→    toast({ title: 'Design block applied', description: `${block.name} has been applied` })
+   624→  }
+   625→
+   626→  // ─── Device frame widths ──────────────────────────────────────────────
+   627→  const getDeviceWidth = () => {
+   628→    switch (devicePreview) {
+   629→      case 'desktop': return '100%'
+   630→      case 'tablet': return 768
+   631→      case 'mobile': return 375
+   632→      case 'landscape': return 1024
+   633→      case 'portrait': return 414
+   634→      default: return '100%'
+   635→    }
+   636→  }
+   637→
+   638→  const getDeviceHeight = () => {
+   639→    switch (devicePreview) {
+   640→      case 'desktop': return '100%'
+   641→      case 'tablet': return 1024
+   642→      case 'mobile': return 667
+   643→      case 'landscape': return 768
+   644→      case 'portrait': return 896
+   645→      default: return '100%'
+   646→    }
+   647→  }
+   648→
+   649→  const isDesktop = devicePreview === 'desktop'
+   650→
+   651→  // ─── Save/Export/Deploy handlers ──────────────────────────────────────
+   652→  const handleSave = () => {
+   653→    toast({ title: 'Project saved', description: 'All changes have been saved successfully' })
+   654→  }
+   655→
+   656→  const handleExport = () => {
+   657→    toast({ title: 'Project exported', description: 'HTML/CSS/JS files have been exported' })
+   658→  }
+   659→
+   660→  const handleDeploy = () => {
+   661→    toast({ title: 'Deployment started', description: 'Your site is being deployed to production' })
+   662→  }
+   663→
+   664→  // ─── Selected element info ────────────────────────────────────────────
+   665→  const getSelectedElementName = () => {
+   666→    for (const layer of layers) {
+   667→      if (layer.id === selectedElementId) return layer.name
+   668→      if (layer.children) {
+   669→        for (const child of layer.children) {
+   670→          if (child.id === selectedElementId) return child.name
+   671→        }
+   672→      }
+   673→    }
+   674→    return selectedElementId || ''
+   675→  }
+   676→
+   677→  // ─── RENDER ───────────────────────────────────────────────────────────
+   678→
+   679→  return (
+   680→    <div className="h-screen w-screen flex flex-col bg-[#0D0D1A] text-[#E8E8F0] overflow-hidden">
+   681→      {/* ── TOP TOOLBAR ────────────────────────────────────────────────── */}
+   682→      <div className="h-12 flex items-center justify-between px-3 border-b border-[#2A2A4A]/60 bg-[#0D0D1A]/90 backdrop-blur-sm z-50 shrink-0">
+   683→        {/* Left section */}
+   684→        <div className="flex items-center gap-3">
+   685→          <Tooltip>
+   686→            <TooltipTrigger asChild>
+   687→              <Button
+   688→                variant="ghost"
+   689→                size="icon"
+   690→                className="h-8 w-8 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]"
+   691→                onClick={() => navigate('dashboard')}
+   692→              >
+   693→                <ArrowLeft size={16} />
+   694→              </Button>
+   695→            </TooltipTrigger>
+   696→            <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Back to Dashboard</TooltipContent>
+   697→          </Tooltip>
+   698→
+   699→          <div className="flex items-center gap-2">
+   700→            <Sparkles size={16} className="text-[#6C5CE7]" />
+   701→            <span className="font-bold text-sm bg-gradient-to-r from-[#6C5CE7] to-[#00CEC9] bg-clip-text text-transparent">Forge</span>
+   702→            <Separator orientation="vertical" className="h-5 bg-[#2A2A4A]" />
+   703→            <span className="text-sm font-medium text-[#8888AA]">Nexus Project</span>
+   704→          </div>
+   705→        </div>
+   706→
+   707→        {/* Center section - undo/redo + device preview */}
+   708→        <div className="flex items-center gap-2">
+   709→          {/* Undo/Redo */}
+   710→          <div className="flex items-center gap-1">
+   711→            <Tooltip>
+   712→              <TooltipTrigger asChild>
+   713→                <Button
+   714→                  variant="ghost"
+   715→                  size="icon"
+   716→                  className="h-8 w-8 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A] disabled:opacity-40"
+   717→                  onClick={undo}
+   718→                  disabled={historyIndex <= 0}
+   719→                >
+   720→                  <Undo2 size={15} />
+   721→                </Button>
+   722→              </TooltipTrigger>
+   723→              <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Undo (Ctrl+Z)</TooltipContent>
+   724→            </Tooltip>
+   725→            <Tooltip>
+   726→              <TooltipTrigger asChild>
+   727→                <Button
+   728→                  variant="ghost"
+   729→                  size="icon"
+   730→                  className="h-8 w-8 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A] disabled:opacity-40"
+   731→                  onClick={redo}
+   732→                  disabled={historyIndex >= editorHistory.length - 1}
+   733→                >
+   734→                  <Redo2 size={15} />
+   735→                </Button>
+   736→              </TooltipTrigger>
+   737→              <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Redo (Ctrl+Shift+Z)</TooltipContent>
+   738→            </Tooltip>
+   739→          </div>
+   740→
+   741→          <Separator orientation="vertical" className="h-5 bg-[#2A2A4A] mx-1" />
+   742→
+   743→          {/* Device Preview Switcher */}
+   744→          <div className="flex items-center gap-1 bg-[#1A1A3A] rounded-lg p-1">
+   745→            {([
+   746→              { device: 'desktop' as const, icon: <Monitor size={15} />, label: 'Desktop' },
+   747→              { device: 'tablet' as const, icon: <Tablet size={15} />, label: 'Tablet' },
+   748→              { device: 'mobile' as const, icon: <Smartphone size={15} />, label: 'Mobile' },
+   749→            ]).map(({ device, icon, label }) => (
+   750→              <Tooltip key={device}>
+   751→                <TooltipTrigger asChild>
+   752→                  <Button
+   753→                    variant="ghost"
+   754→                    size="icon"
+   755→                    className={`h-7 w-7 rounded-md transition-all ${
+   756→                      devicePreview === device
+   757→                        ? 'bg-[#6C5CE7] text-white shadow-md shadow-[#6C5CE7]/30'
+   758→                        : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#2A2A4A]'
+   759→                    }`}
+   760→                    onClick={() => setDevicePreview(device)}
+   761→                  >
+   762→                    {icon}
+   763→                  </Button>
+   764→                </TooltipTrigger>
+   765→                <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">{label}</TooltipContent>
+   766→              </Tooltip>
+   767→            ))}
+   768→          </div>
+   769→
+   770→          {/* Zoom controls */}
+   771→          <div className="flex items-center gap-1 ml-1">
+   772→            <Tooltip>
+   773→              <TooltipTrigger asChild>
+   774→                <Button
+   775→                  variant="ghost"
+   776→                  size="icon"
+   777→                  className="h-7 w-7 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]"
+   778→                  onClick={() => setZoom(Math.max(50, zoom - 10))}
+   779→                >
+   780→                  <ZoomOut size={14} />
+   781→                </Button>
+   782→              </TooltipTrigger>
+   783→              <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Zoom Out</TooltipContent>
+   784→            </Tooltip>
+   785→            <span className="text-xs text-[#8888AA] w-8 text-center">{zoom}%</span>
+   786→            <Tooltip>
+   787→              <TooltipTrigger asChild>
+   788→                <Button
+   789→                  variant="ghost"
+   790→                  size="icon"
+   791→                  className="h-7 w-7 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]"
+   792→                  onClick={() => setZoom(Math.min(200, zoom + 10))}
+   793→                >
+   794→                  <ZoomIn size={14} />
+   795→                </Button>
+   796→              </TooltipTrigger>
+   797→              <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Zoom In</TooltipContent>
+   798→            </Tooltip>
+   799→          </div>
+   800→        </div>
+   801→
+   802→        {/* Right section - actions */}
+   803→        <div className="flex items-center gap-2">
+   804→          <Tooltip>
+   805→            <TooltipTrigger asChild>
+   806→              <Button
+   807→                variant="ghost"
+   808→                size="icon"
+   809→                className={`h-8 w-8 ${showCodePanel ? 'bg-[#6C5CE7] text-white' : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]'}`}
+   810→                onClick={() => setShowCodePanel(!showCodePanel)}
+   811→              >
+   812→                <Code2 size={15} />
+   813→              </Button>
+   814→            </TooltipTrigger>
+   815→            <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Toggle Code Panel</TooltipContent>
+   816→          </Tooltip>
+   817→
+   818→          <Separator orientation="vertical" className="h-5 bg-[#2A2A4A]" />
+   819→
+   820→          <Tooltip>
+   821→            <TooltipTrigger asChild>
+   822→              <Button
+   823→                variant="ghost"
+   824→                size="sm"
+   825→                className="h-8 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A] gap-1.5"
+   826→                onClick={handleSave}
+   827→              >
+   828→                <Save size={14} />
+   829→                <span className="text-xs font-medium">Save</span>
+   830→              </Button>
+   831→            </TooltipTrigger>
+   832→            <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Save (Ctrl+S)</TooltipContent>
+   833→          </Tooltip>
+   834→
+   835→          <Tooltip>
+   836→            <TooltipTrigger asChild>
+   837→              <Button
+   838→                variant="ghost"
+   839→                size="sm"
+   840→                className="h-8 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A] gap-1.5"
+   841→                onClick={handleExport}
+   842→              >
+   843→                <Download size={14} />
+   844→                <span className="text-xs font-medium">Export</span>
+   845→              </Button>
+   846→            </TooltipTrigger>
+   847→            <TooltipContent side="bottom" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Export HTML/CSS/JS</TooltipContent>
+   848→          </Tooltip>
+   849→
+   850→          <Button
+   851→            size="sm"
+   852→            className="h-8 bg-gradient-to-r from-[#6C5CE7] to-[#00CEC9] text-white hover:shadow-lg hover:shadow-[#6C5CE7]/30 gap-1.5 font-semibold text-xs"
+   853→            onClick={handleDeploy}
+   854→          >
+   855→            <Rocket size={14} />
+   856→            Deploy
+   857→          </Button>
+   858→        </div>
+   859→      </div>
+   860→
+   861→      {/* ── MAIN CONTENT AREA ─────────────────────────────────────────── */}
+   862→      <div className="flex-1 flex overflow-hidden relative">
+   863→
+   864→        {/* ── LEFT PANEL ────────────────────────────────────────────────── */}
+   865→        <motion.div
+   866→          className="w-[280px] shrink-0 border-r border-[#2A2A4A]/60 bg-[#0D0D1A] flex flex-col overflow-hidden"
+   867→          initial={{ x: 0 }}
+   868→          animate={{ x: 0 }}
+   869→        >
+   870→          {/* Panel Tabs */}
+   871→          <div className="px-2 pt-2 pb-1">
+   872→            <Tabs value={editorPanel} onValueChange={(v) => setEditorPanel(v as any)}>
+   873→              <TabsList className="w-full bg-[#1A1A3A] h-9 p-1 rounded-lg">
+   874→                <TabsTrigger
+   875→                  value="layers"
+   876→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+   877→                >
+   878→                  <Layers size={13} />
+   879→                  Layers
+   880→                </TabsTrigger>
+   881→                <TabsTrigger
+   882→                  value="components"
+   883→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+   884→                >
+   885→                  <Grid3X3 size={13} />
+   886→                  Components
+   887→                </TabsTrigger>
+   888→                <TabsTrigger
+   889→                  value="design-library"
+   890→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+   891→                >
+   892→                  <Palette size={13} />
+   893→                  Design
+   894→                </TabsTrigger>
+   895→              </TabsList>
+   896→            </Tabs>
+   897→          </div>
+   898→
+   899→          <Separator className="bg-[#2A2A4A]/40" />
+   900→
+   901→          {/* Panel Content */}
+   902→          <ScrollArea className="flex-1">
+   903→            <AnimatePresence mode="wait">
+   904→              {/* ── LAYERS TAB ─────────────────────────────────────────── */}
+   905→              {editorPanel === 'layers' && (
+   906→                <motion.div
+   907→                  key="layers"
+   908→                  initial={{ opacity: 0, x: -10 }}
+   909→                  animate={{ opacity: 1, x: 0 }}
+   910→                  exit={{ opacity: 0, x: -10 }}
+   911→                  transition={{ duration: 0.2 }}
+   912→                  className="p-3"
+   913→                >
+   914→                  <div className="flex items-center justify-between mb-2">
+   915→                    <span className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider">Page Structure</span>
+   916→                    <Badge variant="outline" className="text-[10px] bg-[#1A1A3A] text-[#8888AA] border-[#2A2A4A] h-5">
+   917→                      {layers.length} elements
+   918→                    </Badge>
+   919→                  </div>
+   920→
+   921→                  {layers.map((layer) => (
+   922→                    <div key={layer.id}>
+   923→                      <motion.div
+   924→                        className={`group flex items-center gap-1.5 py-1.5 px-2 rounded-md cursor-pointer transition-all ${
+   925→                          selectedElementId === layer.id
+   926→                            ? 'bg-[#6C5CE7]/15 border border-[#6C5CE7]/30'
+   927→                            : 'hover:bg-[#1A1A3A] border border-transparent'
+   928→                        }`}
+   929→                        whileHover={{ scale: 1.01 }}
+   930→                        onClick={() => setSelectedElement(layer.id)}
+   931→                      >
+   932→                        {layer.children && (
+   933→                          <button
+   934→                            className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#E8E8F0]"
+   935→                            onClick={(e) => { e.stopPropagation(); toggleExpand(layer.id) }}
+   936→                          >
+   937→                            {expandedLayers.includes(layer.id) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+   938→                          </button>
+   939→                        )}
+   940→                        {!layer.children && <div className="w-5" />}
+   941→                        <span className="text-[#8888AA] shrink-0">{layer.icon}</span>
+   942→                        <span className={`text-xs font-medium truncate ${
+   943→                          selectedElementId === layer.id ? 'text-[#A29BFE]' : 'text-[#E8E8F0]'
+   944→                        }`}>{layer.name}</span>
+   945→                        <div className="flex-1" />
+   946→                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+   947→                          <button
+   948→                            className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#E8E8F0] rounded"
+   949→                            onClick={(e) => { e.stopPropagation(); toggleLayerVisibility(layer.id) }}
+   950→                          >
+   951→                            {layer.visible ? <Eye size={11} /> : <EyeOff size={11} />}
+   952→                          </button>
+   953→                          <button
+   954→                            className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#E8E8F0] rounded"
+   955→                            onClick={(e) => { e.stopPropagation(); toggleLayerLock(layer.id) }}
+   956→                          >
+   957→                            {layer.locked ? <Lock size={11} /> : <Unlock size={11} />}
+   958→                          </button>
+   959→                          <button
+   960→                            className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#A29BFE] rounded"
+   961→                            onClick={(e) => { e.stopPropagation(); duplicateLayer(layer.id) }}
+   962→                          >
+   963→                            <Copy size={11} />
+   964→                          </button>
+   965→                          <button
+   966→                            className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#FF6B6B] rounded"
+   967→                            onClick={(e) => { e.stopPropagation(); deleteLayer(layer.id) }}
+   968→                          >
+   969→                            <Trash2 size={11} />
+   970→                          </button>
+   971→                        </div>
+   972→                      </motion.div>
+   973→
+   974→                      {/* Children */}
+   975→                      <AnimatePresence>
+   976→                        {layer.children && expandedLayers.includes(layer.id) && (
+   977→                          <motion.div
+   978→                            initial={{ height: 0, opacity: 0 }}
+   979→                            animate={{ height: 'auto', opacity: 1 }}
+   980→                            exit={{ height: 0, opacity: 0 }}
+   981→                            transition={{ duration: 0.2 }}
+   982→                            className="ml-4 pl-2 border-l border-[#2A2A4A]/40"
+   983→                          >
+   984→                            {layer.children.map((child) => (
+   985→                              <motion.div
+   986→                                key={child.id}
+   987→                                className={`group flex items-center gap-1.5 py-1 px-2 rounded-md cursor-pointer transition-all ${
+   988→                                  selectedElementId === child.id
+   989→                                    ? 'bg-[#6C5CE7]/15 border border-[#6C5CE7]/30'
+   990→                                    : 'hover:bg-[#1A1A3A] border border-transparent'
+   991→                                }`}
+   992→                                whileHover={{ scale: 1.01 }}
+   993→                                onClick={() => setSelectedElement(child.id)}
+   994→                              >
+   995→                                <span className="text-[#8888AA] shrink-0">{child.icon}</span>
+   996→                                <span className={`text-xs font-medium truncate ${
+   997→                                  selectedElementId === child.id ? 'text-[#A29BFE]' : 'text-[#E8E8F0]'
+   998→                                }`}>{child.name}</span>
+   999→                                <div className="flex-1" />
+  1000→                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+  1001→                                  <button
+  1002→                                    className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#E8E8F0] rounded"
+  1003→                                    onClick={(e) => { e.stopPropagation(); toggleLayerVisibility(child.id) }}
+  1004→                                  >
+  1005→                                    {child.visible ? <Eye size={11} /> : <EyeOff size={11} />}
+  1006→                                  </button>
+  1007→                                  <button
+  1008→                                    className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#E8E8F0] rounded"
+  1009→                                    onClick={(e) => { e.stopPropagation(); toggleLayerLock(child.id) }}
+  1010→                                  >
+  1011→                                    {child.locked ? <Lock size={11} /> : <Unlock size={11} />}
+  1012→                                  </button>
+  1013→                                  <button
+  1014→                                    className="h-5 w-5 flex items-center justify-center text-[#8888AA] hover:text-[#FF6B6B] rounded"
+  1015→                                    onClick={(e) => { e.stopPropagation(); deleteLayer(child.id) }}
+  1016→                                  >
+  1017→                                    <Trash2 size={11} />
+  1018→                                  </button>
+  1019→                                </div>
+  1020→                              </motion.div>
+  1021→                            ))}
+  1022→                          </motion.div>
+  1023→                        )}
+  1024→                      </AnimatePresence>
+  1025→                    </div>
+  1026→                  ))}
+  1027→
+  1028→                  <div className="mt-3 flex items-center gap-2">
+  1029→                    <Button
+  1030→                      variant="outline"
+  1031→                      size="sm"
+  1032→                      className="w-full border-[#2A2A4A] bg-[#1A1A3A] text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#2A2A4A] h-8 text-xs gap-1.5"
+  1033→                    >
+  1034→                      <Plus size={13} />
+  1035→                      Add Section
+  1036→                    </Button>
+  1037→                  </div>
+  1038→
+  1039→                  {/* Keyboard shortcuts */}
+  1040→                  <div className="mt-4 p-2 rounded-md bg-[#1A1A3A]/50 border border-[#2A2A4A]/30">
+  1041→                    <span className="text-[10px] font-semibold text-[#8888AA] uppercase tracking-wider">Shortcuts</span>
+  1042→                    <div className="mt-1.5 space-y-1">
+  1043→                      {[
+  1044→                        { key: 'Ctrl+Z', action: 'Undo' },
+  1045→                        { key: 'Ctrl+Shift+Z', action: 'Redo' },
+  1046→                        { key: 'Ctrl+S', action: 'Save' },
+  1047→                        { key: 'Delete', action: 'Remove element' },
+  1048→                        { key: 'Ctrl+D', action: 'Duplicate' },
+  1049→                      ].map(({ key, action }) => (
+  1050→                        <div key={key} className="flex items-center justify-between">
+  1051→                          <span className="text-[10px] text-[#8888AA]">{action}</span>
+  1052→                          <kbd className="text-[10px] bg-[#2A2A4A] text-[#8888AA] px-1.5 py-0.5 rounded font-mono">{key}</kbd>
+  1053→                        </div>
+  1054→                      ))}
+  1055→                    </div>
+  1056→                  </div>
+  1057→                </motion.div>
+  1058→              )}
+  1059→
+  1060→              {/* ── COMPONENTS TAB ─────────────────────────────────────── */}
+  1061→              {editorPanel === 'components' && (
+  1062→                <motion.div
+  1063→                  key="components"
+  1064→                  initial={{ opacity: 0, x: -10 }}
+  1065→                  animate={{ opacity: 1, x: 0 }}
+  1066→                  exit={{ opacity: 0, x: -10 }}
+  1067→                  transition={{ duration: 0.2 }}
+  1068→                  className="p-3"
+  1069→                >
+  1070→                  {/* Search */}
+  1071→                  <div className="relative mb-3">
+  1072→                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8888AA]" />
+  1073→                    <Input
+  1074→                      placeholder="Search components..."
+  1075→                      value={componentSearch}
+  1076→                      onChange={(e) => setComponentSearch(e.target.value)}
+  1077→                      className="h-8 bg-[#1A1A3A] border-[#2A2A4A] text-[#E8E8F0] placeholder:text-[#8888AA] pl-8 text-xs rounded-lg"
+  1078→                    />
+  1079→                  </div>
+  1080→
+  1081→                  {/* Categories */}
+  1082→                  {componentCategories.map((cat) => {
+  1083→                    const filtered = componentItems
+  1084→                      .filter(c => c.category === cat.id)
+  1085→                      .filter(c => componentSearch === '' || c.name.toLowerCase().includes(componentSearch.toLowerCase()))
+  1086→
+  1087→                    if (filtered.length === 0) return null
+  1088→
+  1089→                    return (
+  1090→                      <div key={cat.id} className="mb-4">
+  1091→                        <div className="flex items-center gap-1.5 mb-2">
+  1092→                          <span className="text-[#8888AA]">{cat.icon}</span>
+  1093→                          <span className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider">{cat.name}</span>
+  1094→                          <Badge variant="outline" className="text-[10px] bg-[#1A1A3A] text-[#8888AA] border-[#2A2A4A] h-4 ml-1">
+  1095→                            {filtered.length}
+  1096→                          </Badge>
+  1097→                        </div>
+  1098→                        <div className="grid grid-cols-2 gap-1.5">
+  1099→                          {filtered.map((comp) => (
+  1100→                            <motion.div
+  1101→                              key={comp.id}
+  1102→                              whileHover={{ scale: 1.03, y: -2 }}
+  1103→                              whileTap={{ scale: 0.97 }}
+  1104→                            >
+  1105→                              <Card
+  1106→                                className="bg-[#1A1A3A] border-[#2A2A4A] hover:border-[#6C5CE7]/50 cursor-pointer transition-colors overflow-hidden"
+  1107→                                onClick={() => addComponent(comp)}
+  1108→                              >
+  1109→                                <CardContent className="p-2.5">
+  1110→                                  <div className="h-8 bg-[#2A2A4A] rounded-md flex items-center justify-center text-xs font-mono text-[#8888AA] mb-1.5">
+  1111→                                    {comp.preview}
+  1112→                                  </div>
+  1113→                                  <span className="text-[11px] font-medium text-[#E8E8F0] truncate block">{comp.name}</span>
+  1114→                                  <span className="text-[10px] text-[#8888AA] truncate block">{comp.description}</span>
+  1115→                                </CardContent>
+  1116→                              </Card>
+  1117→                            </motion.div>
+  1118→                          ))}
+  1119→                        </div>
+  1120→                      </div>
+  1121→                    )
+  1122→                  })}
+  1123→                </motion.div>
+  1124→              )}
+  1125→
+  1126→              {/* ── DESIGN LIBRARY TAB ─────────────────────────────────── */}
+  1127→              {editorPanel === 'design-library' && (
+  1128→                <motion.div
+  1129→                  key="design-library"
+  1130→                  initial={{ opacity: 0, x: -10 }}
+  1131→                  animate={{ opacity: 1, x: 0 }}
+  1132→                  exit={{ opacity: 0, x: -10 }}
+  1133→                  transition={{ duration: 0.2 }}
+  1134→                  className="p-3"
+  1135→                >
+  1136→                  {/* Search */}
+  1137→                  <div className="relative mb-3">
+  1138→                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8888AA]" />
+  1139→                    <Input
+  1140→                      placeholder="Search designs..."
+  1141→                      value={designSearch}
+  1142→                      onChange={(e) => setDesignSearch(e.target.value)}
+  1143→                      className="h-8 bg-[#1A1A3A] border-[#2A2A4A] text-[#E8E8F0] placeholder:text-[#8888AA] pl-8 text-xs rounded-lg"
+  1144→                    />
+  1145→                  </div>
+  1146→
+  1147→                  {/* Categories */}
+  1148→                  {designCategories.map((cat) => {
+  1149→                    const filtered = designBlocks
+  1150→                      .filter(d => d.category === cat)
+  1151→                      .filter(d => designSearch === '' || d.name.toLowerCase().includes(designSearch.toLowerCase()))
+  1152→
+  1153→                    if (filtered.length === 0) return null
+  1154→
+  1155→                    const catLabel = cat.charAt(0).toUpperCase() + cat.slice(1)
+  1156→                    const catIcon = cat === 'buttons' ? <ToggleLeft size={13} />
+  1157→                      : cat === 'cards' ? <Square size={13} />
+  1158→                      : cat === 'inputs' ? <Move size={13} />
+  1159→                      : cat === 'colors' ? <Palette size={13} />
+  1160→                      : cat === 'typography' ? <Type size={13} />
+  1161→                      : <Sparkles size={13} />
+  1162→
+  1163→                    return (
+  1164→                      <div key={cat} className="mb-4">
+  1165→                        <div className="flex items-center gap-1.5 mb-2">
+  1166→                          <span className="text-[#8888AA]">{catIcon}</span>
+  1167→                          <span className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider">{catLabel}</span>
+  1168→                          <Badge variant="outline" className="text-[10px] bg-[#1A1A3A] text-[#8888AA] border-[#2A2A4A] h-4 ml-1">
+  1169→                            {filtered.length}
+  1170→                          </Badge>
+  1171→                        </div>
+  1172→                        <div className="space-y-1">
+  1173→                          {filtered.map((block) => (
+  1174→                            <motion.div
+  1175→                              key={block.id}
+  1176→                              whileHover={{ scale: 1.02, x: 4 }}
+  1177→                              whileTap={{ scale: 0.98 }}
+  1178→                              className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-[#1A1A3A] border border-[#2A2A4A] hover:border-[#6C5CE7]/50 cursor-pointer transition-colors"
+  1179→                              onClick={() => addDesignBlock(block)}
+  1180→                            >
+  1181→                              <div className="h-7 w-7 bg-[#2A2A4A] rounded-md flex items-center justify-center text-[10px] font-mono text-[#8888AA] shrink-0">
+  1182→                                {block.preview.substring(0, 3)}
+  1183→                              </div>
+  1184→                              <span className="text-xs font-medium text-[#E8E8F0]">{block.name}</span>
+  1185→                              <Plus size={12} className="text-[#8888AA] ml-auto" />
+  1186→                            </motion.div>
+  1187→                          ))}
+  1188→                        </div>
+  1189→                      </div>
+  1190→                    )
+  1191→                  })}
+  1192→                </motion.div>
+  1193→              )}
+  1194→            </AnimatePresence>
+  1195→          </ScrollArea>
+  1196→        </motion.div>
+  1197→
+  1198→        {/* ── CENTER - LIVE PREVIEW ─────────────────────────────────────── */}
+  1199→        <div className="flex-1 flex flex-col overflow-hidden bg-[#080818] relative">
+  1200→          {/* Selected element info bar */}
+  1201→          {selectedElementId && (
+  1202→            <motion.div
+  1203→              initial={{ y: -20, opacity: 0 }}
+  1204→              animate={{ y: 0, opacity: 1 }}
+  1205→              className="h-8 flex items-center gap-2 px-3 bg-[#1A1A3A]/80 border-b border-[#2A2A4A]/40 shrink-0"
+  1206→            >
+  1207→              <Badge className="bg-[#6C5CE7] text-white text-[10px] h-5">{selectedElementId}</Badge>
+  1208→              <span className="text-xs text-[#8888AA]">{getSelectedElementName()}</span>
+  1209→              <div className="flex-1" />
+  1210→              <Button
+  1211→                variant="ghost"
+  1212→                size="sm"
+  1213→                className="h-6 text-[10px] text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#2A2A4A]"
+  1214→                onClick={() => setSelectedElement(null)}
+  1215→              >
+  1216→                Deselect
+  1217→              </Button>
+  1218→            </motion.div>
+  1219→          )}
+  1220→
+  1221→          {/* Preview container */}
+  1222→          <div className="flex-1 flex items-center justify-center overflow-auto p-4 relative">
+  1223→            {/* Device frame */}
+  1224→            <div
+  1225→              className={`relative transition-all duration-500 ease-out ${
+  1226→                !isDesktop ? 'rounded-2xl border-[3px] border-[#2A2A4A] shadow-2xl shadow-black/50' : ''
+  1227→              }`}
+  1228→              style={{
+  1229→                width: isDesktop ? '100%' : `${getDeviceWidth()}px`,
+  1230→                height: isDesktop ? '100%' : `${getDeviceHeight()}px`,
+  1231→                maxWidth: isDesktop ? 'none' : `${getDeviceWidth()}px`,
+  1232→                transform: `scale(${zoom / 100})`,
+  1233→                transformOrigin: 'center center',
+  1234→              }}
+  1235→            >
+  1236→              {/* Device bezel top (not desktop) */}
+  1237→              {!isDesktop && (
+  1238→                <div className="h-6 bg-[#1A1A3A] rounded-t-xl flex items-center justify-center gap-2 border-b border-[#2A2A4A]">
+  1239→                  <div className="w-2 h-2 rounded-full bg-[#2A2A4A]" />
+  1240→                  <span className="text-[10px] text-[#8888AA] font-mono">
+  1241→                    {devicePreview === 'tablet' ? '768 × 1024' : devicePreview === 'mobile' ? '375 × 667' : `${getDeviceWidth()} × ${getDeviceHeight()}`}
+  1242→                  </span>
+  1243→                </div>
+  1244→              )}
+  1245→
+  1246→              <iframe
+  1247→                ref={iframeRef}
+  1248→                srcDoc={defaultWebsiteHTML}
+  1249→                className="w-full h-full bg-white rounded-none"
+  1250→                style={{
+  1251→                  height: isDesktop ? '100%' : `${(getDeviceHeight() as number) - 24}px`,
+  1252→                  border: 'none',
+  1253→                }}
+  1254→                onLoad={handleIframeLoad}
+  1255→                title="Website Preview"
+  1256→                sandbox="allow-scripts allow-same-origin"
+  1257→              />
+  1258→
+  1259→              {/* Device bezel bottom (not desktop) */}
+  1260→              {!isDesktop && (
+  1261→                <div className="h-4 bg-[#1A1A3A] rounded-b-xl flex items-center justify-center">
+  1262→                  <div className="w-16 h-1 rounded-full bg-[#2A2A4A]" />
+  1263→                </div>
+  1264→              )}
+  1265→            </div>
+  1266→          </div>
+  1267→
+  1268→          {/* ── CODE PANEL (toggleable bottom) ──────────────────────────── */}
+  1269→          <AnimatePresence>
+  1270→            {showCodePanel && (
+  1271→              <motion.div
+  1272→                initial={{ height: 0 }}
+  1273→                animate={{ height: 240 }}
+  1274→                exit={{ height: 0 }}
+  1275→                transition={{ duration: 0.3, ease: 'easeInOut' }}
+  1276→                className="border-t border-[#2A2A4A]/60 bg-[#0D0D1A] shrink-0 overflow-hidden"
+  1277→              >
+  1278→                <div className="h-full flex flex-col">
+  1279→                  {/* Code panel tabs + copy */}
+  1280→                  <div className="h-8 flex items-center justify-between px-3 bg-[#1A1A3A]/50 border-b border-[#2A2A4A]/40 shrink-0">
+  1281→                    <Tabs value={codeTab} onValueChange={(v) => setCodeTab(v as any)}>
+  1282→                      <TabsList className="bg-[#1A1A3A] h-7 p-0.5 rounded-md">
+  1283→                        <TabsTrigger
+  1284→                          value="html"
+  1285→                          className="data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-6 px-2 rounded text-[11px] font-medium gap-1"
+  1286→                        >
+  1287→                          <FileCode size={12} />
+  1288→                          HTML
+  1289→                        </TabsTrigger>
+  1290→                        <TabsTrigger
+  1291→                          value="css"
+  1292→                          className="data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-6 px-2 rounded text-[11px] font-medium gap-1"
+  1293→                        >
+  1294→                          <Palette size={12} />
+  1295→                          CSS
+  1296→                        </TabsTrigger>
+  1297→                        <TabsTrigger
+  1298→                          value="js"
+  1299→                          className="data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-6 px-2 rounded text-[11px] font-medium gap-1"
+  1300→                        >
+  1301→                          <Settings2 size={12} />
+  1302→                          JS
+  1303→                        </TabsTrigger>
+  1304→                      </TabsList>
+  1305→                    </Tabs>
+  1306→
+  1307→                    <div className="flex items-center gap-1">
+  1308→                      <Tooltip>
+  1309→                        <TooltipTrigger asChild>
+  1310→                          <Button
+  1311→                            variant="ghost"
+  1312→                            size="icon"
+  1313→                            className="h-6 w-6 text-[#8888AA] hover:text-[#E8E8F0]"
+  1314→                            onClick={() => {
+  1315→                              navigator.clipboard.writeText(
+  1316→                                codeTab === 'html' ? htmlCode : codeTab === 'css' ? cssCode : jsCode
+  1317→                              )
+  1318→                              toast({ title: 'Code copied to clipboard' })
+  1319→                            }}
+  1320→                          >
+  1321→                            <Copy size={12} />
+  1322→                          </Button>
+  1323→                        </TooltipTrigger>
+  1324→                        <TooltipContent side="top" className="bg-[#1A1A3A] text-[#E8E8F0] border-[#2A2A4A]">Copy Code</TooltipContent>
+  1325→                      </Tooltip>
+  1326→                      <Button
+  1327→                        variant="ghost"
+  1328→                        size="icon"
+  1329→                        className="h-6 w-6 text-[#8888AA] hover:text-[#E8E8F0]"
+  1330→                        onClick={() => setShowCodePanel(false)}
+  1331→                      >
+  1332→                        <ChevronDown size={12} />
+  1333→                      </Button>
+  1334→                    </div>
+  1335→                  </div>
+  1336→
+  1337→                  {/* Code content */}
+  1338→                  <div className="flex-1 overflow-auto">
+  1339→                    <textarea
+  1340→                      value={codeTab === 'html' ? htmlCode : codeTab === 'css' ? cssCode : jsCode}
+  1341→                      onChange={(e) => {
+  1342→                        if (codeTab === 'html') setHtmlCode(e.target.value)
+  1343→                        else if (codeTab === 'css') setCssCode(e.target.value)
+  1344→                        else setJsCode(e.target.value)
+  1345→                      }}
+  1346→                      className="w-full h-full bg-[#0A0A1A] text-[#8888AA] font-mono text-xs p-3 resize-none outline-none border-none leading-relaxed"
+  1347→                      spellCheck={false}
+  1348→                    />
+  1349→                  </div>
+  1350→                </div>
+  1351→              </motion.div>
+  1352→            )}
+  1353→          </AnimatePresence>
+  1354→        </div>
+  1355→
+  1356→        {/* ── RIGHT PANEL - INSPECTOR ───────────────────────────────────── */}
+  1357→        <motion.div
+  1358→          className="w-[320px] shrink-0 border-l border-[#2A2A4A]/60 bg-[#0D0D1A] flex flex-col overflow-hidden"
+  1359→          initial={{ x: 0 }}
+  1360→          animate={{ x: 0 }}
+  1361→        >
+  1362→          {/* Inspector Tabs */}
+  1363→          <div className="px-2 pt-2 pb-1">
+  1364→            <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as any)}>
+  1365→              <TabsList className="w-full bg-[#1A1A3A] h-9 p-1 rounded-lg">
+  1366→                <TabsTrigger
+  1367→                  value="style"
+  1368→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+  1369→                >
+  1370→                  <Palette size={13} />
+  1371→                  Style
+  1372→                </TabsTrigger>
+  1373→                <TabsTrigger
+  1374→                  value="layout"
+  1375→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+  1376→                >
+  1377→                  <Layout size={13} />
+  1378→                  Layout
+  1379→                </TabsTrigger>
+  1380→                <TabsTrigger
+  1381→                  value="animation"
+  1382→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+  1383→                >
+  1384→                  <Sparkles size={13} />
+  1385→                  Animate
+  1386→                </TabsTrigger>
+  1387→                <TabsTrigger
+  1388→                  value="seo"
+  1389→                  className="flex-1 data-[state=active]:bg-[#6C5CE7] data-[state=active]:text-white text-[#8888AA] h-7 rounded-md text-xs font-medium gap-1"
+  1390→                >
+  1391→                  <Globe size={13} />
+  1392→                  SEO
+  1393→                </TabsTrigger>
+  1394→              </TabsList>
+  1395→            </Tabs>
+  1396→          </div>
+  1397→
+  1398→          <Separator className="bg-[#2A2A4A]/40" />
+  1399→
+  1400→          {/* Inspector Content */}
+  1401→          <ScrollArea className="flex-1">
+  1402→            <AnimatePresence mode="wait">
+  1403→              {/* ── STYLE TAB ──────────────────────────────────────────── */}
+  1404→              {inspectorTab === 'style' && (
+  1405→                <motion.div
+  1406→                  key="style"
+  1407→                  initial={{ opacity: 0, x: 10 }}
+  1408→                  animate={{ opacity: 1, x: 0 }}
+  1409→                  exit={{ opacity: 0, x: 10 }}
+  1410→                  transition={{ duration: 0.2 }}
+  1411→                  className="p-3 space-y-4"
+  1412→                >
+  1413→                  {/* Typography */}
+  1414→                  <div>
+  1415→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1416→                      <Type size={12} className="inline mr-1" /> Typography
+  1417→                    </Label>
+  1418→                    <div className="space-y-2">
+  1419→                      <div className="flex items-center gap-2">
+  1420→                        <Select value={fontFamily} onValueChange={setFontFamily}>
+  1421→                          <SelectTrigger className="h-8 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] flex-1">
+  1422→                            <SelectValue />
+  1423→                          </SelectTrigger>
+  1424→                          <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  1425→                            {['Inter', 'Helvetica', 'Arial', 'Georgia', 'Times New Roman', 'Courier New', 'Fira Code'].map(f => (
+  1426→                              <SelectItem key={f} value={f} className="text-[#E8E8F0] text-xs focus:bg-[#2A2A4A]">{f}</SelectItem>
+  1427→                            ))}
+  1428→                          </SelectContent>
+  1429→                        </Select>
+  1430→                      </div>
+  1431→                      <div className="flex items-center gap-2">
+  1432→                        <div className="flex-1">
+  1433→                          <Label className="text-[10px] text-[#8888AA] mb-1 block">Size</Label>
+  1434→                          <div className="flex items-center gap-1">
+  1435→                            <Slider
+  1436→                              value={[fontSize]}
+  1437→                              onValueChange={(v) => setFontSize(v[0])}
+  1438→                              min={8}
+  1439→                              max={72}
+  1440→                              step={1}
+  1441→                              className="flex-1 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]"
+  1442→                            />
+  1443→                            <Input
+  1444→                              value={fontSize}
+  1445→                              onChange={(e) => setFontSize(Number(e.target.value))}
+  1446→                              className="w-12 h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] text-center"
+  1447→                            />
+  1448→                          </div>
+  1449→                        </div>
+  1450→                      </div>
+  1451→                      <div className="flex items-center gap-2">
+  1452→                        <Select value={fontWeight} onValueChange={setFontWeight}>
+  1453→                          <SelectTrigger className="h-8 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] flex-1">
+  1454→                            <SelectValue />
+  1455→                          </SelectTrigger>
+  1456→                          <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  1457→                            {['300', '400', '500', '600', '700', '800', '900'].map(w => (
+  1458→                              <SelectItem key={w} value={w} className="text-[#E8E8F0] text-xs focus:bg-[#2A2A4A]">
+  1459→                                {w === '300' ? 'Light' : w === '400' ? 'Regular' : w === '500' ? 'Medium' : w === '600' ? 'Semibold' : w === '700' ? 'Bold' : w === '800' ? 'Extrabold' : 'Black'}
+  1460→                              </SelectItem>
+  1461→                            ))}
+  1462→                          </SelectContent>
+  1463→                        </Select>
+  1464→                        <div className="flex gap-0.5">
+  1465→                          <Button variant="ghost" size="icon" className="h-7 w-7 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]">
+  1466→                            <Bold size={13} />
+  1467→                          </Button>
+  1468→                          <Button variant="ghost" size="icon" className="h-7 w-7 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]">
+  1469→                            <Italic size={13} />
+  1470→                          </Button>
+  1471→                          <Button variant="ghost" size="icon" className="h-7 w-7 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]">
+  1472→                            <Underline size={13} />
+  1473→                          </Button>
+  1474→                        </div>
+  1475→                      </div>
+  1476→                      <div className="flex items-center gap-2">
+  1477→                        <div className="flex gap-0.5">
+  1478→                          {([
+  1479→                            { icon: <AlignLeft size={13} />, value: 'left' },
+  1480→                            { icon: <AlignCenter size={13} />, value: 'center' },
+  1481→                            { icon: <AlignRight size={13} />, value: 'right' },
+  1482→                          ]).map(({ icon, value }) => (
+  1483→                            <Button key={value} variant="ghost" size="icon" className="h-7 w-7 text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]">
+  1484→                              {icon}
+  1485→                            </Button>
+  1486→                          ))}
+  1487→                        </div>
+  1488→                        <div className="flex-1 flex items-center gap-1.5">
+  1489→                          <Label className="text-[10px] text-[#8888AA] shrink-0">Color</Label>
+  1490→                          <div className="relative flex-1">
+  1491→                            <input
+  1492→                              type="color"
+  1493→                              value={fontColor}
+  1494→                              onChange={(e) => setFontColor(e.target.value)}
+  1495→                              className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 rounded cursor-pointer opacity-0"
+  1496→                            />
+  1497→                            <Input
+  1498→                              value={fontColor}
+  1499→                              onChange={(e) => setFontColor(e.target.value)}
+  1500→                              className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] pl-7"
+  1501→                            />
+  1502→                            <div className="absolute left-1 top-1/2 -translate-y-1/2 w-4 h-4 rounded border border-[#2A2A4A]" style={{ background: fontColor }} />
+  1503→                          </div>
+  1504→                        </div>
+  1505→                      </div>
+  1506→                    </div>
+  1507→                  </div>
+  1508→
+  1509→                  <Separator className="bg-[#2A2A4A]/40" />
+  1510→
+  1511→                  {/* Background */}
+  1512→                  <div>
+  1513→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1514→                      <Circle size={12} className="inline mr-1" /> Background
+  1515→                    </Label>
+  1516→                    <div className="space-y-2">
+  1517→                      <div className="flex gap-1">
+  1518→                        {(['color', 'gradient', 'image'] as const).map((type) => (
+  1519→                          <Button
+  1520→                            key={type}
+  1521→                            variant="ghost"
+  1522→                            size="sm"
+  1523→                            className={`flex-1 h-7 text-xs font-medium ${
+  1524→                              bgType === type
+  1525→                                ? 'bg-[#6C5CE7] text-white'
+  1526→                                : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]'
+  1527→                            }`}
+  1528→                            onClick={() => setBgType(type)}
+  1529→                          >
+  1530→                            {type.charAt(0).toUpperCase() + type.slice(1)}
+  1531→                          </Button>
+  1532→                        ))}
+  1533→                      </div>
+  1534→                      {bgType === 'color' && (
+  1535→                        <div className="flex items-center gap-1.5">
+  1536→                          <Label className="text-[10px] text-[#8888AA] shrink-0">Color</Label>
+  1537→                          <div className="relative flex-1">
+  1538→                            <input
+  1539→                              type="color"
+  1540→                              value={bgColor}
+  1541→                              onChange={(e) => setBgColor(e.target.value)}
+  1542→                              className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 rounded cursor-pointer opacity-0"
+  1543→                            />
+  1544→                            <Input
+  1545→                              value={bgColor}
+  1546→                              onChange={(e) => setBgColor(e.target.value)}
+  1547→                              className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] pl-7"
+  1548→                            />
+  1549→                            <div className="absolute left-1 top-1/2 -translate-y-1/2 w-4 h-4 rounded border border-[#2A2A4A]" style={{ background: bgColor }} />
+  1550→                          </div>
+  1551→                        </div>
+  1552→                      )}
+  1553→                      {bgType === 'gradient' && (
+  1554→                        <div className="flex items-center gap-1.5">
+  1555→                          <Label className="text-[10px] text-[#8888AA] shrink-0">Gradient</Label>
+  1556→                          <Input
+  1557→                            value={bgGradient}
+  1558→                            onChange={(e) => setBgGradient(e.target.value)}
+  1559→                            className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] flex-1"
+  1560→                          />
+  1561→                        </div>
+  1562→                      )}
+  1563→                      {bgType === 'image' && (
+  1564→                        <div className="flex items-center gap-1.5">
+  1565→                          <Label className="text-[10px] text-[#8888AA] shrink-0">URL</Label>
+  1566→                          <Input
+  1567→                            placeholder="https://..."
+  1568→                            className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] placeholder:text-[#8888AA] flex-1"
+  1569→                          />
+  1570→                        </div>
+  1571→                      )}
+  1572→                      {/* Color palette */}
+  1573→                      <div className="flex gap-1 mt-1">
+  1574→                        {['#0A0A1A', '#1A1A3A', '#6C5CE7', '#00CEC9', '#FF6B6B', '#FDCB6E', '#E8E8F0', '#FFFFFF'].map(c => (
+  1575→                          <button
+  1576→                            key={c}
+  1577→                            className="w-6 h-6 rounded-md border border-[#2A2A4A] hover:border-[#6C5CE7] transition-colors"
+  1578→                            style={{ background: c }}
+  1579→                            onClick={() => setBgColor(c)}
+  1580→                          />
+  1581→                        ))}
+  1582→                      </div>
+  1583→                    </div>
+  1584→                  </div>
+  1585→
+  1586→                  <Separator className="bg-[#2A2A4A]/40" />
+  1587→
+  1588→                  {/* Border */}
+  1589→                  <div>
+  1590→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1591→                      <Square size={12} className="inline mr-1" /> Border
+  1592→                    </Label>
+  1593→                    <div className="space-y-2">
+  1594→                      <div className="grid grid-cols-2 gap-2">
+  1595→                        <div>
+  1596→                          <Label className="text-[10px] text-[#8888AA] mb-1 block">Width</Label>
+  1597→                          <Slider
+  1598→                            value={[borderWidth]}
+  1599→                            onValueChange={(v) => setBorderWidth(v[0])}
+  1600→                            min={0}
+  1601→                            max={20}
+  1602→                            step={1}
+  1603→                            className=" [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]"
+  1604→                          />
+  1605→                          <span className="text-[10px] text-[#8888AA] mt-0.5 block">{borderWidth}px</span>
+  1606→                        </div>
+  1607→                        <div>
+  1608→                          <Label className="text-[10px] text-[#8888AA] mb-1 block">Radius</Label>
+  1609→                          <Slider
+  1610→                            value={[borderRadius]}
+  1611→                            onValueChange={(v) => setBorderRadius(v[0])}
+  1612→                            min={0}
+  1613→                            max={50}
+  1614→                            step={1}
+  1615→                            className="[&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]"
+  1616→                          />
+  1617→                          <span className="text-[10px] text-[#8888AA] mt-0.5 block">{borderRadius}px</span>
+  1618→                        </div>
+  1619→                      </div>
+  1620→                      <div className="flex items-center gap-2">
+  1621→                        <Select value={borderStyle} onValueChange={setBorderStyle}>
+  1622→                          <SelectTrigger className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] flex-1">
+  1623→                            <SelectValue />
+  1624→                          </SelectTrigger>
+  1625→                          <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  1626→                            {['none', 'solid', 'dashed', 'dotted', 'double'].map(s => (
+  1627→                              <SelectItem key={s} value={s} className="text-[#E8E8F0] text-xs focus:bg-[#2A2A4A]">{s}</SelectItem>
+  1628→                            ))}
+  1629→                          </SelectContent>
+  1630→                        </Select>
+  1631→                        <div className="relative flex items-center">
+  1632→                          <input
+  1633→                            type="color"
+  1634→                            value={borderColor}
+  1635→                            onChange={(e) => setBorderColor(e.target.value)}
+  1636→                            className="w-5 h-5 rounded cursor-pointer opacity-0 absolute"
+  1637→                          />
+  1638→                          <div className="w-5 h-5 rounded border border-[#2A2A4A] cursor-pointer" style={{ background: borderColor }} />
+  1639→                        </div>
+  1640→                      </div>
+  1641→                    </div>
+  1642→                  </div>
+  1643→
+  1644→                  <Separator className="bg-[#2A2A4A]/40" />
+  1645→
+  1646→                  {/* Shadow */}
+  1647→                  <div>
+  1648→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1649→                      <Square size={12} className="inline mr-1" /> Shadow
+  1650→                    </Label>
+  1651→                    <div className="space-y-2">
+  1652→                      <Select value={shadowType} onValueChange={setShadowType}>
+  1653→                        <SelectTrigger className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0]">
+  1654→                          <SelectValue />
+  1655→                        </SelectTrigger>
+  1656→                        <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  1657→                          {['none', 'drop', 'inner', 'outline'].map(s => (
+  1658→                            <SelectItem key={s} value={s} className="text-[#E8E8F0] text-xs focus:bg-[#2A2A4A]">{s}</SelectItem>
+  1659→                          ))}
+  1660→                        </SelectContent>
+  1661→                      </Select>
+  1662→                      {shadowType !== 'none' && (
+  1663→                        <div className="grid grid-cols-2 gap-2">
+  1664→                          <div>
+  1665→                            <Label className="text-[10px] text-[#8888AA] mb-1 block">Blur</Label>
+  1666→                            <Slider value={[shadowBlur]} onValueChange={(v) => setShadowBlur(v[0])} min={0} max={100} step={1} className="[&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]" />
+  1667→                            <span className="text-[10px] text-[#8888AA]">{shadowBlur}px</span>
+  1668→                          </div>
+  1669→                          <div>
+  1670→                            <Label className="text-[10px] text-[#8888AA] mb-1 block">Offset</Label>
+  1671→                            <Slider value={[shadowOffset]} onValueChange={(v) => setShadowOffset(v[0])} min={0} max={50} step={1} className="[&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]" />
+  1672→                            <span className="text-[10px] text-[#8888AA]">{shadowOffset}px</span>
+  1673→                          </div>
+  1674→                        </div>
+  1675→                      )}
+  1676→                    </div>
+  1677→                  </div>
+  1678→
+  1679→                  <Separator className="bg-[#2A2A4A]/40" />
+  1680→
+  1681→                  {/* Opacity */}
+  1682→                  <div>
+  1683→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1684→                      Opacity
+  1685→                    </Label>
+  1686→                    <div className="flex items-center gap-2">
+  1687→                      <Slider value={[opacity]} onValueChange={(v) => setOpacity(v[0])} min={0} max={100} step={1} className="flex-1 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]" />
+  1688→                      <span className="text-xs text-[#8888AA] w-8 text-right">{opacity}%</span>
+  1689→                    </div>
+  1690→                  </div>
+  1691→
+  1692→                  {/* Color picker */}
+  1693→                  <div>
+  1694→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1695→                      Color Picker
+  1696→                    </Label>
+  1697→                    <div className="grid grid-cols-8 gap-1">
+  1698→                      {[
+  1699→                        '#FFFFFF', '#E8E8F0', '#8888AA', '#2A2A4A', '#1A1A3A', '#0A0A1A', '#0D0D1A', '#000000',
+  1700→                        '#6C5CE7', '#A29BFE', '#00CEC9', '#55EFC4', '#FF6B6B', '#FDCB6E', '#E17055', '#74B9FF',
+  1701→                        '#9B59B6', '#3498DB', '#1ABC9C', '#2ECC71', '#F39C12', '#E74C3C', '#95A5A6', '#34495E',
+  1702→                      ].map(c => (
+  1703→                        <button
+  1704→                          key={c}
+  1705→                          className="w-6 h-6 rounded-md border border-[#2A2A4A] hover:border-[#6C5CE7] hover:scale-110 transition-all"
+  1706→                          style={{ background: c }}
+  1707→                          onClick={() => setFontColor(c)}
+  1708→                        />
+  1709→                      ))}
+  1710→                    </div>
+  1711→                  </div>
+  1712→                </motion.div>
+  1713→              )}
+  1714→
+  1715→              {/* ── LAYOUT TAB ───────────────────────────────────────────── */}
+  1716→              {inspectorTab === 'layout' && (
+  1717→                <motion.div
+  1718→                  key="layout"
+  1719→                  initial={{ opacity: 0, x: 10 }}
+  1720→                  animate={{ opacity: 1, x: 0 }}
+  1721→                  exit={{ opacity: 0, x: 10 }}
+  1722→                  transition={{ duration: 0.2 }}
+  1723→                  className="p-3 space-y-4"
+  1724→                >
+  1725→                  {/* Spacing diagram */}
+  1726→                  <div>
+  1727→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1728→                      Padding
+  1729→                    </Label>
+  1730→                    {/* Visual spacing diagram */}
+  1731→                    <div className="relative w-full aspect-square max-w-[140px] mx-auto mb-2">
+  1732→                      <div className="absolute inset-0 bg-[#00CEC9]/10 border-2 border-[#00CEC9]/30 rounded-md flex items-center justify-center">
+  1733→                        <div className="bg-[#6C5CE7]/10 border-2 border-[#6C5CE7]/30 rounded-md w-[60%] h-[60%] flex items-center justify-center">
+  1734→                          <span className="text-[10px] text-[#8888AA]">Content</span>
+  1735→                        </div>
+  1736→                      </div>
+  1737→                      {/* Padding labels */}
+  1738→                      <span className="absolute top-1 left-1/2 -translate-x-1/2 text-[10px] text-[#00CEC9]">{padding.top}</span>
+  1739→                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[#00CEC9]">{padding.bottom}</span>
+  1740→                      <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] text-[#00CEC9]">{padding.left}</span>
+  1741→                      <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-[#00CEC9]">{padding.right}</span>
+  1742→                    </div>
+  1743→                    <div className="grid grid-cols-2 gap-2">
+  1744→                      {(['top', 'right', 'bottom', 'left'] as const).map((dir) => (
+  1745→                        <div key={dir} className="flex items-center gap-1.5">
+  1746→                          <Label className="text-[10px] text-[#8888AA] w-8 shrink-0 capitalize">{dir}</Label>
+  1747→                          <Input
+  1748→                            type="number"
+  1749→                            value={padding[dir]}
+  1750→                            onChange={(e) => setPadding({ ...padding, [dir]: Number(e.target.value) })}
+  1751→                            className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] text-center"
+  1752→                          />
+  1753→                          <span className="text-[10px] text-[#8888AA]">px</span>
+  1754→                        </div>
+  1755→                      ))}
+  1756→                    </div>
+  1757→                  </div>
+  1758→
+  1759→                  <Separator className="bg-[#2A2A4A]/40" />
+  1760→
+  1761→                  {/* Margin */}
+  1762→                  <div>
+  1763→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1764→                      Margin
+  1765→                    </Label>
+  1766→                    <div className="grid grid-cols-2 gap-2">
+  1767→                      {(['top', 'right', 'bottom', 'left'] as const).map((dir) => (
+  1768→                        <div key={dir} className="flex items-center gap-1.5">
+  1769→                          <Label className="text-[10px] text-[#8888AA] w-8 shrink-0 capitalize">{dir}</Label>
+  1770→                          <Input
+  1771→                            type="number"
+  1772→                            value={margin[dir]}
+  1773→                            onChange={(e) => setMargin({ ...margin, [dir]: Number(e.target.value) })}
+  1774→                            className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] text-center"
+  1775→                          />
+  1776→                          <span className="text-[10px] text-[#8888AA]">px</span>
+  1777→                        </div>
+  1778→                      ))}
+  1779→                    </div>
+  1780→                  </div>
+  1781→
+  1782→                  <Separator className="bg-[#2A2A4A]/40" />
+  1783→
+  1784→                  {/* Size */}
+  1785→                  <div>
+  1786→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1787→                      Size
+  1788→                    </Label>
+  1789→                    <div className="grid grid-cols-2 gap-2">
+  1790→                      <div className="flex items-center gap-1.5">
+  1791→                        <Label className="text-[10px] text-[#8888AA] shrink-0">W</Label>
+  1792→                        <Input
+  1793→                          value={width}
+  1794→                          onChange={(e) => setWidth(e.target.value)}
+  1795→                          className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] text-center"
+  1796→                        />
+  1797→                      </div>
+  1798→                      <div className="flex items-center gap-1.5">
+  1799→                        <Label className="text-[10px] text-[#8888AA] shrink-0">H</Label>
+  1800→                        <Input
+  1801→                          value={height}
+  1802→                          onChange={(e) => setHeight(e.target.value)}
+  1803→                          className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0] text-center"
+  1804→                        />
+  1805→                      </div>
+  1806→                    </div>
+  1807→                  </div>
+  1808→
+  1809→                  <Separator className="bg-[#2A2A4A]/40" />
+  1810→
+  1811→                  {/* Display */}
+  1812→                  <div>
+  1813→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1814→                      Display
+  1815→                    </Label>
+  1816→                    <div className="flex gap-1">
+  1817→                      {['block', 'flex', 'grid', 'inline', 'none'].map(d => (
+  1818→                        <Button
+  1819→                          key={d}
+  1820→                          variant="ghost"
+  1821→                          size="sm"
+  1822→                          className={`flex-1 h-7 text-[11px] font-medium ${
+  1823→                            displayType === d
+  1824→                              ? 'bg-[#6C5CE7] text-white'
+  1825→                              : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]'
+  1826→                          }`}
+  1827→                          onClick={() => setDisplayType(d)}
+  1828→                        >
+  1829→                          {d}
+  1830→                        </Button>
+  1831→                      ))}
+  1832→                    </div>
+  1833→                  </div>
+  1834→
+  1835→                  {/* Flex/Grid controls (shown when relevant) */}
+  1836→                  {(displayType === 'flex' || displayType === 'grid') && (
+  1837→                    <div>
+  1838→                      <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1839→                        {displayType === 'flex' ? 'Flex' : 'Grid'} Controls
+  1840→                      </Label>
+  1841→                      {displayType === 'flex' && (
+  1842→                        <div className="space-y-2">
+  1843→                          <div>
+  1844→                            <Label className="text-[10px] text-[#8888AA] mb-1 block">Direction</Label>
+  1845→                            <div className="flex gap-1">
+  1846→                              {['row', 'column', 'row-reverse', 'column-reverse'].map(d => (
+  1847→                                <Button
+  1848→                                  key={d}
+  1849→                                  variant="ghost"
+  1850→                                  size="sm"
+  1851→                                  className={`flex-1 h-6 text-[10px] font-medium ${
+  1852→                                    flexDirection === d
+  1853→                                      ? 'bg-[#6C5CE7] text-white'
+  1854→                                      : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]'
+  1855→                                  }`}
+  1856→                                  onClick={() => setFlexDirection(d)}
+  1857→                                >
+  1858→                                  {d}
+  1859→                                </Button>
+  1860→                              ))}
+  1861→                            </div>
+  1862→                          </div>
+  1863→                          <div className="grid grid-cols-2 gap-2">
+  1864→                            <div>
+  1865→                              <Label className="text-[10px] text-[#8888AA] mb-1 block">Align</Label>
+  1866→                              <Select value={flexAlign} onValueChange={setFlexAlign}>
+  1867→                                <SelectTrigger className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0]">
+  1868→                                  <SelectValue />
+  1869→                                </SelectTrigger>
+  1870→                                <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  1871→                                  {['start', 'center', 'end', 'stretch', 'baseline'].map(a => (
+  1872→                                    <SelectItem key={a} value={a} className="text-[#E8E8F0] text-xs focus:bg-[#2A2A4A]">{a}</SelectItem>
+  1873→                                  ))}
+  1874→                                </SelectContent>
+  1875→                              </Select>
+  1876→                            </div>
+  1877→                            <div>
+  1878→                              <Label className="text-[10px] text-[#8888AA] mb-1 block">Justify</Label>
+  1879→                              <Select value={flexJustify} onValueChange={setFlexJustify}>
+  1880→                                <SelectTrigger className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0]">
+  1881→                                  <SelectValue />
+  1882→                                </SelectTrigger>
+  1883→                                <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  1884→                                  {['start', 'center', 'end', 'between', 'around', 'evenly'].map(j => (
+  1885→                                    <SelectItem key={j} value={j} className="text-[#E8E8F0] text-xs focus:bg-[#2A2A4A]">{j}</SelectItem>
+  1886→                                  ))}
+  1887→                                </SelectContent>
+  1888→                              </Select>
+  1889→                            </div>
+  1890→                          </div>
+  1891→                        </div>
+  1892→                      )}
+  1893→                    </div>
+  1894→                  )}
+  1895→
+  1896→                  <Separator className="bg-[#2A2A4A]/40" />
+  1897→
+  1898→                  {/* Position */}
+  1899→                  <div>
+  1900→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1901→                      Position
+  1902→                    </Label>
+  1903→                    <div className="flex gap-1">
+  1904→                      {['static', 'relative', 'absolute', 'fixed', 'sticky'].map(p => (
+  1905→                        <Button
+  1906→                          key={p}
+  1907→                          variant="ghost"
+  1908→                          size="sm"
+  1909→                          className={`flex-1 h-7 text-[11px] font-medium ${
+  1910→                            positionType === p
+  1911→                              ? 'bg-[#6C5CE7] text-white'
+  1912→                              : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A]'
+  1913→                          }`}
+  1914→                          onClick={() => setPositionType(p)}
+  1915→                        >
+  1916→                          {p}
+  1917→                        </Button>
+  1918→                      ))}
+  1919→                    </div>
+  1920→                  </div>
+  1921→                </motion.div>
+  1922→              )}
+  1923→
+  1924→              {/* ── ANIMATION TAB ────────────────────────────────────────── */}
+  1925→              {inspectorTab === 'animation' && (
+  1926→                <motion.div
+  1927→                  key="animation"
+  1928→                  initial={{ opacity: 0, x: 10 }}
+  1929→                  animate={{ opacity: 1, x: 0 }}
+  1930→                  exit={{ opacity: 0, x: 10 }}
+  1931→                  transition={{ duration: 0.2 }}
+  1932→                  className="p-3 space-y-4"
+  1933→                >
+  1934→                  {/* Animation type */}
+  1935→                  <div>
+  1936→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1937→                      Animation Type
+  1938→                    </Label>
+  1939→                    <div className="grid grid-cols-2 gap-1.5">
+  1940→                      {[
+  1941→                        { type: 'fade', label: 'Fade', icon: <Circle size={14} /> },
+  1942→                        { type: 'slide', label: 'Slide', icon: <Move size={14} /> },
+  1943→                        { type: 'scale', label: 'Scale', icon: <Maximize2 size={14} /> },
+  1944→                        { type: 'rotate', label: 'Rotate', icon: <ChevronRight size={14} /> },
+  1945→                      ].map(({ type, label, icon }) => (
+  1946→                        <Button
+  1947→                          key={type}
+  1948→                          variant="ghost"
+  1949→                          size="sm"
+  1950→                          className={`h-9 gap-1.5 ${
+  1951→                            animType === type
+  1952→                              ? 'bg-[#6C5CE7] text-white'
+  1953→                              : 'text-[#8888AA] hover:text-[#E8E8F0] hover:bg-[#1A1A3A] border border-[#2A2A4A]'
+  1954→                          }`}
+  1955→                          onClick={() => setAnimType(type)}
+  1956→                        >
+  1957→                          {icon}
+  1958→                          <span className="text-xs font-medium">{label}</span>
+  1959→                        </Button>
+  1960→                      ))}
+  1961→                    </div>
+  1962→                  </div>
+  1963→
+  1964→                  <Separator className="bg-[#2A2A4A]/40" />
+  1965→
+  1966→                  {/* Duration */}
+  1967→                  <div>
+  1968→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1969→                      Duration
+  1970→                    </Label>
+  1971→                    <div className="flex items-center gap-2">
+  1972→                      <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={100} max={3000} step={50} className="flex-1 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]" />
+  1973→                      <span className="text-xs text-[#8888AA] w-10 text-right">{animDuration}ms</span>
+  1974→                    </div>
+  1975→                  </div>
+  1976→
+  1977→                  {/* Delay */}
+  1978→                  <div>
+  1979→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1980→                      Delay
+  1981→                    </Label>
+  1982→                    <div className="flex items-center gap-2">
+  1983→                      <Slider value={[animDelay]} onValueChange={(v) => setAnimDelay(v[0])} min={0} max={2000} step={50} className="flex-1 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-[#6C5CE7]" />
+  1984→                      <span className="text-xs text-[#8888AA] w-10 text-right">{animDelay}ms</span>
+  1985→                    </div>
+  1986→                  </div>
+  1987→
+  1988→                  <Separator className="bg-[#2A2A4A]/40" />
+  1989→
+  1990→                  {/* Easing */}
+  1991→                  <div>
+  1992→                    <Label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+  1993→                      Easing
+  1994→                    </Label>
+  1995→                    <Select value={animEasing} onValueChange={setAnimEasing}>
+  1996→                      <SelectTrigger className="h-7 bg-[#1A1A3A] border-[#2A2A4A] text-xs text-[#E8E8F0]">
+  1997→                        <SelectValue />
+  1998→                      </SelectTrigger>
+  1999→                      <SelectContent className="bg-[#1A1A3A] border-[#2A2A4A]">
+  2000→                        {['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear', 'cubic-bezier'].map(e => (
+
+[showing lines 1-2000 of 2208; use offset=2001 with limit to continue reading]
