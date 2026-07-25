@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatarUrl     String?
+  provider      String?   @default("credentials")
+  providerId    String?
+  aiCredits     Int       @default(100)
+  plan          String    @default("free")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  projects      Project[]
+  assets        Asset[]
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  prompt        String?
+  thumbnail     String?
+  status        String    @default("draft")
+  framework     String    @default("html")
+  theme         String    @default("light")
+  customTheme   String?
+  isPublic      Boolean   @default(false)
+  domain        String?
+  tags          String?
+  userId        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions      Version[]
+  pages         Page[]
+  components    Component[]
+  deployments   Deployment[]
+}
+
+model Version {
+  id            String    @id @default(cuid())
+  name          String    @default("Untitled Version")
+  snapshot      String
+  projectId     String
+  createdAt     DateTime  @default(now())
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Page {
+  id            String    @id @default(cuid())
+  name          String
+  route         String    @default("/")
+  html          String
+  css           String
+  js            String?
+  seoTitle      String?
+  seoDescription String?
+  seoImage      String?
+  projectId     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Component {
+  id            String    @id @default(cuid())
+  name          String
+  type          String
+  category      String
+  html          String
+  css           String
+  js            String?
+  props         String?
+  projectId     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id            String    @id @default(cuid())
+  name          String
+  type          String
+  url           String
+  size          Int?
+  metadata      String?
+  userId        String
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Deployment {
+  id            String    @id @default(cuid())
+  platform      String
+  url           String?
+  status        String    @default("pending")
+  config        String?
+  projectId     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Template {
+  id            String    @id @default(cuid())
+  name          String
+  description   String
+  category      String
+  thumbnail     String?
+  html          String
+  css           String
+  js            String?
+  isPremium     Boolean   @default(false)
+  downloads     Int       @default(0)
+  createdAt     DateTime  @default(now())
+}
