@@ -233,3 +233,34 @@ Stage Summary:
 - Undo/redo with history snapshots
 - 3 export formats download real files
 - Professional dark theme UI (bg-[#0a0a0f], bg-[#1a1a2e], accent #7c3aed)
+
+---
+Task ID: Builder V2 — Real AI Generation + Working Editor
+Agent: Main Coordinator
+Task: Replace fake hardcoded template generation with real GLM-4.7 AI calls (4 sequential pages), and fix the editor so it actually loads and edits the generated pages.
+
+Work Log:
+- Updated /src/lib/store.ts: added `generatedSiteName` state field and `setGeneratedSiteName` / `updateGeneratedPage` actions so the editor can read AND write back page edits to the same store the builder writes to.
+- Completely rewrote /src/components/builder/BuilderPage.tsx (~700 lines, down from ~3300):
+  * PromptPhase: industry dropdown (8 industries with icons + hints), style dropdown (4 styles with color swatches), prompt textarea with char counter, 6 fully-fleshed example prompts that auto-set the industry.
+  * GeneratingPhase: 4 SEQUENTIAL real POST /api/generate calls (one per page: home→about→services→contact). Each call takes ~60-90s, total ~4-6 min. Per-page status list shows pending/generating/done/error states with KB count. Real progress bar + elapsed timer + cancel button + retry-on-error.
+  * PreviewPhase: 4-page sidebar with page name + route + size, site details panel (site name, industry, style, total size, AI model), prompt panel, real iframe preview with desktop/tablet/mobile toggle, browser chrome, Export page / Export all / Save / Edit buttons. Edit button navigates to editor with the currently-selected page.
+- Updated /src/components/editor/EditorPage.tsx:
+  * Loads `generatedPages` and `currentPreviewPage` from the store on mount (instead of always using `getDefaultWebsiteHTML` placeholder).
+  * Added a page-switcher `<Select>` dropdown in the top toolbar showing the site name + current page. Switching pages flushes pending edits to the store for the outgoing page, then loads the new page's HTML into the iframe and resets history.
+  * `pushHistory` now also writes the latest iframe HTML back to the store via `updateGeneratedPage`, so edits made in the editor persist when the user returns to the builder preview.
+  * `save` button now also persists current iframe HTML to the store.
+  * BUG FIX: iframe bridge script's `get-elements-tree` handler was calling `el.children.forEach(...)` on an HTMLCollection (which doesn't have forEach) — silently threw and the Layers tab was always empty. Changed to `Array.from(el.children).forEach(...)`.
+  * BUG FIX: same bug in `sendElementInfo` — `childIds` was always empty because of the same HTMLCollection issue. Fixed identically.
+- Verified end-to-end with agent-browser:
+  * Prompt phase: industry/style dropdowns work, suggestion clicks fill prompt + set industry.
+  * Generation phase: 4 real API calls fired sequentially, per-page status updated correctly (Home 18KB done → About 22KB done → Services 22KB done → Contact 16KB done), progress bar advanced, total ~5.5 min.
+  * Preview phase: 4 pages listed in sidebar with sizes, switching pages updates iframe, iframe renders real generated "Ember & Roast" coffee shop site with hero, features, menu (Starters/Mains/Desserts), testimonials, footer.
+  * Editor phase: page switcher dropdown shows all 4 pages, switching updates iframe, Layers tab populates correctly (body → header / main / footer tree), clicking an element in the iframe triggers selection (postMessage bridge works), right inspector panel shows the selected element's tag, dimensions, content, and CSS layout properties.
+- Restarted dev server (cleaned .next cache) so the new /api/generate GET metadata endpoint became discoverable.
+
+Stage Summary:
+- Builder now produces real, complete, AI-generated 4-page websites via GLM-4.7 (no more hardcoded templates or fake progress animation).
+- Editor actually loads the generated content and lets the user edit it — Layers tree, element selection, property inspector, undo/redo, page switching, and store persistence all work.
+- Each page is a full standalone HTML document with embedded CSS, real content, responsive design, animations — typically 15-25 KB per page.
+- Generation takes ~4-6 minutes total (sequential, due to API rate limiting — parallel requests return 429). The user sees real per-page progress so the wait is productive.
