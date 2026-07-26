@@ -118,113 +118,8 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: num
 
 // ─── Data ────────────────────────────────────────────────────────────
 
-const stats = [
-  { value: 10000, suffix: '+', label: 'Sites Built', icon: Globe },
-  { value: 50000, suffix: '+', label: 'Pages Generated', icon: LayoutGrid },
-  { value: 99, suffix: '.9%', label: 'Uptime', icon: Shield },
-  { value: 180, suffix: '+', label: 'Countries', icon: Users },
-]
-
-const features = [
-  {
-    icon: Sparkles,
-    title: 'AI Generation',
-    description: 'Describe your vision in plain language. Forge crafts production-quality websites from your words.',
-    accentColor: 'oklch(0.65 0.25 350)',
-  },
-  {
-    icon: Paintbrush,
-    title: 'Visual Editor',
-    description: 'Refine every detail with an intuitive editor. Drag, drop, tweak — or let AI handle it.',
-    accentColor: 'oklch(0.65 0.2 180)',
-  },
-  {
-    icon: Download,
-    title: 'Export Freedom',
-    description: 'Export clean HTML, CSS, and JS anytime — no lock-in, no vendor dependency.',
-    accentColor: 'oklch(0.65 0.2 80)',
-  },
-  {
-    icon: Rocket,
-    title: 'Deploy Anywhere',
-    description: 'Ship to Vercel, Netlify, or your own server. Forge doesn\'t tie you down.',
-    accentColor: 'oklch(0.55 0.25 270)',
-  },
-]
-
-const steps = [
-  {
-    number: '1',
-    title: 'Describe',
-    description: 'Tell Forge what you want — a portfolio, SaaS page, restaurant site, anything.',
-    icon: MousePointerClick,
-    accentColor: 'oklch(0.55 0.25 270)',
-  },
-  {
-    number: '2',
-    title: 'AI Builds',
-    description: 'Forge generates a complete, responsive website with proper structure in seconds.',
-    icon: Zap,
-    accentColor: 'oklch(0.55 0.25 270)',
-  },
-  {
-    number: '3',
-    title: 'Customize & Ship',
-    description: 'Polish with the visual editor, then deploy anywhere. Your site, your code.',
-    icon: Rocket,
-    accentColor: 'oklch(0.55 0.25 270)',
-  },
-]
-
-const testimonials = [
-  {
-    name: 'Sarah Chen',
-    role: 'Founder, Lumina Design',
-    quote: 'Forge turned my rough idea into a stunning website in under 2 minutes. The AI understood exactly what I wanted.',
-    avatar: 'SC',
-    metric: 'Built in 2 min',
-    metricIcon: Clock,
-  },
-  {
-    name: 'Marcus Rivera',
-    role: 'CTO, BuildStack',
-    quote: 'We replaced weeks of frontend work with Forge. The export quality is so clean our devs actually prefer it.',
-    avatar: 'MR',
-    metric: '3,500 monthly visitors',
-    metricIcon: TrendingUp,
-  },
-  {
-    name: 'Aisha Patel',
-    role: 'Freelance Developer',
-    quote: 'I use Forge for every client project now. It handles the initial build, I customize — client gets results faster.',
-    avatar: 'AP',
-    metric: '12 client sites',
-    metricIcon: Globe,
-  },
-]
-
-const faqs = [
-  {
-    question: 'How does Forge\'s AI generate websites?',
-    answer: 'Forge uses advanced AI models that understand web design, UX patterns, and modern development practices. You describe what you want, and the AI generates complete, responsive code — custom-built, not templated.',
-  },
-  {
-    question: 'Can I edit the generated code?',
-    answer: 'Absolutely. Forge includes a visual editor for quick tweaks, and you can export full source code (HTML, CSS, JS) to edit in any tool. No lock-in — the code is yours.',
-  },
-  {
-    question: 'Is Forge free to use?',
-    answer: 'Forge offers a generous free tier for generating and customizing multiple sites. Upgrade to Pro for custom domains, team collaboration, and priority generation.',
-  },
-  {
-    question: 'What platforms does Forge support?',
-    answer: 'Forge generates standard web code that works everywhere. Deploy to Vercel, Netlify, AWS, GitHub Pages, or any host. Clean, framework-free HTML/CSS/JS.',
-  },
-  {
-    question: 'How does Forge compare to traditional builders?',
-    answer: 'Traditional builders give templates and drag-and-drop. Forge gives AI-powered generation that creates unique designs from your description — faster, more flexible, better results.',
-  },
-]
+// Note: stats, features, steps, testimonials, faqs are now built inside the component
+// using the i18n `t()` function so they translate properly when language changes.
 
 // ─── Interactive components are lazy-loaded from separate files ──────
 // ─── Floating Particles Component ────────────────────────────────────
@@ -330,6 +225,28 @@ export default function LandingPage() {
     { value: 50000, suffix: '+', label: t('stats.pagesGenerated'), icon: LayoutGrid },
     { value: 99, suffix: '.9%', label: t('stats.uptime'), icon: Shield },
     { value: 180, suffix: '+', label: t('stats.countries'), icon: Users },
+  ]
+
+  // Localized features (icon + accentColor stay constant; title/desc come from i18n)
+  const localizedFeatures = [
+    { icon: Sparkles, titleKey: 'features.ai.title', descKey: 'features.ai.desc', accentColor: 'oklch(0.65 0.25 350)' },
+    { icon: Paintbrush, titleKey: 'features.editor.title', descKey: 'features.editor.desc', accentColor: 'oklch(0.65 0.2 180)' },
+    { icon: Download, titleKey: 'features.export.title', descKey: 'features.export.desc', accentColor: 'oklch(0.65 0.2 80)' },
+    { icon: Rocket, titleKey: 'features.deploy.title', descKey: 'features.deploy.desc', accentColor: 'oklch(0.55 0.25 270)' },
+  ]
+
+  // Localized steps
+  const localizedSteps = [
+    { number: '1', titleKey: 'how.step1.title', descKey: 'how.step1.desc', icon: MousePointerClick, accentColor: 'oklch(0.55 0.25 270)' },
+    { number: '2', titleKey: 'how.step2.title', descKey: 'how.step2.desc', icon: Zap, accentColor: 'oklch(0.55 0.25 270)' },
+    { number: '3', titleKey: 'how.step3.title', descKey: 'how.step3.desc', icon: Rocket, accentColor: 'oklch(0.55 0.25 270)' },
+  ]
+
+  // Localized testimonials (id maps to i18n key `testimonials.{id}.name|role|quote|metric`)
+  const localizedTestimonials = [
+    { id: '1', avatar: 'SC', metricIcon: Clock },
+    { id: '2', avatar: 'MR', metricIcon: TrendingUp },
+    { id: '3', avatar: 'AP', metricIcon: Globe },
   ]
 
   // Localized suggestion pills
@@ -566,21 +483,21 @@ export default function LandingPage() {
             >
               <motion.div variants={fadeInUp}>
                 <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] mb-3">
-                  <MousePointerClick className="w-3 h-3 mr-1" /> Interactive
+                  <MousePointerClick className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('playground.badge')}
                 </Badge>
               </motion.div>
               <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-                Build a site,{' '}
-                <span className="gradient-text">your way</span>
+                {t('playground.title.pre')}{' '}
+                <span className="gradient-text">{t('playground.title.highlight')}</span>
               </motion.h2>
               <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-sm">
-                Drag blocks onto the canvas to arrange your website layout. Try different combinations — it&apos;s fun!
+                {t('playground.subtitle')}
               </motion.p>
               <motion.div variants={fadeInUp} className="mt-4 flex gap-2">
                 <div className="w-5 h-5 rounded bg-[oklch(0.55_0.25_270_/_10%)] flex items-center justify-center">
                   <Layers className="w-2.5 h-2.5 text-[oklch(0.55_0.25_270)]" />
                 </div>
-                <span className="text-[10px] text-muted-foreground">6 block types to mix & match</span>
+                <span className="text-[10px] text-muted-foreground">{t('playground.blocks')}</span>
               </motion.div>
             </motion.div>
 
@@ -617,15 +534,15 @@ export default function LandingPage() {
           >
             <motion.div variants={fadeInUp}>
               <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] mb-3">
-                <Zap className="w-3 h-3 mr-1" /> Features
+                <Zap className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('features.badge')}
               </Badge>
             </motion.div>
             <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-              Everything you need to{' '}
-              <span className="gradient-text">build</span>
+              {t('features.title.pre')}{' '}
+              <span className="gradient-text">{t('features.title.highlight')}</span>
             </motion.h2>
             <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-md">
-              From AI generation to deployment, Forge has every tool to take your idea live.
+              {t('features.subtitle')}
             </motion.p>
           </motion.div>
 
@@ -637,11 +554,11 @@ export default function LandingPage() {
             viewport={{ once: true, margin: '-50px' }}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            {features.map((feature) => {
+            {localizedFeatures.map((feature) => {
               const Icon = feature.icon
               return (
                 <motion.div
-                  key={feature.title}
+                  key={feature.titleKey}
                   variants={fadeInUp}
                   whileHover={{
                     y: -4,
@@ -658,8 +575,8 @@ export default function LandingPage() {
                           <Icon className="w-4 h-4" style={{ color: feature.accentColor }} />
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-foreground mb-1">{feature.title}</h3>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+                          <h3 className="text-sm font-semibold text-foreground mb-1">{t(feature.titleKey)}</h3>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t(feature.descKey)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -700,21 +617,21 @@ export default function LandingPage() {
             >
               <motion.div variants={fadeInUp}>
                 <Badge className="bg-[oklch(0.6_0.2_160_/_10%)] text-[oklch(0.6_0.2_160)] border-[oklch(0.6_0.2_160_/_20%)] text-[10px] mb-3">
-                  <Palette className="w-3 h-3 mr-1" /> Live Customizer
+                  <Palette className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('themepg.badge')}
                 </Badge>
               </motion.div>
               <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-                Make it{' '}
-                <span className="gradient-text">yours</span>
+                {t('themepg.title.pre')}{' '}
+                <span className="gradient-text">{t('themepg.title.highlight')}</span>
               </motion.h2>
               <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-sm">
-                Pick your accent color, toggle light/dark, and choose a font style. Watch the preview update live.
+                {t('themepg.subtitle')}
               </motion.p>
               <motion.div variants={fadeInUp} className="mt-4 flex gap-2 lg:justify-end">
                 <div className="w-5 h-5 rounded bg-[oklch(0.6_0.2_160_/_10%)] flex items-center justify-center">
                   <Palette className="w-2.5 h-2.5 text-[oklch(0.6_0.2_160)]" />
                 </div>
-                <span className="text-[10px] text-muted-foreground">6 color presets + custom picker</span>
+                <span className="text-[10px] text-muted-foreground">{t('themepg.presetsHint')}</span>
               </motion.div>
             </motion.div>
           </div>
@@ -737,12 +654,12 @@ export default function LandingPage() {
           >
             <motion.div variants={fadeInUp}>
               <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] mb-3">
-                <ArrowRight className="w-3 h-3 mr-1" /> How It Works
+                <ArrowRight className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('how.badge')}
               </Badge>
             </motion.div>
             <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-              Three steps to your{' '}
-              <span className="gradient-text">site</span>
+              {t('how.title.pre')}{' '}
+              <span className="gradient-text">{t('how.title.highlight')}</span>
             </motion.h2>
           </motion.div>
 
@@ -753,7 +670,7 @@ export default function LandingPage() {
             viewport={{ once: true, margin: '-50px' }}
             className="space-y-6"
           >
-            {steps.map((step, i) => {
+            {localizedSteps.map((step, i) => {
               const Icon = step.icon
               const isEven = i % 2 === 0
               return (
@@ -766,16 +683,16 @@ export default function LandingPage() {
                   <div className={`${isEven ? '' : 'md:[direction:ltr]'}`}>
                     <div className={`relative rounded-2xl border border-border bg-card p-6 ${isEven ? 'md:ml-8' : 'md:mr-8'}`}>
                       {/* Step number badge */}
-                      <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-[oklch(0.55_0.25_270)] text-white text-sm font-bold flex items-center justify-center shadow-lg shadow-[oklch(0.55_0.25_270)_/_30]">
+                      <div className="absolute -top-3 -left-3 rtl:-left-auto rtl:-right-3 w-8 h-8 rounded-full bg-[oklch(0.55_0.25_270)] text-white text-sm font-bold flex items-center justify-center shadow-lg shadow-[oklch(0.55_0.25_270)_/_30]">
                         {step.number}
                       </div>
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 rounded-xl bg-[oklch(0.55_0.25_270_/_10%)] flex items-center justify-center">
                           <Icon className="w-5 h-5 text-[oklch(0.55_0.25_270)]" />
                         </div>
-                        <h3 className="text-sm font-bold text-foreground">{step.title}</h3>
+                        <h3 className="text-sm font-bold text-foreground">{t(step.titleKey)}</h3>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{t(step.descKey)}</p>
                     </div>
                   </div>
                   {/* Text side */}
@@ -785,11 +702,11 @@ export default function LandingPage() {
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
                             <Monitor className="w-4 h-4 text-[oklch(0.55_0.25_270)]" />
-                            <span className="text-[10px] text-muted-foreground">Describe on any device</span>
+                            <span className="text-[10px] text-muted-foreground">{t('how.step1.bullet1')}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Smartphone className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-[10px] text-muted-foreground">Works on mobile too</span>
+                            <span className="text-[10px] text-muted-foreground">{t('how.step1.bullet2')}</span>
                           </div>
                         </div>
                       )}
@@ -797,11 +714,11 @@ export default function LandingPage() {
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
                             <Code2 className="w-4 h-4 text-[oklch(0.55_0.25_270)]" />
-                            <span className="text-[10px] text-muted-foreground">Clean, semantic code</span>
+                            <span className="text-[10px] text-muted-foreground">{t('how.step2.bullet1')}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Layers className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-[10px] text-muted-foreground">Proper structure & layout</span>
+                            <span className="text-[10px] text-muted-foreground">{t('how.step2.bullet2')}</span>
                           </div>
                         </div>
                       )}
@@ -809,11 +726,11 @@ export default function LandingPage() {
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
                             <Download className="w-4 h-4 text-[oklch(0.55_0.25_270)]" />
-                            <span className="text-[10px] text-muted-foreground">Export anytime</span>
+                            <span className="text-[10px] text-muted-foreground">{t('how.step3.bullet1')}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Rocket className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-[10px] text-muted-foreground">Deploy anywhere</span>
+                            <span className="text-[10px] text-muted-foreground">{t('how.step3.bullet2')}</span>
                           </div>
                         </div>
                       )}
@@ -845,19 +762,19 @@ export default function LandingPage() {
             >
               <motion.div variants={fadeInUp}>
                 <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] mb-3">
-                  <Wand2 className="w-3 h-3 mr-1" /> AI Demo
+                  <Wand2 className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('aidemo.badge')}
                 </Badge>
               </motion.div>
               <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-                Watch AI build a site{' '}
-                <span className="gradient-text">in real-time</span>
+                {t('aidemo.title.pre')}{' '}
+                <span className="gradient-text">{t('aidemo.title.highlight')}</span>
               </motion.h2>
               <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-sm">
-                See how Forge generates a complete website piece by piece — navbar, hero, features, and footer.
+                {t('aidemo.subtitle')}
               </motion.p>
               <motion.div variants={fadeInUp} className="mt-4 flex items-center gap-2">
                 <Play className="w-4 h-4 text-[oklch(0.55_0.25_270)]" />
-                <span className="text-[10px] text-muted-foreground">Click the button to start the demo</span>
+                <span className="text-[10px] text-muted-foreground">{t('aidemo.hint')}</span>
               </motion.div>
             </motion.div>
 
@@ -891,12 +808,12 @@ export default function LandingPage() {
           >
             <motion.div variants={fadeInUp}>
               <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] mb-3">
-                <Star className="w-3 h-3 mr-1" /> Testimonials
+                <Star className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('testimonials.badge')}
               </Badge>
             </motion.div>
             <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-              Loved by builders{' '}
-              <span className="gradient-text">everywhere</span>
+              {t('testimonials.title.pre')}{' '}
+              <span className="gradient-text">{t('testimonials.title.highlight')}</span>
             </motion.h2>
           </motion.div>
 
@@ -907,11 +824,11 @@ export default function LandingPage() {
             viewport={{ once: true, margin: '-50px' }}
             className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6"
           >
-            {testimonials.map((t, i) => {
-              const MetricIcon = t.metricIcon
+            {localizedTestimonials.map((tm, i) => {
+              const MetricIcon = tm.metricIcon
               return (
                 <motion.div
-                  key={t.name}
+                  key={tm.id}
                   variants={fadeInUp}
                   className={i === 1 ? 'md:mt-6' : ''}
                 >
@@ -919,17 +836,17 @@ export default function LandingPage() {
                     <CardContent className="p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-full bg-[oklch(0.55_0.25_270)] flex items-center justify-center text-[10px] font-bold text-white">
-                          {t.avatar}
+                          {tm.avatar}
                         </div>
                         <div>
-                          <div className="text-xs font-medium text-foreground">{t.name}</div>
-                          <div className="text-[10px] text-muted-foreground">{t.role}</div>
+                          <div className="text-xs font-medium text-foreground">{t(`testimonials.${tm.id}.name`)}</div>
+                          <div className="text-[10px] text-muted-foreground">{t(`testimonials.${tm.id}.role`)}</div>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">&ldquo;{t.quote}&rdquo;</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">&ldquo;{t(`testimonials.${tm.id}.quote`)}&rdquo;</p>
                       <div className="flex items-center gap-1.5 text-[10px] text-[oklch(0.6_0.2_160)]">
                         <MetricIcon className="w-3 h-3" />
-                        {t.metric}
+                        {t(`testimonials.${tm.id}.metric`)}
                       </div>
                     </CardContent>
                     {/* Purple accent bottom */}
@@ -964,11 +881,11 @@ export default function LandingPage() {
             className="text-left"
           >
             <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground">
-              Free to start.{' '}
-              <span className="gradient-text">Scale when ready.</span>
+              {t('cta.title.pre')}{' '}
+              <span className="gradient-text">{t('cta.title.highlight')}</span>
             </motion.h2>
             <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-md mt-2">
-              Generate your first site in seconds — no credit card needed. Upgrade for custom domains, team features, and more.
+              {t('cta.subtitle')}
             </motion.p>
             <motion.div variants={fadeInUp} className="flex flex-wrap gap-3 mt-5">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -976,7 +893,7 @@ export default function LandingPage() {
                   onClick={handleGetStarted}
                   className="bg-[oklch(0.55_0.25_270)] text-white hover:bg-[oklch(0.5_0.22_270)] border-0 text-xs font-semibold shadow-lg shadow-[oklch(0.55_0.25_270)_/_15] px-6"
                 >
-                  Start Building Free <ArrowRight className="w-3 h-3 ml-1" />
+                  {t('cta.primary')} <ArrowRight className="w-3 h-3 ml-1 rtl:mr-1 rtl:ml-0" />
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -985,7 +902,7 @@ export default function LandingPage() {
                   onClick={() => navigate('login')}
                   className="border-border bg-card text-foreground hover:bg-accent text-xs"
                 >
-                  Sign In
+                  {t('cta.secondary')}
                 </Button>
               </motion.div>
             </motion.div>
@@ -1010,12 +927,12 @@ export default function LandingPage() {
           >
             <motion.div variants={fadeInUp}>
               <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] mb-3">
-                <Eye className="w-3 h-3 mr-1" /> FAQ
+                <Eye className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('faq.badge')}
               </Badge>
             </motion.div>
             <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-              Common{' '}
-              <span className="gradient-text">questions</span>
+              {t('faq.title.pre')}{' '}
+              <span className="gradient-text">{t('faq.title.highlight')}</span>
             </motion.h2>
           </motion.div>
 
@@ -1026,17 +943,17 @@ export default function LandingPage() {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <Accordion type="single" collapsible className="space-y-2">
-              {faqs.map((faq, i) => (
+              {[1, 2, 3, 4, 5].map((i) => (
                 <AccordionItem
                   key={i}
                   value={`faq-${i}`}
                   className="border border-border/50 rounded-lg px-4 data-[state=open]:border-[oklch(0.55_0.25_270_/_30%)] data-[state=open]:bg-[oklch(0.55_0.25_270_/_5%)] transition-all"
                 >
                   <AccordionTrigger className="text-xs font-medium text-foreground hover:no-underline py-3">
-                    {faq.question}
+                    {t(`faq.${i}.q`)}
                   </AccordionTrigger>
                   <AccordionContent className="text-xs text-muted-foreground leading-relaxed pb-3">
-                    {faq.answer}
+                    {t(`faq.${i}.a`)}
                   </AccordionContent>
                 </AccordionItem>
               ))}
@@ -1074,7 +991,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.resources')}</h4>
               <div className="space-y-1.5">
-                {['Documentation', 'Blog', 'Changelog', 'Support'].map((item) => (
+                {[t('footer.docs'), t('footer.blog'), t('footer.changelog'), t('footer.support')].map((item) => (
                   <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
                 ))}
               </div>
@@ -1082,7 +999,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.company')}</h4>
               <div className="space-y-1.5">
-                {['About', 'Careers', 'Privacy', 'Terms'].map((item) => (
+                {[t('footer.about'), t('footer.careers'), t('footer.privacy'), t('footer.terms')].map((item) => (
                   <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
                 ))}
               </div>

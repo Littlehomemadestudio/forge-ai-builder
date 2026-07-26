@@ -319,6 +319,7 @@ function TemplatePreviewDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const { setSelectedTemplateHtml, setBuilderMode, navigate, setBuilderPhase } = useAppStore()
+  const t = useTranslation()
 
   if (!template) return null
 
@@ -371,7 +372,7 @@ function TemplatePreviewDialog({
             onClick={() => onOpenChange(false)}
             className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
           >
-            Close Preview
+            {t('builder.closePreview')}
           </Button>
           <Button
             onClick={handleEditTemplate}
@@ -379,7 +380,7 @@ function TemplatePreviewDialog({
             style={{ background: 'linear-gradient(135deg, #6c5ce7, #a855f7, #ec4899)' }}
           >
             <Wand2 className="mr-2 h-4 w-4" />
-            Edit this Template
+            {t('builder.editTemplate')}
             <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </DialogFooter>
@@ -394,6 +395,7 @@ function TemplatesSection() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [previewTemplate, setPreviewTemplate] = useState<SiteTemplate | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const t = useTranslation()
 
   const filteredTemplates = selectedCategory === 'All'
     ? SITE_TEMPLATES
@@ -422,10 +424,10 @@ function TemplatesSection() {
       <div className="mb-6 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm backdrop-blur-md mb-3">
           <FileText className="h-4 w-4 text-emerald-400" />
-          <span className="text-white/60">Ready-made templates · No AI needed</span>
+          <span className="text-white/60">{t('builder.adv.readyMade')}</span>
         </div>
-        <h2 className="text-3xl font-bold tracking-tight text-white mb-2">Start from a template</h2>
-        <p className="text-white/40">Pick a pre-built site, preview it, then customize it in the editor</p>
+        <h2 className="text-3xl font-bold tracking-tight text-white mb-2">{t('builder.adv.startFromTemplate')}</h2>
+        <p className="text-white/40">{t('builder.adv.pickTemplate')}</p>
       </div>
 
       {/* Category dropdown */}
@@ -551,6 +553,7 @@ function AdvancedOptionsPanel() {
   const { builderAdvancedOptions, setBuilderAdvancedOptions, builderStyle, setBuilderStyle } = useAppStore()
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [activeTab, setActiveTab] = useState('brand')
+  const t = useTranslation()
 
   const updateColorScheme = (key: string, value: string) => {
     setBuilderAdvancedOptions({
@@ -583,7 +586,7 @@ function AdvancedOptionsPanel() {
         className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/50 transition-all hover:bg-white/[0.06] hover:text-white/70 hover:border-white/20"
       >
         <Sliders className="h-4 w-4" />
-        <span>Advanced Options</span>
+        <span>{t('builder.advancedOptions')}</span>
         {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
 
@@ -625,7 +628,7 @@ function AdvancedOptionsPanel() {
                 <TabsContent value="brand" className="mt-0">
                   <div className="grid gap-4 sm:grid-cols-2">
                     {/* Brand Name */}
-                    <GlassCard label="Brand Name" icon={Tag}>
+                    <GlassCard label={t('builder.adv.brandName')} icon={Tag}>
                       <Input
                         value={builderAdvancedOptions.brandName}
                         onChange={(e) => setBuilderAdvancedOptions({ brandName: e.target.value })}
@@ -635,7 +638,7 @@ function AdvancedOptionsPanel() {
                     </GlassCard>
 
                     {/* Font Family */}
-                    <GlassCard label="Font Family" icon={Type}>
+                    <GlassCard label={t('builder.adv.fontFamily')} icon={Type}>
                       <Select
                         value={builderAdvancedOptions.fontFamily}
                         onValueChange={(v) => setBuilderAdvancedOptions({ fontFamily: v })}
@@ -655,7 +658,7 @@ function AdvancedOptionsPanel() {
                   </div>
 
                   {/* Logo Placement */}
-                  <GlassCard label="Logo Placement" icon={AlignLeft} className="mt-4">
+                  <GlassCard label={t('builder.adv.logoPlacement')} icon={AlignLeft} className="mt-4">
                     <div className="flex gap-2">
                       {LOGO_PLACEMENT_OPTIONS.map(opt => {
                         const Icon = opt.icon
@@ -682,7 +685,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Color Scheme */}
-                  <GlassCard label="Color Scheme" icon={Palette} className="mt-4">
+                  <GlassCard label={t('builder.adv.colorScheme')} icon={Palette} className="mt-4">
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <ColorPicker label="Primary" value={builderAdvancedOptions.colorScheme.primary} onChange={(v) => updateColorScheme('primary', v)} />
                       <ColorPicker label="Accent" value={builderAdvancedOptions.colorScheme.accent} onChange={(v) => updateColorScheme('accent', v)} />
@@ -715,7 +718,7 @@ function AdvancedOptionsPanel() {
                 {/* ─── Complexity & Length Tab ─────────────────────────── */}
                 <TabsContent value="complexity" className="mt-0">
                   {/* Complexity */}
-                  <GlassCard label="Complexity Level" icon={Layers}>
+                  <GlassCard label={t('builder.adv.complexityLevel')} icon={Layers}>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {COMPLEXITY_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.complexity === opt.id
@@ -742,7 +745,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Default Page Length */}
-                  <GlassCard label="Default Page Length" icon={Grip} className="mt-4">
+                  <GlassCard label={t('builder.adv.pageLength')} icon={Grip} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-2">
                       {PAGE_LENGTH_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.pageLength === opt.id
@@ -769,7 +772,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Layout Density */}
-                  <GlassCard label="Layout Density" icon={Columns} className="mt-4">
+                  <GlassCard label={t('builder.adv.layoutDensity')} icon={Columns} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-2">
                       {LAYOUT_DENSITY_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.layoutDensity === opt.id
@@ -796,7 +799,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Page Configuration Table */}
-                  <GlassCard label="Page Configuration" icon={Layout} className="mt-4">
+                  <GlassCard label={t('builder.adv.pageConfig')} icon={Layout} className="mt-4">
                     <div className="space-y-2">
                       {PAGE_CONFIG_ITEMS.map(pageItem => {
                         const config = builderAdvancedOptions.pageConfigs.find(p => p.id === pageItem.id)
@@ -841,7 +844,7 @@ function AdvancedOptionsPanel() {
                 {/* ─── Visual Style Tab ──────────────────────────────── */}
                 <TabsContent value="visual" className="mt-0">
                   {/* Expanded Style Grid (8 options with swatches) */}
-                  <GlassCard label="Visual Style" icon={Palette}>
+                  <GlassCard label={t('builder.adv.visualStyle')} icon={Palette}>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       {STYLE_OPTIONS.map(opt => {
                         const Icon = opt.icon
@@ -873,7 +876,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Content Tone */}
-                  <GlassCard label="Content Tone" icon={MessageSquare} className="mt-4">
+                  <GlassCard label={t('builder.adv.contentTone')} icon={MessageSquare} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {CONTENT_TONE_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.contentTone === opt.id
@@ -900,7 +903,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Layout Density (also shown here for convenience) */}
-                  <GlassCard label="Layout Density" icon={Columns} className="mt-4">
+                  <GlassCard label={t('builder.adv.layoutDensity')} icon={Columns} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-2">
                       {LAYOUT_DENSITY_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.layoutDensity === opt.id
@@ -929,7 +932,7 @@ function AdvancedOptionsPanel() {
 
                 {/* ─── Sections & Features Tab ────────────────────────── */}
                 <TabsContent value="sections" className="mt-0">
-                  <GlassCard label="Sections & Features" icon={Layout}>
+                  <GlassCard label={t('builder.adv.sectionsFeatures')} icon={Layout}>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {SECTION_TOGGLE_ITEMS.map(item => {
                         const Icon = item.icon
@@ -959,7 +962,7 @@ function AdvancedOptionsPanel() {
                 <TabsContent value="navigation" className="mt-0">
                   <div className="grid gap-4 sm:grid-cols-2">
                     {/* Navigation Style */}
-                    <GlassCard label="Navigation Style" icon={Navigation}>
+                    <GlassCard label={t('builder.adv.navigationStyle')} icon={Navigation}>
                       <div className="space-y-1.5">
                         {NAVIGATION_STYLE_OPTIONS.map(opt => {
                           const isSelected = builderAdvancedOptions.navigationStyle === opt.id
@@ -986,7 +989,7 @@ function AdvancedOptionsPanel() {
                     </GlassCard>
 
                     {/* CTA Style */}
-                    <GlassCard label="CTA Style" icon={Megaphone}>
+                    <GlassCard label={t('builder.adv.ctaStyle')} icon={Megaphone}>
                       <div className="space-y-1.5">
                         {CTA_STYLE_OPTIONS.map(opt => {
                           const isSelected = builderAdvancedOptions.ctaStyle === opt.id
@@ -1014,7 +1017,7 @@ function AdvancedOptionsPanel() {
                   </div>
 
                   {/* Animation Level */}
-                  <GlassCard label="Animation Level" icon={Sparkles} className="mt-4">
+                  <GlassCard label={t('builder.adv.animationLevel')} icon={Sparkles} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {ANIMATION_LEVEL_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.animationLevel === opt.id
@@ -1041,7 +1044,7 @@ function AdvancedOptionsPanel() {
                   </GlassCard>
 
                   {/* Responsive Priority */}
-                  <GlassCard label="Responsive Priority" icon={Smartphone} className="mt-4">
+                  <GlassCard label={t('builder.adv.responsivePriority')} icon={Smartphone} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-3">
                       {RESPONSIVE_PRIORITY_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.responsivePriority === opt.id
@@ -1072,7 +1075,7 @@ function AdvancedOptionsPanel() {
                 <TabsContent value="seo" className="mt-0">
                   <div className="grid gap-4 sm:grid-cols-2">
                     {/* SEO Level */}
-                    <GlassCard label="SEO Level" icon={Shield}>
+                    <GlassCard label={t('builder.adv.seoLevel')} icon={Shield}>
                       <div className="space-y-1.5">
                         {SEO_LEVEL_OPTIONS.map(opt => {
                           const isSelected = builderAdvancedOptions.seoLevel === opt.id
@@ -1099,7 +1102,7 @@ function AdvancedOptionsPanel() {
                     </GlassCard>
 
                     {/* Accessibility Level */}
-                    <GlassCard label="Accessibility Level" icon={Accessibility}>
+                    <GlassCard label={t('builder.adv.accessibilityLevel')} icon={Accessibility}>
                       <div className="space-y-1.5">
                         {ACCESSIBILITY_LEVEL_OPTIONS.map(opt => {
                           const isSelected = builderAdvancedOptions.accessibilityLevel === opt.id
@@ -1127,7 +1130,7 @@ function AdvancedOptionsPanel() {
                   </div>
 
                   {/* Image Style */}
-                  <GlassCard label="Image Style" icon={Image} className="mt-4">
+                  <GlassCard label={t('builder.adv.imageStyle')} icon={Image} className="mt-4">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {IMAGE_STYLE_OPTIONS.map(opt => {
                         const isSelected = builderAdvancedOptions.imageStyle === opt.id
@@ -1478,6 +1481,7 @@ function GeneratingPhase() {
     setGenerationProgress, setGenerationStatus,
     generationStatus,
   } = useAppStore()
+  const t = useTranslation()
 
   // Determine which core pages to generate based on pageConfigs
   const pagesToGenerate = CORE_PAGE_ORDER.filter(cp =>
@@ -1909,17 +1913,17 @@ function GeneratingPhase() {
                     : isGenerating ? 'text-white'
                     : 'text-white/30'
                   }`}>
-                    {page.name} page
+                    {page.name}{t('builder.pageSuffix')}
                   </span>
                   {isError && page.error && (
                     <p className="text-xs text-red-400/70 mt-0.5 line-clamp-1">{page.error}</p>
                   )}
                   {isGenerating && (
-                    <p className="text-xs text-purple-300/70 mt-0.5">AI is writing HTML, CSS, and content…</p>
+                    <p className="text-xs text-purple-300/70 mt-0.5">{t('builder.aiWriting')}</p>
                   )}
                   {isDone && (
                     <p className="text-xs text-emerald-400/70 mt-0.5">
-                      {page.html ? `${(page.html.length / 1024).toFixed(1)} KB generated` : 'Ready'}
+                      {page.html ? t('builder.kbGenerated', { n: (page.html.length / 1024).toFixed(1) }) : t('builder.ready')}
                     </p>
                   )}
                 </div>
@@ -1944,14 +1948,14 @@ function GeneratingPhase() {
             className="text-white/30 hover:text-white/60 hover:bg-white/5"
           >
             <X className="mr-2 h-4 w-4" />
-            Cancel Generation
+            {t('builder.cancelGeneration')}
           </Button>
         </div>
 
         {/* Live status line */}
         {!hasError && (
           <p className="mt-6 text-center text-xs text-white/30">
-            {generationStatus || 'Initializing…'}
+            {generationStatus || t('builder.initializing')}
           </p>
         )}
       </motion.div>
@@ -1981,6 +1985,7 @@ function PreviewPhase() {
     builderAdvancedOptions,
     builderMode, selectedTemplateHtml,
   } = useAppStore()
+  const t = useTranslation()
 
   const [deviceSize, setDeviceSize] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -1989,9 +1994,9 @@ function PreviewPhase() {
   const isTemplateMode = builderMode === 'templates' && selectedTemplateHtml
 
   const currentPage = isTemplateMode
-    ? { id: 'template', name: 'Template', route: '/', html: selectedTemplateHtml, css: '' }
+    ? { id: 'template', name: t('builder.template'), route: '/', html: selectedTemplateHtml, css: '' }
     : generatedPages.find(p => p.id === currentPreviewPage) || generatedPages[0]
-  const siteName = isTemplateMode ? 'Template Preview' : (generatedSiteName || 'Untitled Site')
+  const siteName = isTemplateMode ? t('builder.templatePreview') : (generatedSiteName || t('builder.untitledSite'))
 
   // Update iframe content when page changes
   useEffect(() => {
@@ -2014,7 +2019,7 @@ function PreviewPhase() {
       updatedAt: new Date().toISOString(),
     }
     addProject(project)
-    toast({ title: 'Project saved!', description: `${siteName} has been saved to your dashboard` })
+    toast({ title: t('builder.preview.saved'), description: t('builder.preview.savedDesc', { name: siteName }) })
   }
 
   const handleExport = () => {
@@ -2028,7 +2033,7 @@ function PreviewPhase() {
     a.click()
     window.document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    toast({ title: 'Exported!', description: `${currentPage.name} page HTML downloaded` })
+    toast({ title: t('builder.preview.exported'), description: t('builder.preview.exportedDesc', { name: currentPage.name }) })
   }
 
   const handleExportAll = () => {
@@ -2045,7 +2050,7 @@ function PreviewPhase() {
         URL.revokeObjectURL(url)
       }, i * 300)
     })
-    toast({ title: 'Exporting all pages!', description: `${generatedPages.length} HTML files downloading…` })
+    toast({ title: t('builder.preview.exportingAll'), description: t('builder.preview.exportingAllDesc', { n: generatedPages.length }) })
   }
 
   const handleRegenerate = () => {
@@ -2076,7 +2081,7 @@ function PreviewPhase() {
   if (!currentPage) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] text-white/60">
-        No pages generated yet.
+        {t('builder.noPages')}
       </div>
     )
   }
@@ -2088,10 +2093,10 @@ function PreviewPhase() {
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
             <CheckCircle2 className="mr-1 h-3 w-3" />
-            Ready
+            {t('common.ready')}
           </Badge>
           <span className="text-sm font-semibold text-white/80">{siteName}</span>
-          <span className="hidden text-xs text-white/30 sm:inline">· {generatedPages.length} pages · {industryLabel} · {styleLabel}</span>
+          <span className="hidden text-xs text-white/30 sm:inline">· {generatedPages.length} {t('builder.preview.pagesCount')} · {industryLabel} · {styleLabel}</span>
         </div>
 
         {/* Device toggle */}
@@ -2115,24 +2120,24 @@ function PreviewPhase() {
         {/* Action buttons */}
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleRegenerate} className="text-white/30 hover:text-white/60 hover:bg-white/5">
-            <RefreshCw className="mr-1 h-4 w-4" />
-            <span className="hidden sm:inline">Regenerate</span>
+            <RefreshCw className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
+            <span className="hidden sm:inline">{t('builder.preview.regenerate')}</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={handleSaveProject} className="text-white/30 hover:text-white/60 hover:bg-white/5">
-            <Save className="mr-1 h-4 w-4" />
-            <span className="hidden sm:inline">Save</span>
+            <Save className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
+            <span className="hidden sm:inline">{t('builder.preview.save')}</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={handleExport} className="text-white/30 hover:text-white/60 hover:bg-white/5">
-            <Download className="mr-1 h-4 w-4" />
-            <span className="hidden sm:inline">Export page</span>
+            <Download className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
+            <span className="hidden sm:inline">{t('builder.preview.export')}</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={handleExportAll} className="text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/5">
-            <Rocket className="mr-1 h-4 w-4" />
-            <span className="hidden sm:inline">Export all</span>
+            <Rocket className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
+            <span className="hidden sm:inline">{t('builder.preview.exportAll')}</span>
           </Button>
           <Button size="sm" onClick={handleEdit} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:opacity-90">
-            <Code2 className="mr-1 h-4 w-4" />
-            Edit in Visual Editor
+            <Code2 className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
+            {t('builder.preview.edit')}
           </Button>
         </div>
       </div>
@@ -2142,7 +2147,7 @@ function PreviewPhase() {
         {/* Sidebar - Page navigation */}
         <div className="w-64 border-r border-white/8 bg-[#0c0c14] p-4 overflow-y-auto max-h-screen">
           <div className="mb-4">
-            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Pages</p>
+            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.pages')}</p>
             <div className="space-y-1">
               {generatedPages.map((page, i) => {
                 const pageMeta = CORE_PAGE_ORDER[i]
@@ -2174,61 +2179,61 @@ function PreviewPhase() {
           </div>
 
           <div className="mt-6 rounded-lg border border-white/8 bg-white/[0.02] p-3">
-            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Site Details</p>
+            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.siteDetails')}</p>
             <div className="space-y-2 text-xs text-white/40">
               <div className="flex justify-between">
-                <span>Site name</span>
+                <span>{t('builder.preview.siteName')}</span>
                 <span className="text-white/60 truncate ml-2 max-w-32" title={siteName}>{siteName}</span>
               </div>
               <div className="flex justify-between">
-                <span>Industry</span>
+                <span>{t('builder.preview.industry')}</span>
                 <span className="text-white/60">{industryLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>Style</span>
+                <span>{t('builder.preview.style')}</span>
                 <span className="text-white/60">{styleLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>Pages</span>
+                <span>{t('builder.preview.pagesCount')}</span>
                 <span className="text-white/60">{generatedPages.length}</span>
               </div>
               <div className="flex justify-between">
-                <span>Total size</span>
+                <span>{t('builder.preview.totalSize')}</span>
                 <span className="text-white/60">
                   {(generatedPages.reduce((sum, p) => sum + (p.html?.length || 0), 0) / 1024).toFixed(1)} KB
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Framework</span>
+                <span>{t('builder.preview.framework')}</span>
                 <span className="text-white/60">HTML/CSS</span>
               </div>
               <Separator className="bg-white/5 my-2" />
               <div className="flex justify-between">
-                <span>Complexity</span>
+                <span>{t('builder.preview.complexity')}</span>
                 <span className="text-white/60">{complexityLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tone</span>
+                <span>{t('builder.preview.tone')}</span>
                 <span className="text-white/60">{toneLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>Density</span>
+                <span>{t('builder.preview.density')}</span>
                 <span className="text-white/60">{densityLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>SEO</span>
+                <span>{t('builder.preview.seo')}</span>
                 <span className="text-white/60">{seoLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>Accessibility</span>
+                <span>{t('builder.preview.accessibility')}</span>
                 <span className="text-white/60">{accessibilityLabel}</span>
               </div>
               <div className="flex justify-between">
-                <span>Sections</span>
+                <span>{t('builder.preview.sections')}</span>
                 <span className="text-white/60">{enabledSectionsCount}/{SECTION_TOGGLE_ITEMS.length}</span>
               </div>
               <div className="flex justify-between">
-                <span>Font</span>
+                <span>{t('builder.preview.font')}</span>
                 <span className="text-white/60 truncate ml-2 max-w-32">{builderAdvancedOptions.fontFamily}</span>
               </div>
               <Separator className="bg-white/5 my-2" />
@@ -2250,7 +2255,7 @@ function PreviewPhase() {
           </div>
 
           <div className="mt-4 rounded-lg border border-white/8 bg-white/[0.02] p-3">
-            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Prompt</p>
+            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.prompt')}</p>
             <p className="text-xs text-white/40 leading-relaxed line-clamp-6">{builderPrompt}</p>
           </div>
         </div>
@@ -2300,6 +2305,7 @@ function PreviewPhase() {
 
 export default function BuilderPage() {
   const { builderPhase } = useAppStore()
+  const t = useTranslation()
 
   return (
     <AnimatePresence mode="wait">
@@ -2318,7 +2324,7 @@ export default function BuilderPage() {
           <div className="flex min-h-screen items-center justify-center">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-purple-400 mx-auto mb-4" />
-              <p className="text-white/60">Transitioning to editor...</p>
+              <p className="text-white/60">{t('builder.transitioning')}</p>
             </div>
           </div>
         )}

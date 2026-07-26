@@ -445,3 +445,38 @@ body.rtl-ui {
   color: oklch(0.15 0.01 260);
 }
 
+/* ─── Phase 3: Editor light theme ──────────────────────────────────────────
+ * The editor defaults to dark (#0a0a0f). When `.editor-light` is applied to
+ * the root container, override the dark editor palette with a light palette so
+ * the user can work in a bright editor even while editing a dark-themed site.
+ */
+.editor-light {
+  background: #f5f5f7 !important;
+  color: #18181b !important;
+}
+.editor-light .bg-\[\#0a0a0f\] { background: #ffffff !important; }
+.editor-light .bg-\[\#0d0d15\] { background: #f4f4f6 !important; }
+.editor-light .bg-\[\#1a1a2e\] { background: #ececee !important; }
+.editor-light .bg-\[\#0c0c14\] { background: #fafafa !important; }
+.editor-light .border-\[\#1a1a2e\] { border-color: #e4e4e7 !important; }
+.editor-light .border-\[\#2a2a3e\] { border-color: #d4d4d8 !important; }
+.editor-light .text-white { color: #18181b !important; }
+.editor-light .text-zinc-300,
+.editor-light .text-zinc-400 { color: #52525b !important; }
+.editor-light .text-zinc-500 { color: #71717a !important; }
+.editor-light .text-white\/30 { color: #71717a !important; }
+.editor-light .text-white\/40 { color: #52525b !important; }
+.editor-light .text-white\/60 { color: #3f3f46 !important; }
+.editor-light .text-white\/80 { color: #27272a !important; }
+.editor-light .hover\:bg-\[\#1a1a2e\]:hover { background: #ececee !important; }
+.editor-light .hover\:bg-\[\#2a2a3e\]:hover { background: #d4d4d8 !important; }
+.editor-light .border-white\/8 { border-color: #e4e4e7 !important; }
+.editor-light .border-white\/5 { border-color: #f4f4f5 !important; }
+.editor-light .border-white\/10 { border-color: #e4e4e7 !important; }
+.editor-light .bg-white\/5 { background: #f4f4f5 !important; }
+.editor-light .bg-white\/\[0\.02\] { background: #fafafa !important; }
+.editor-light .bg-white\/\[0\.03\] { background: #f4f4f6 !important; }
+.editor-light .bg-white\/\[0\.06\] { background: #ececee !important; }
+
+/* In light mode, also fix the iframe background so the preview isn't lost */
+.editor-light iframe { background: #ffffff; }
