@@ -1,0 +1,941 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { motion, useInView } from 'framer-motion'
+     5→import { useAppStore } from '@/lib/store'
+     6→import {
+     7→  Sparkles,
+     8→  Paintbrush,
+     9→  Download,
+    10→  Rocket,
+    11→  Sun,
+    12→  Moon,
+    13→  ArrowRight,
+    14→  Zap,
+    15→  Shield,
+    16→  Code2,
+    17→  Layers,
+    18→  MousePointerClick,
+    19→  Github,
+    20→  Twitter,
+    21→  Linkedin,
+    22→  Hexagon,
+    23→  Play,
+    24→  Eye,
+    25→  FileCode2,
+    26→  LayoutGrid,
+    27→  Monitor,
+    28→  Palette,
+    29→  Send,
+    30→  CheckCircle2,
+    31→  Globe,
+    32→  TrendingUp,
+    33→  Clock,
+    34→  Users,
+    35→} from 'lucide-react'
+    36→import { Button } from '@/components/ui/button'
+    37→import { Card, CardContent } from '@/components/ui/card'
+    38→import { Badge } from '@/components/ui/badge'
+    39→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    40→import {
+    41→  Accordion,
+    42→  AccordionItem,
+    43→  AccordionTrigger,
+    44→  AccordionContent,
+    45→} from '@/components/ui/accordion'
+    46→import { Separator } from '@/components/ui/separator'
+    47→
+    48→// ─── Animation Helpers ───────────────────────────────────────────────
+    49→
+    50→const fadeInUp = {
+    51→  hidden: { opacity: 0, y: 16 },
+    52→  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+    53→}
+    54→
+    55→const staggerContainer = {
+    56→  hidden: { opacity: 0 },
+    57→  visible: {
+    58→    opacity: 1,
+    59→    transition: { staggerChildren: 0.06, delayChildren: 0.05 },
+    60→  },
+    61→}
+    62→
+    63→// ─── Animated Counter ────────────────────────────────────────────────
+    64→
+    65→function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
+    66→  const [count, setCount] = useState(0)
+    67→  const ref = useRef<HTMLSpanElement>(null)
+    68→  const inView = useInView(ref, { once: true, margin: '-50px' })
+    69→  const hasAnimated = useRef(false)
+    70→
+    71→  useEffect(() => {
+    72→    if (!inView || hasAnimated.current) return
+    73→    hasAnimated.current = true
+    74→    const start = 0
+    75→    const startTime = performance.now()
+    76→
+    77→    const animate = (now: number) => {
+    78→      const elapsed = now - startTime
+    79→      const progress = Math.min(elapsed / duration, 1)
+    80→      // Ease out cubic
+    81→      const eased = 1 - Math.pow(1 - progress, 3)
+    82→      setCount(Math.floor(start + (target - start) * eased))
+    83→      if (progress < 1) {
+    84→        requestAnimationFrame(animate)
+    85→      }
+    86→    }
+    87→
+    88→    requestAnimationFrame(animate)
+    89→  }, [inView, target, duration])
+    90→
+    91→  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+    92→}
+    93→
+    94→// ─── Data ────────────────────────────────────────────────────────────
+    95→
+    96→const stats = [
+    97→  { value: 10000, suffix: '+', label: 'Sites Built', icon: Globe },
+    98→  { value: 50000, suffix: '+', label: 'Pages Generated', icon: LayoutGrid },
+    99→  { value: 99, suffix: '.9%', label: 'Uptime', icon: Shield },
+   100→  { value: 180, suffix: '+', label: 'Countries', icon: Users },
+   101→]
+   102→
+   103→const features = [
+   104→  {
+   105→    icon: Sparkles,
+   106→    title: 'AI Generation',
+   107→    description: 'Describe your vision in plain language. Forge crafts production-quality websites from your words.',
+   108→  },
+   109→  {
+   110→    icon: Paintbrush,
+   111→    title: 'Visual Editor',
+   112→    description: 'Refine every detail with an intuitive editor. Drag, drop, tweak — or let AI handle it.',
+   113→  },
+   114→  {
+   115→    icon: Download,
+   116→    title: 'Export Freedom',
+   117→    description: 'Export clean HTML, CSS, and JS anytime — no lock-in, no vendor dependency.',
+   118→  },
+   119→  {
+   120→    icon: Rocket,
+   121→    title: 'Deploy Anywhere',
+   122→    description: 'Ship to Vercel, Netlify, or your own server. Forge doesn\'t tie you down.',
+   123→  },
+   124→]
+   125→
+   126→const steps = [
+   127→  {
+   128→    number: '1',
+   129→    title: 'Describe',
+   130→    description: 'Tell Forge what you want — a portfolio, SaaS page, restaurant site, anything.',
+   131→    icon: MousePointerClick,
+   132→  },
+   133→  {
+   134→    number: '2',
+   135→    title: 'AI Builds',
+   136→    description: 'Forge generates a complete, responsive website with proper structure in seconds.',
+   137→    icon: Zap,
+   138→  },
+   139→  {
+   140→    number: '3',
+   141→    title: 'Customize & Ship',
+   142→    description: 'Polish with the visual editor, then deploy anywhere. Your site, your code.',
+   143→    icon: Rocket,
+   144→  },
+   145→]
+   146→
+   147→const testimonials = [
+   148→  {
+   149→    name: 'Sarah Chen',
+   150→    role: 'Founder, Lumina Design',
+   151→    quote: 'Forge turned my rough idea into a stunning website in under 2 minutes. The AI understood exactly what I wanted.',
+   152→    avatar: 'SC',
+   153→    metric: 'Built in 2 min',
+   154→    metricIcon: Clock,
+   155→  },
+   156→  {
+   157→    name: 'Marcus Rivera',
+   158→    role: 'CTO, BuildStack',
+   159→    quote: 'We replaced weeks of frontend work with Forge. The export quality is so clean our devs actually prefer it.',
+   160→    avatar: 'MR',
+   161→    metric: '3,500 monthly visitors',
+   162→    metricIcon: TrendingUp,
+   163→  },
+   164→  {
+   165→    name: 'Aisha Patel',
+   166→    role: 'Freelance Developer',
+   167→    quote: 'I use Forge for every client project now. It handles the initial build, I customize — client gets results faster.',
+   168→    avatar: 'AP',
+   169→    metric: '12 client sites',
+   170→    metricIcon: Globe,
+   171→  },
+   172→]
+   173→
+   174→const faqs = [
+   175→  {
+   176→    question: 'How does Forge\'s AI generate websites?',
+   177→    answer: 'Forge uses advanced AI models that understand web design, UX patterns, and modern development practices. You describe what you want, and the AI generates complete, responsive code — custom-built, not templated.',
+   178→  },
+   179→  {
+   180→    question: 'Can I edit the generated code?',
+   181→    answer: 'Absolutely. Forge includes a visual editor for quick tweaks, and you can export full source code (HTML, CSS, JS) to edit in any tool. No lock-in — the code is yours.',
+   182→  },
+   183→  {
+   184→    question: 'Is Forge free to use?',
+   185→    answer: 'Forge offers a generous free tier for generating and customizing multiple sites. Upgrade to Pro for custom domains, team collaboration, and priority generation.',
+   186→  },
+   187→  {
+   188→    question: 'What platforms does Forge support?',
+   189→    answer: 'Forge generates standard web code that works everywhere. Deploy to Vercel, Netlify, AWS, GitHub Pages, or any host. Clean, framework-free HTML/CSS/JS.',
+   190→  },
+   191→  {
+   192→    question: 'How does Forge compare to traditional builders?',
+   193→    answer: 'Traditional builders give templates and drag-and-drop. Forge gives AI-powered generation that creates unique designs from your description — faster, more flexible, better results.',
+   194→  },
+   195→]
+   196→
+   197→const suggestionPills = [
+   198→  'A modern SaaS landing page with pricing',
+   199→  'Portfolio site for a photographer',
+   200→  'Restaurant website with online ordering',
+   201→  'Minimal blog with dark theme',
+   202→]
+   203→
+   204→// ─── Hexagonal Logo ──────────────────────────────────────────────────
+   205→
+   206→function ForgeLogo({ className = '' }: { className?: string }) {
+   207→  return (
+   208→    <div className={`flex items-center gap-1.5 ${className}`}>
+   209→      <Hexagon className="w-6 h-6 text-primary fill-primary/20" strokeWidth={2.5} />
+   210→      <span className="text-lg font-bold tracking-tight text-foreground">Forge</span>
+   211→    </div>
+   212→  )
+   213→}
+   214→
+   215→// ─── Navbar ──────────────────────────────────────────────────────────
+   216→
+   217→function Navbar() {
+   218→  const navigate = useAppStore(s => s.navigate)
+   219→  const themeMode = useAppStore(s => s.themeMode)
+   220→  const setThemeMode = useAppStore(s => s.setThemeMode)
+   221→
+   222→  const toggleTheme = () => {
+   223→    const newMode = themeMode === 'dark' ? 'light' : 'dark'
+   224→    setThemeMode(newMode)
+   225→    document.documentElement.classList.toggle('dark', newMode === 'dark')
+   226→  }
+   227→
+   228→  return (
+   229→    <motion.nav
+   230→      initial={{ opacity: 0, y: -8 }}
+   231→      animate={{ opacity: 1, y: 0 }}
+   232→      transition={{ duration: 0.4 }}
+   233→      className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl"
+   234→    >
+   235→      <div className="mx-auto max-w-5xl flex items-center justify-between h-12 px-4 sm:px-6">
+   236→        <ForgeLogo />
+   237→        <div className="flex items-center gap-2">
+   238→          <Button
+   239→            variant="ghost"
+   240→            size="icon"
+   241→            onClick={toggleTheme}
+   242→            className="text-muted-foreground hover:text-foreground h-8 w-8"
+   243→            aria-label="Toggle theme"
+   244→          >
+   245→            {themeMode === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+   246→          </Button>
+   247→          <Button
+   248→            variant="ghost"
+   249→            size="sm"
+   250→            onClick={() => navigate('login')}
+   251→            className="text-muted-foreground hover:text-foreground text-xs hidden sm:inline-flex h-8"
+   252→          >
+   253→            Sign in
+   254→          </Button>
+   255→          <Button
+   256→            size="sm"
+   257→            onClick={() => navigate('builder')}
+   258→            className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs px-3"
+   259→          >
+   260→            Get Started
+   261→            <ArrowRight className="w-3 h-3 ml-1" />
+   262→          </Button>
+   263→        </div>
+   264→      </div>
+   265→    </motion.nav>
+   266→  )
+   267→}
+   268→
+   269→// ─── Hero ────────────────────────────────────────────────────────────
+   270→
+   271→function Hero() {
+   272→  const navigate = useAppStore(s => s.navigate)
+   273→  const setBuilderPrompt = useAppStore(s => s.setBuilderPrompt)
+   274→  const [promptText, setPromptText] = useState('')
+   275→
+   276→  const handleGenerate = useCallback(() => {
+   277→    if (!promptText.trim()) return
+   278→    setBuilderPrompt(promptText.trim())
+   279→    navigate('builder')
+   280→  }, [promptText, setBuilderPrompt, navigate])
+   281→
+   282→  const handleSuggestionClick = useCallback((text: string) => {
+   283→    setPromptText(text)
+   284→  }, [])
+   285→
+   286→  return (
+   287→    <section className="relative overflow-hidden">
+   288→      {/* Subtle gradient background */}
+   289→      <div className="absolute inset-0 -z-10">
+   290→        <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/8 rounded-full blur-[80px] animate-pulse-glow" />
+   291→        <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-primary/5 rounded-full blur-[60px] animate-float" />
+   292→      </div>
+   293→
+   294→      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-12 sm:pt-16 pb-8 sm:pb-12 text-center">
+   295→        <motion.div
+   296→          initial="hidden"
+   297→          animate="visible"
+   298→          variants={staggerContainer}
+   299→          className="flex flex-col items-center"
+   300→        >
+   301→          <motion.h1
+   302→            variants={fadeInUp}
+   303→            className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight max-w-2xl leading-snug"
+   304→          >
+   305→            Your idea. Our AI.{' '}
+   306→            <span className="gradient-text">A complete website.</span>
+   307→          </motion.h1>
+   308→
+   309→          <motion.p
+   310→            variants={fadeInUp}
+   311→            className="mt-3 text-sm sm:text-base text-muted-foreground max-w-lg"
+   312→          >
+   313→            Describe what you want, and Forge builds it in seconds. No templates, no coding — just results.
+   314→          </motion.p>
+   315→
+   316→          {/* Interactive prompt input */}
+   317→          <motion.div variants={fadeInUp} className="mt-6 w-full max-w-xl">
+   318→            <div className="relative flex items-center gap-2 bg-card border border-border rounded-lg p-2 shadow-sm hover:shadow-md transition-shadow">
+   319→              <Sparkles className="w-4 h-4 text-primary/60 ml-2 shrink-0" />
+   320→              <input
+   321→                type="text"
+   322→                value={promptText}
+   323→                onChange={(e) => setPromptText(e.target.value)}
+   324→                onKeyDown={(e) => { if (e.key === 'Enter') handleGenerate() }}
+   325→                placeholder="Describe the website you want to build..."
+   326→                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none min-w-0 py-1.5"
+   327→                aria-label="Website description prompt"
+   328→              />
+   329→              <Button
+   330→                size="sm"
+   331→                onClick={handleGenerate}
+   332→                disabled={!promptText.trim()}
+   333→                className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3 text-xs shrink-0 disabled:opacity-40"
+   334→              >
+   335→                <Send className="w-3 h-3 mr-1" />
+   336→                Generate
+   337→              </Button>
+   338→            </div>
+   339→
+   340→            {/* Suggestion pills */}
+   341→            <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+   342→              {suggestionPills.map((pill) => (
+   343→                <button
+   344→                  key={pill}
+   345→                  onClick={() => handleSuggestionClick(pill)}
+   346→                  className="text-xs text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted border border-border/40 rounded-full px-2.5 py-1 transition-colors cursor-pointer"
+   347→                >
+   348→                  {pill}
+   349→                </button>
+   350→              ))}
+   351→            </div>
+   352→          </motion.div>
+   353→
+   354→          <motion.div variants={fadeInUp} className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+   355→            <div className="flex items-center gap-1">
+   356→              <Shield className="w-3 h-3 text-primary" />
+   357→              No lock-in
+   358→            </div>
+   359→            <div className="flex items-center gap-1">
+   360→              <Code2 className="w-3 h-3 text-primary" />
+   361→              Clean code export
+   362→            </div>
+   363→            <div className="flex items-center gap-1">
+   364→              <Layers className="w-3 h-3 text-primary" />
+   365→              Deploy anywhere
+   366→            </div>
+   367→          </motion.div>
+   368→        </motion.div>
+   369→      </div>
+   370→    </section>
+   371→  )
+   372→}
+   373→
+   374→// ─── Stats Bar ───────────────────────────────────────────────────────
+   375→
+   376→function StatsBar() {
+   377→  return (
+   378→    <section className="border-y border-border/30 bg-muted/20">
+   379→      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+   380→        <motion.div
+   381→          initial="hidden"
+   382→          whileInView="visible"
+   383→          viewport={{ once: true, margin: '-50px' }}
+   384→          variants={staggerContainer}
+   385→          className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6"
+   386→        >
+   387→          {stats.map((stat) => (
+   388→            <motion.div key={stat.label} variants={fadeInUp} className="text-center">
+   389→              <div className="flex items-center justify-center gap-1.5 mb-1">
+   390→                <stat.icon className="w-3.5 h-3.5 text-primary" />
+   391→                <span className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">
+   392→                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+   393→                </span>
+   394→              </div>
+   395→              <p className="text-xs text-muted-foreground">{stat.label}</p>
+   396→            </motion.div>
+   397→          ))}
+   398→        </motion.div>
+   399→      </div>
+   400→    </section>
+   401→  )
+   402→}
+   403→
+   404→// ─── Product Showcase ────────────────────────────────────────────────
+   405→
+   406→function ProductShowcase() {
+   407→  return (
+   408→    <section className="py-10 sm:py-16">
+   409→      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+   410→        <motion.div
+   411→          initial="hidden"
+   412→          whileInView="visible"
+   413→          viewport={{ once: true, margin: '-50px' }}
+   414→          variants={staggerContainer}
+   415→          className="text-center mb-6"
+   416→        >
+   417→          <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold tracking-tight">
+   418→            See how <span className="gradient-text">Forge works</span>
+   419→          </motion.h2>
+   420→          <motion.p variants={fadeInUp} className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
+   421→            From prompt to production-ready website in three powerful tools.
+   422→          </motion.p>
+   423→        </motion.div>
+   424→
+   425→        <motion.div
+   426→          initial={{ opacity: 0, y: 20 }}
+   427→          whileInView={{ opacity: 1, y: 0 }}
+   428→          viewport={{ once: true, margin: '-50px' }}
+   429→          transition={{ duration: 0.6 }}
+   430→        >
+   431→          <Tabs defaultValue="ai-builder" className="w-full">
+   432→            <TabsList className="mx-auto mb-4 h-8">
+   433→              <TabsTrigger value="ai-builder" className="text-xs px-3 h-6">
+   434→                <Sparkles className="w-3 h-3 mr-1" />
+   435→                AI Builder
+   436→              </TabsTrigger>
+   437→              <TabsTrigger value="visual-editor" className="text-xs px-3 h-6">
+   438→                <Paintbrush className="w-3 h-3 mr-1" />
+   439→                Visual Editor
+   440→              </TabsTrigger>
+   441→              <TabsTrigger value="code-export" className="text-xs px-3 h-6">
+   442→                <FileCode2 className="w-3 h-3 mr-1" />
+   443→                Code Export
+   444→              </TabsTrigger>
+   445→            </TabsList>
+   446→
+   447→            <TabsContent value="ai-builder">
+   448→              <Card className="border-border/40 bg-card/80 overflow-hidden">
+   449→                <CardContent className="p-0">
+   450→                  {/* Mock editor UI: AI Builder */}
+   451→                  <div className="bg-muted/30 border-b border-border/30 px-4 py-2 flex items-center gap-2">
+   452→                    <Hexagon className="w-4 h-4 text-primary fill-primary/20" strokeWidth={2} />
+   453→                    <span className="text-xs font-semibold text-foreground">Forge</span>
+   454→                    <span className="text-xs text-muted-foreground ml-2">AI Builder</span>
+   455→                  </div>
+   456→                  <div className="p-4 sm:p-6 flex flex-col items-center gap-4">
+   457→                    <div className="w-full max-w-md bg-background border border-border/40 rounded-lg p-3">
+   458→                      <div className="flex items-center gap-2 mb-2">
+   459→                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+   460→                        <span className="text-xs font-medium text-foreground">Describe your website</span>
+   461→                      </div>
+   462→                      <div className="bg-muted/40 rounded px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+   463→                        A modern SaaS landing page for a project management tool called "TaskFlow". Include hero section with gradient background, feature grid, pricing comparison table, and testimonials. Use a clean, professional design with subtle animations.
+   464→                      </div>
+   465→                    </div>
+   466→                    <div className="flex items-center gap-2">
+   467→                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+   468→                      <span className="text-xs text-muted-foreground">AI is generating your website...</span>
+   469→                    </div>
+   470→                    <div className="w-full grid grid-cols-3 gap-2 mt-2">
+   471→                      {['Hero Section', 'Features Grid', 'Pricing Table'].map((section) => (
+   472→                        <div key={section} className="bg-muted/30 border border-border/30 rounded-md p-2 text-center">
+   473→                          <CheckCircle2 className="w-3.5 h-3.5 text-primary mx-auto mb-1" />
+   474→                          <span className="text-xs text-foreground font-medium">{section}</span>
+   475→                        </div>
+   476→                      ))}
+   477→                    </div>
+   478→                  </div>
+   479→                </CardContent>
+   480→              </Card>
+   481→            </TabsContent>
+   482→
+   483→            <TabsContent value="visual-editor">
+   484→              <Card className="border-border/40 bg-card/80 overflow-hidden">
+   485→                <CardContent className="p-0">
+   486→                  {/* Mock editor UI: Visual Editor */}
+   487→                  <div className="bg-muted/30 border-b border-border/30 px-4 py-2 flex items-center justify-between">
+   488→                    <div className="flex items-center gap-2">
+   489→                      <Hexagon className="w-4 h-4 text-primary fill-primary/20" strokeWidth={2} />
+   490→                      <span className="text-xs font-semibold text-foreground">Forge</span>
+   491→                      <span className="text-xs text-muted-foreground ml-2">Visual Editor</span>
+   492→                    </div>
+   493→                    <div className="flex items-center gap-1.5">
+   494→                      <Monitor className="w-3 h-3 text-muted-foreground" />
+   495→                      <span className="text-xs text-muted-foreground">Desktop</span>
+   496→                    </div>
+   497→                  </div>
+   498→                  <div className="flex">
+   499→                    {/* Left panel mock */}
+   500→                    <div className="w-44 border-r border-border/30 bg-muted/20 p-2 hidden sm:block">
+   501→                      <div className="text-xs font-medium text-muted-foreground mb-2">Components</div>
+   502→                      {['Header', 'Hero', 'Features', 'Pricing', 'Footer'].map((comp) => (
+   503→                        <div key={comp} className="text-xs text-foreground py-1 px-2 rounded hover:bg-muted/40 cursor-pointer flex items-center gap-1.5">
+   504→                          <LayoutGrid className="w-2.5 h-2.5 text-muted-foreground" />
+   505→                          {comp}
+   506→                        </div>
+   507→                      ))}
+   508→                    </div>
+   509→                    {/* Canvas mock */}
+   510→                    <div className="flex-1 p-4 sm:p-6">
+   511→                      <div className="bg-background border-2 border-primary/40 rounded-lg p-4 max-w-sm mx-auto">
+   512→                        <div className="h-2 w-16 bg-primary/20 rounded mb-2" />
+   513→                        <div className="h-1.5 w-24 bg-muted-foreground/20 rounded mb-3" />
+   514→                        <div className="h-8 bg-primary/10 rounded flex items-center justify-center">
+   515→                          <span className="text-xs text-primary font-medium">Get Started</span>
+   516→                        </div>
+   517→                        <div className="mt-2 h-1 w-20 bg-muted-foreground/10 rounded" />
+   518→                      </div>
+   519→                      <div className="text-center mt-2">
+   520→                        <span className="text-xs text-muted-foreground">Click any element to edit</span>
+   521→                      </div>
+   522→                    </div>
+   523→                    {/* Right panel mock */}
+   524→                    <div className="w-40 border-l border-border/30 bg-muted/20 p-2 hidden sm:block">
+   525→                      <div className="text-xs font-medium text-muted-foreground mb-2">Properties</div>
+   526→                      <div className="space-y-1.5">
+   527→                        {['Font Size', 'Color', 'Padding', 'Margin'].map((prop) => (
+   528→                          <div key={prop} className="text-xs">
+   529→                            <span className="text-muted-foreground">{prop}</span>
+   530→                            <div className="h-1.5 bg-muted/40 rounded mt-0.5" />
+   531→                          </div>
+   532→                        ))}
+   533→                      </div>
+   534→                    </div>
+   535→                  </div>
+   536→                </CardContent>
+   537→              </Card>
+   538→            </TabsContent>
+   539→
+   540→            <TabsContent value="code-export">
+   541→              <Card className="border-border/40 bg-card/80 overflow-hidden">
+   542→                <CardContent className="p-0">
+   543→                  {/* Mock editor UI: Code Export */}
+   544→                  <div className="bg-muted/30 border-b border-border/30 px-4 py-2 flex items-center justify-between">
+   545→                    <div className="flex items-center gap-2">
+   546→                      <Hexagon className="w-4 h-4 text-primary fill-primary/20" strokeWidth={2} />
+   547→                      <span className="text-xs font-semibold text-foreground">Forge</span>
+   548→                      <span className="text-xs text-muted-foreground ml-2">Code Export</span>
+   549→                    </div>
+   550→                    <div className="flex items-center gap-1.5">
+   551→                      <Download className="w-3 h-3 text-muted-foreground" />
+   552→                      <span className="text-xs text-muted-foreground">Export ZIP</span>
+   553→                    </div>
+   554→                  </div>
+   555→                  <div className="p-4 sm:p-6">
+   556→                    <div className="bg-muted/20 rounded-lg overflow-hidden border border-border/30">
+   557→                      {/* File tabs */}
+   558→                      <div className="flex items-center gap-0 border-b border-border/30 bg-muted/30">
+   559→                        {['index.html', 'styles.css', 'app.js'].map((file, i) => (
+   560→                          <div key={file} className={`px-3 py-1.5 text-xs ${i === 0 ? 'bg-background text-foreground border-b-2 border-primary' : 'text-muted-foreground'}`}>
+   561→                            {file}
+   562→                          </div>
+   563→                        ))}
+   564→                      </div>
+   565→                      {/* Code content mock */}
+   566→                      <div className="p-3 text-xs leading-relaxed font-mono">
+   567→                        <div className="text-muted-foreground/60">
+   568→                          <span className="text-primary/70">&lt;!DOCTYPE</span> html<br />
+   569→                          <span className="text-primary/70">&lt;html</span> lang="en"<span className="text-primary/70">&gt;</span><br />
+   570→                          &nbsp;&nbsp;<span className="text-primary/70">&lt;head&gt;</span><br />
+   571→                          &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-primary/70">&lt;meta</span> charset="UTF-8"<br />
+   572→                          &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-primary/70">&lt;title&gt;</span>TaskFlow — Project Management<span className="text-primary/70">&lt;/title&gt;</span><br />
+   573→                          &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-primary/70">&lt;link</span> rel="stylesheet" href="styles.css"<br />
+   574→                          &nbsp;&nbsp;<span className="text-primary/70">&lt;/head&gt;</span><br />
+   575→                          &nbsp;&nbsp;<span className="text-primary/70">&lt;body&gt;</span><br />
+   576→                          &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-muted-foreground/40">... clean, production-ready code ...</span><br />
+   577→                          &nbsp;&nbsp;<span className="text-primary/70">&lt;/body&gt;</span><br />
+   578→                          <span className="text-primary/70">&lt;/html&gt;</span>
+   579→                        </div>
+   580→                      </div>
+   581→                    </div>
+   582→                    <div className="flex items-center justify-center gap-3 mt-3">
+   583→                      <Button variant="outline" size="sm" className="h-7 text-xs">
+   584→                        <Eye className="w-3 h-3 mr-1" />
+   585→                        Preview
+   586→                      </Button>
+   587→                      <Button size="sm" className="h-7 text-xs bg-primary text-primary-foreground">
+   588→                        <Download className="w-3 h-3 mr-1" />
+   589→                        Download ZIP
+   590→                      </Button>
+   591→                    </div>
+   592→                  </div>
+   593→                </CardContent>
+   594→              </Card>
+   595→            </TabsContent>
+   596→          </Tabs>
+   597→        </motion.div>
+   598→      </div>
+   599→    </section>
+   600→  )
+   601→}
+   602→
+   603→// ─── Features ────────────────────────────────────────────────────────
+   604→
+   605→function Features() {
+   606→  return (
+   607→    <section className="py-10 sm:py-16 bg-muted/20">
+   608→      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+   609→        <motion.div
+   610→          initial="hidden"
+   611→          whileInView="visible"
+   612→          viewport={{ once: true, margin: '-50px' }}
+   613→          variants={staggerContainer}
+   614→          className="text-center mb-6"
+   615→        >
+   616→          <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold tracking-tight">
+   617→            Everything you need,{' '}
+   618→            <span className="gradient-text">nothing you don&apos;t</span>
+   619→          </motion.h2>
+   620→          <motion.p variants={fadeInUp} className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
+   621→            AI generation, visual editing, and full code export in one seamless workflow.
+   622→          </motion.p>
+   623→        </motion.div>
+   624→
+   625→        <motion.div
+   626→          initial="hidden"
+   627→          whileInView="visible"
+   628→          viewport={{ once: true, margin: '-50px' }}
+   629→          variants={staggerContainer}
+   630→          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+   631→        >
+   632→          {features.map((feature) => (
+   633→            <motion.div key={feature.title} variants={fadeInUp}>
+   634→              <Card className="border-border/40 bg-card/60 hover:border-primary/20 transition-colors duration-300 h-full">
+   635→                <CardContent className="p-4">
+   636→                  <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center mb-3">
+   637→                    <feature.icon className="w-4 h-4 text-primary" />
+   638→                  </div>
+   639→                  <h3 className="text-sm font-semibold text-foreground mb-1">{feature.title}</h3>
+   640→                  <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+   641→                </CardContent>
+   642→              </Card>
+   643→            </motion.div>
+   644→          ))}
+   645→        </motion.div>
+   646→      </div>
+   647→    </section>
+   648→  )
+   649→}
+   650→
+   651→// ─── How It Works ────────────────────────────────────────────────────
+   652→
+   653→function HowItWorks() {
+   654→  return (
+   655→    <section className="py-10 sm:py-16">
+   656→      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+   657→        <motion.div
+   658→          initial="hidden"
+   659→          whileInView="visible"
+   660→          viewport={{ once: true, margin: '-50px' }}
+   661→          variants={staggerContainer}
+   662→          className="text-center mb-6"
+   663→        >
+   664→          <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold tracking-tight">
+   665→            Three steps.{' '}
+   666→            <span className="gradient-text">That&apos;s it.</span>
+   667→          </motion.h2>
+   668→        </motion.div>
+   669→
+   670→        <motion.div
+   671→          initial="hidden"
+   672→          whileInView="visible"
+   673→          viewport={{ once: true, margin: '-50px' }}
+   674→          variants={staggerContainer}
+   675→          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+   676→        >
+   677→          {steps.map((step, i) => (
+   678→            <motion.div key={step.number} variants={fadeInUp} className="relative">
+   679→              <div className="flex flex-col items-center text-center">
+   680→                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-3 ring-1 ring-primary/20">
+   681→                  <span className="text-xs font-bold text-primary">{step.number}</span>
+   682→                </div>
+   683→                <h3 className="text-sm font-semibold text-foreground mb-1">{step.title}</h3>
+   684→                <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">{step.description}</p>
+   685→              </div>
+   686→              {i < steps.length - 1 && (
+   687→                <div className="hidden md:block absolute top-4 -right-2 w-4">
+   688→                  <ArrowRight className="w-3 h-3 text-muted-foreground/40 mx-auto" />
+   689→                </div>
+   690→              )}
+   691→            </motion.div>
+   692→          ))}
+   693→        </motion.div>
+   694→      </div>
+   695→    </section>
+   696→  )
+   697→}
+   698→
+   699→// ─── Testimonials ────────────────────────────────────────────────────
+   700→
+   701→function Testimonials() {
+   702→  return (
+   703→    <section className="py-10 sm:py-16 bg-muted/20">
+   704→      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+   705→        <motion.div
+   706→          initial="hidden"
+   707→          whileInView="visible"
+   708→          viewport={{ once: true, margin: '-50px' }}
+   709→          variants={staggerContainer}
+   710→          className="text-center mb-6"
+   711→        >
+   712→          <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold tracking-tight">
+   713→            Loved by builders
+   714→          </motion.h2>
+   715→          <motion.p variants={fadeInUp} className="mt-2 text-xs text-muted-foreground">
+   716→            Real results from real users.
+   717→          </motion.p>
+   718→        </motion.div>
+   719→
+   720→        <motion.div
+   721→          initial="hidden"
+   722→          whileInView="visible"
+   723→          viewport={{ once: true, margin: '-50px' }}
+   724→          variants={staggerContainer}
+   725→          className="grid grid-cols-1 md:grid-cols-3 gap-3"
+   726→        >
+   727→          {testimonials.map((t) => (
+   728→            <motion.div key={t.name} variants={fadeInUp}>
+   729→              <Card className="border-border/40 bg-card/60 h-full">
+   730→                <CardContent className="p-4">
+   731→                  <p className="text-xs text-foreground leading-relaxed mb-3">&ldquo;{t.quote}&rdquo;</p>
+   732→                  {/* Metric badge */}
+   733→                  <div className="flex items-center gap-1.5 mb-3 bg-primary/10 rounded-full px-2.5 py-1">
+   734→                    <t.metricIcon className="w-3 h-3 text-primary" />
+   735→                    <span className="text-xs font-medium text-primary">{t.metric}</span>
+   736→                  </div>
+   737→                  <div className="flex items-center gap-2">
+   738→                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+   739→                      {t.avatar}
+   740→                    </div>
+   741→                    <div>
+   742→                      <div className="text-xs font-medium text-foreground">{t.name}</div>
+   743→                      <div className="text-xs text-muted-foreground">{t.role}</div>
+   744→                    </div>
+   745→                  </div>
+   746→                </CardContent>
+   747→              </Card>
+   748→            </motion.div>
+   749→          ))}
+   750→        </motion.div>
+   751→      </div>
+   752→    </section>
+   753→  )
+   754→}
+   755→
+   756→// ─── Pricing Hint ────────────────────────────────────────────────────
+   757→
+   758→function PricingHint() {
+   759→  const navigate = useAppStore(s => s.navigate)
+   760→
+   761→  return (
+   762→    <section className="py-10 sm:py-16">
+   763→      <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
+   764→        <motion.div
+   765→          initial="hidden"
+   766→          whileInView="visible"
+   767→          viewport={{ once: true, margin: '-50px' }}
+   768→          variants={staggerContainer}
+   769→        >
+   770→          <motion.div variants={fadeInUp}>
+   771→            <Badge variant="secondary" className="mb-3 px-2 py-0.5 text-xs">
+   772→              Simple Pricing
+   773→            </Badge>
+   774→          </motion.div>
+   775→          <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold tracking-tight">
+   776→            Free to start.{' '}
+   777→            <span className="gradient-text">Scale when ready.</span>
+   778→          </motion.h2>
+   779→          <motion.p variants={fadeInUp} className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
+   780→            Start building with Forge&apos;s free tier — no credit card needed. Upgrade for unlimited generation, custom domains, and team features.
+   781→          </motion.p>
+   782→          <motion.div variants={fadeInUp} className="mt-4 flex items-center justify-center gap-3 text-xs text-muted-foreground">
+   783→            <div className="flex items-center gap-1">
+   784→              <CheckCircle2 className="w-3 h-3 text-primary" />
+   785→              Free tier included
+   786→            </div>
+   787→            <div className="flex items-center gap-1">
+   788→              <CheckCircle2 className="w-3 h-3 text-primary" />
+   789→              No credit card
+   790→            </div>
+   791→            <div className="flex items-center gap-1">
+   792→              <CheckCircle2 className="w-3 h-3 text-primary" />
+   793→              Cancel anytime
+   794→            </div>
+   795→          </motion.div>
+   796→          <motion.div variants={fadeInUp} className="mt-5">
+   797→            <Button
+   798→              size="sm"
+   799→              onClick={() => navigate('builder')}
+   800→              className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 text-xs"
+   801→            >
+   802→              Start for Free
+   803→              <ArrowRight className="w-3 h-3 ml-1" />
+   804→            </Button>
+   805→          </motion.div>
+   806→        </motion.div>
+   807→      </div>
+   808→    </section>
+   809→  )
+   810→}
+   811→
+   812→// ─── FAQ ──────────────────────────────────────────────────────────────
+   813→
+   814→function FAQ() {
+   815→  return (
+   816→    <section className="py-10 sm:py-16 bg-muted/20">
+   817→      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+   818→        <motion.div
+   819→          initial="hidden"
+   820→          whileInView="visible"
+   821→          viewport={{ once: true, margin: '-50px' }}
+   822→          variants={staggerContainer}
+   823→          className="text-center mb-6"
+   824→        >
+   825→          <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold tracking-tight">
+   826→            Frequently asked questions
+   827→          </motion.h2>
+   828→        </motion.div>
+   829→
+   830→        <motion.div
+   831→          initial={{ opacity: 0, y: 16 }}
+   832→          whileInView={{ opacity: 1, y: 0 }}
+   833→          viewport={{ once: true, margin: '-50px' }}
+   834→          transition={{ duration: 0.5 }}
+   835→        >
+   836→          <Accordion type="single" collapsible className="w-full">
+   837→            {faqs.map((faq, i) => (
+   838→              <AccordionItem key={i} value={`faq-${i}`} className="border-border/40">
+   839→                <AccordionTrigger className="text-sm font-medium hover:no-underline hover:text-primary">
+   840→                  {faq.question}
+   841→                </AccordionTrigger>
+   842→                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+   843→                  {faq.answer}
+   844→                </AccordionContent>
+   845→              </AccordionItem>
+   846→            ))}
+   847→          </Accordion>
+   848→        </motion.div>
+   849→      </div>
+   850→    </section>
+   851→  )
+   852→}
+   853→
+   854→// ─── Footer ──────────────────────────────────────────────────────────
+   855→
+   856→function Footer() {
+   857→  return (
+   858→    <footer className="mt-auto border-t border-border/40 bg-muted/15">
+   859→      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+   860→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+   861→          <div className="col-span-2 sm:col-span-1">
+   862→            <ForgeLogo className="mb-2" />
+   863→            <p className="text-xs text-muted-foreground leading-relaxed">
+   864→              AI-powered website builder. Describe, generate, customize, ship.
+   865→            </p>
+   866→          </div>
+   867→
+   868→          <div>
+   869→            <h4 className="font-semibold text-foreground text-xs mb-2">Product</h4>
+   870→            <ul className="space-y-1 text-xs text-muted-foreground">
+   871→              <li className="hover:text-foreground transition-colors cursor-pointer">Features</li>
+   872→              <li className="hover:text-foreground transition-colors cursor-pointer">Pricing</li>
+   873→              <li className="hover:text-foreground transition-colors cursor-pointer">Templates</li>
+   874→              <li className="hover:text-foreground transition-colors cursor-pointer">Changelog</li>
+   875→            </ul>
+   876→          </div>
+   877→
+   878→          <div>
+   879→            <h4 className="font-semibold text-foreground text-xs mb-2">Resources</h4>
+   880→            <ul className="space-y-1 text-xs text-muted-foreground">
+   881→              <li className="hover:text-foreground transition-colors cursor-pointer">Documentation</li>
+   882→              <li className="hover:text-foreground transition-colors cursor-pointer">Blog</li>
+   883→              <li className="hover:text-foreground transition-colors cursor-pointer">Community</li>
+   884→              <li className="hover:text-foreground transition-colors cursor-pointer">Support</li>
+   885→            </ul>
+   886→          </div>
+   887→
+   888→          <div>
+   889→            <h4 className="font-semibold text-foreground text-xs mb-2">Legal</h4>
+   890→            <ul className="space-y-1 text-xs text-muted-foreground">
+   891→              <li className="hover:text-foreground transition-colors cursor-pointer">Privacy</li>
+   892→              <li className="hover:text-foreground transition-colors cursor-pointer">Terms</li>
+   893→              <li className="hover:text-foreground transition-colors cursor-pointer">Cookies</li>
+   894→            </ul>
+   895→          </div>
+   896→        </div>
+   897→
+   898→        <Separator className="my-4 bg-border/40" />
+   899→
+   900→        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+   901→          <p className="text-xs text-muted-foreground">
+   902→            &copy; {new Date().getFullYear()} Forge. All rights reserved.
+   903→          </p>
+   904→          <div className="flex items-center gap-3">
+   905→            <Github className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+   906→            <Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+   907→            <Linkedin className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+   908→          </div>
+   909→        </div>
+   910→      </div>
+   911→    </footer>
+   912→  )
+   913→}
+   914→
+   915→// ─── Main Component ──────────────────────────────────────────────────
+   916→
+   917→export default function LandingPage() {
+   918→  const themeMode = useAppStore(s => s.themeMode)
+   919→
+   920→  React.useEffect(() => {
+   921→    document.documentElement.classList.toggle('dark', themeMode === 'dark')
+   922→  }, [themeMode])
+   923→
+   924→  return (
+   925→    <div className="min-h-screen flex flex-col bg-background text-foreground">
+   926→      <Navbar />
+   927→      <main className="flex-1">
+   928→        <Hero />
+   929→        <StatsBar />
+   930→        <ProductShowcase />
+   931→        <Features />
+   932→        <HowItWorks />
+   933→        <Testimonials />
+   934→        <PricingHint />
+   935→        <FAQ />
+   936→      </main>
+   937→      <Footer />
+   938→    </div>
+   939→  )
+   940→}
+   941→
