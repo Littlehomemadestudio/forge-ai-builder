@@ -916,30 +916,41 @@ function AIDemo({ isDark }: { isDark: boolean }) {
 
 // ─── Floating Particles Component ────────────────────────────────────
 
+// ─── Deterministic Particle Data (avoids hydration mismatch) ────────
+
+const PARTICLE_DATA = [
+  { w: 6, h: 5, left: 18, top: 42, hue: 270, chroma: 0.18, lightDark: 0.75, lightLight: 0.55, xShift: -8, duration: 5, delay: 0 },
+  { w: 4, h: 7, left: 65, top: 28, hue: 160, chroma: 0.20, lightDark: 0.80, lightLight: 0.52, xShift: 6, duration: 6, delay: 1 },
+  { w: 8, h: 5, left: 40, top: 72, hue: 350, chroma: 0.16, lightDark: 0.72, lightLight: 0.58, xShift: -5, duration: 4.5, delay: 0.5 },
+  { w: 5, h: 8, left: 82, top: 15, hue: 30, chroma: 0.22, lightDark: 0.85, lightLight: 0.50, xShift: 10, duration: 7, delay: 2 },
+  { w: 7, h: 6, left: 30, top: 85, hue: 200, chroma: 0.17, lightDark: 0.78, lightLight: 0.53, xShift: -12, duration: 5.5, delay: 1.5 },
+  { w: 5, h: 4, left: 55, top: 50, hue: 140, chroma: 0.19, lightDark: 0.82, lightLight: 0.56, xShift: 7, duration: 4, delay: 2.5 },
+]
+
 function FloatingParticles({ isDark }: { isDark: boolean }) {
-  const particleOpacity = isDark ? '30%' : '15%'
+  const particleOpacity = isDark ? 0.3 : 0.15
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(6)].map((_, i) => (
+      {PARTICLE_DATA.map((p, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full"
           style={{
-            width: 4 + Math.random() * 6,
-            height: 4 + Math.random() * 6,
-            left: `${10 + Math.random() * 80}%`,
-            top: `${10 + Math.random() * 80}%`,
-            background: `oklch(${isDark ? 0.7 + Math.random() * 0.2 : 0.5 + Math.random() * 0.1} ${0.15 + Math.random() * 0.1} ${Math.random() * 360} / ${particleOpacity})`,
+            width: p.w,
+            height: p.h,
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            background: `oklch(${isDark ? p.lightDark : p.lightLight} ${p.chroma} ${p.hue} / ${particleOpacity})`,
           }}
           animate={{
             y: [0, -20, 0],
-            x: [0, (Math.random() - 0.5) * 20, 0],
-            opacity: [isDark ? 0.3 : 0.15, isDark ? 0.6 : 0.3, isDark ? 0.3 : 0.15],
+            x: [0, p.xShift, 0],
+            opacity: [particleOpacity, isDark ? 0.6 : 0.3, particleOpacity],
           }}
           transition={{
-            duration: 4 + Math.random() * 4,
+            duration: p.duration,
             repeat: Infinity,
-            delay: Math.random() * 3,
+            delay: p.delay,
             ease: 'easeInOut',
           }}
         />
