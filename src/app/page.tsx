@@ -3,12 +3,17 @@
 import React from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
+import dynamic from 'next/dynamic'
+
+// Static import for landing page (first thing user sees)
 import LandingPage from '@/components/landing/LandingPage'
-import { LoginPage } from '@/components/auth/LoginPage'
-import { RegisterPage } from '@/components/auth/RegisterPage'
-import DashboardPage from '@/components/dashboard/DashboardPage'
-import BuilderPage from '@/components/builder/BuilderPage'
-import EditorPage from '@/components/editor/EditorPage'
+
+// Lazy load all other pages - they're only needed when user navigates to them
+const LoginPage = dynamic(() => import('@/components/auth/LoginPage').then(m => ({ default: m.LoginPage })), { ssr: false })
+const RegisterPage = dynamic(() => import('@/components/auth/RegisterPage').then(m => ({ default: m.RegisterPage })), { ssr: false })
+const DashboardPage = dynamic(() => import('@/components/dashboard/DashboardPage'), { ssr: false })
+const BuilderPage = dynamic(() => import('@/components/builder/BuilderPage'), { ssr: false })
+const EditorPage = dynamic(() => import('@/components/editor/EditorPage'), { ssr: false })
 
 export default function Home() {
   const currentView = useAppStore((s) => s.currentView)
