@@ -33,6 +33,18 @@ export type DashboardTab =
 
 export type BuilderPhase = 'prompt' | 'generating' | 'preview' | 'edit'
 
+export type BuilderIndustry =
+  | 'portfolio'
+  | 'saas'
+  | 'restaurant'
+  | 'ecommerce'
+  | 'blog'
+  | 'agency'
+  | 'event'
+  | 'personal'
+
+export type BuilderStyle = 'light' | 'dark' | 'minimal' | 'bold'
+
 export type EditorPanel = 'layers' | 'components' | 'design-library'
 export type InspectorTab = 'style' | 'layout' | 'animation' | 'seo'
 
@@ -94,10 +106,15 @@ interface AppState {
   // Builder
   builderPhase: BuilderPhase
   builderPrompt: string
+  builderIndustry: BuilderIndustry
+  builderStyle: BuilderStyle
+  builderMode: 'ai' | 'templates'
   generatedPages: GeneratedPage[]
+  generatedSiteName: string
   currentPreviewPage: string
   isGenerating: boolean
   generationProgress: number
+  generationStatus: string
   
   // Editor
   editorPanel: EditorPanel
@@ -136,10 +153,16 @@ interface AppState {
   // Actions - Builder
   setBuilderPhase: (phase: BuilderPhase) => void
   setBuilderPrompt: (prompt: string) => void
+  setBuilderIndustry: (industry: BuilderIndustry) => void
+  setBuilderStyle: (style: BuilderStyle) => void
+  setBuilderMode: (mode: 'ai' | 'templates') => void
   setGeneratedPages: (pages: GeneratedPage[]) => void
+  setGeneratedSiteName: (name: string) => void
+  updateGeneratedPage: (pageId: string, updates: Partial<GeneratedPage>) => void
   setCurrentPreviewPage: (pageId: string) => void
   setIsGenerating: (generating: boolean) => void
   setGenerationProgress: (progress: number) => void
+  setGenerationStatus: (status: string) => void
   startGeneration: (prompt: string) => void
   
   // Actions - Editor
@@ -175,10 +198,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   builderPhase: 'prompt',
   builderPrompt: '',
+  builderIndustry: 'portfolio',
+  builderStyle: 'dark',
+  builderMode: 'ai',
   generatedPages: [],
+  generatedSiteName: '',
   currentPreviewPage: '',
   isGenerating: false,
   generationProgress: 0,
+  generationStatus: '',
   
   editorPanel: 'components',
   inspectorTab: 'style',
@@ -221,15 +249,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Builder
   setBuilderPhase: (phase) => set({ builderPhase: phase }),
   setBuilderPrompt: (prompt) => set({ builderPrompt: prompt }),
+  setBuilderIndustry: (industry) => set({ builderIndustry: industry }),
+  setBuilderStyle: (style) => set({ builderStyle: style }),
+  setBuilderMode: (mode) => set({ builderMode: mode }),
   setGeneratedPages: (pages) => set({ generatedPages: pages }),
+  setGeneratedSiteName: (name) => set({ generatedSiteName: name }),
+  updateGeneratedPage: (pageId, updates) => set((state) => ({
+    generatedPages: state.generatedPages.map(p =>
+      p.id === pageId ? { ...p, ...updates } : p
+    ),
+  })),
   setCurrentPreviewPage: (pageId) => set({ currentPreviewPage: pageId }),
   setIsGenerating: (generating) => set({ isGenerating: generating }),
   setGenerationProgress: (progress) => set({ generationProgress: progress }),
+  setGenerationStatus: (status) => set({ generationStatus: status }),
   startGeneration: (prompt) => set({
     builderPrompt: prompt,
     builderPhase: 'generating',
     isGenerating: true,
-    generationProgress: 0
+    generationProgress: 0,
+    generationStatus: 'Initializing…'
   }),
   
   // Editor

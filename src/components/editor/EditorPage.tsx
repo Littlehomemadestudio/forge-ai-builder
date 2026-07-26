@@ -173,7 +173,8 @@ function getIframeInjectScript(): string {
     const parent = el.parentElement;
     const parentId = parent ? parent.getAttribute('data-fid') : null;
     const childIds = [];
-    el.children.forEach(child => {
+    // el.children is an HTMLCollection (not an array) — must convert before .forEach
+    Array.from(el.children).forEach(child => {
       const cid = child.getAttribute('data-fid');
       if (cid) childIds.push(cid);
     });
@@ -359,7 +360,10 @@ function getIframeInjectScript(): string {
           const fid = el.getAttribute('data-fid');
           if (!fid) return null;
           const children = [];
-          el.children.forEach(child => {
+          // el.children is an HTMLCollection (not an array) — must convert
+          // before calling .forEach, otherwise this throws silently and the
+          // tree never gets built.
+          Array.from(el.children).forEach(child => {
             const c = buildTree(child, depth + 1);
             if (c) children.push(c);
           });
@@ -504,11 +508,27 @@ interface TreeNode {
 
 // ─── Main Editor Component ─────────────────────────────────────────────────
 export default function EditorPage() {
+  // Pull generated content from the global store (set by BuilderPage)
+  const generatedPages = useAppStore(s => s.generatedPages)
+  const currentPreviewPage = useAppStore(s => s.currentPreviewPage)
+  const setCurrentPreviewPage = useAppStore(s => s.setCurrentPreviewPage)
+  const updateGeneratedPage = useAppStore(s => s.updateGeneratedPage)
+  const generatedSiteName = useAppStore(s => s.generatedSiteName)
+
+  // Resolve the initial HTML: prefer the currently-selected generated page,
+  // fall back to the first generated page, otherwise use the default placeholder.
+  const initialHTML = (() => {
+    const selected = generatedPages.find(p => p.id === currentPreviewPage)
+    if (selected?.html) return selected.html
+    if (generatedPages[0]?.html) return generatedPages[0].html
+    return getDefaultWebsiteHTML()
+  })()
+
   // State
-  const [websiteHTML, setWebsiteHTML] = useState(getDefaultWebsiteHTML())
+  const [websiteHTML, setWebsiteHTML] = useState(initialHTML)
   const [selectedElement, setSelectedElement] = useState<ComputedElementInfo | null>(null)
   const [selectedStyles, setSelectedStyles] = useState<Record<string, string>>({})
-  const [history, setHistory] = useState<HistoryEntry[]>([{ id: 'h0', html: getDefaultWebsiteHTML(), label: 'Initial', timestamp: Date.now() }])
+  const [history, setHistory] = useState<HistoryEntry[]>([{ id: 'h0', html: initialHTML, label: 'Initial', timestamp: Date.now() }])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [device, setDevice] = useState('desktop')
   const [leftPanelTab, setLeftPanelTab] = useState('components')
@@ -523,6 +543,12 @@ export default function EditorPage() {
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const historyDebounceRef = useRef<NodeJS.Timeout | null>(null)
+  // Track which store page-id the current local websiteHTML belongs to.
+  // When the user switches pages in the toolbar, we save any pending changes
+  // to the previous page-id, then load the new page's HTML.
+  const activePageIdRef = useRef<string>(
+    generatedPages.find(p => p.id === currentPreviewPage)?.id || generatedPages[0]?.id || 'default'
+  )
 
   // Get device config
   const deviceConfig = DEVICE_CONFIGS.find(d => d.name === device) || DEVICE_CONFIGS[0]
@@ -549,9 +575,16 @@ export default function EditorPage() {
         const newEntry: HistoryEntry = { id: 'h' + Date.now(), html: currentHTML, label, timestamp: Date.now() }
         setHistory(prev => [...prev.slice(0, historyIndex + 1), newEntry])
         setHistoryIndex(prev => prev + 1)
+        // Also persist the latest HTML back to the global store so the
+        // builder preview and other tabs see the user's edits.
+        setWebsiteHTML(currentHTML)
+        const pageId = activePageIdRef.current
+        if (pageId && pageId !== 'default') {
+          updateGeneratedPage(pageId, { html: currentHTML })
+        }
       }
     }, 500)
-  }, [historyIndex])
+  }, [historyIndex, updateGeneratedPage])
 
   // ─── iframe Message Handler ───────────────────────────────────────────────
   const handleMessage = useCallback((e: MessageEvent) => {
@@ -594,6 +627,37 @@ export default function EditorPage() {
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
+
+  // ─── Switch page (called when user picks a different page in the toolbar) ─
+  // Saves the current iframe HTML to the store for the previous page, then
+  // loads the new page's HTML into the iframe and resets history.
+  const switchPage = useCallback((newPageId: string) => {
+    if (newPageId === activePageIdRef.current) return
+    const target = generatedPages.find(p => p.id === newPageId)
+    if (!target) return
+
+    // 1. Flush any pending history debounce so the current page's latest
+    //    HTML is captured before we switch.
+    if (historyDebounceRef.current) {
+      clearTimeout(historyDebounceRef.current)
+      historyDebounceRef.current = null
+    }
+    // 2. Snapshot current iframe HTML and persist it for the outgoing page.
+    if (iframeRef.current?.contentDocument) {
+      const currentHTML = iframeRef.current.contentDocument.documentElement.outerHTML
+      updateGeneratedPage(activePageIdRef.current, { html: currentHTML })
+    }
+    // 3. Load the new page's HTML into local state and reset history.
+    activePageIdRef.current = newPageId
+    setWebsiteHTML(target.html)
+    setHistory([{ id: 'h0', html: target.html, label: target.name, timestamp: Date.now() }])
+    setHistoryIndex(0)
+    setSelectedElement(null)
+    setSelectedStyles({})
+    setElementTree(null)
+    // 4. Tell the store which page is now active.
+    setCurrentPreviewPage(newPageId)
+  }, [generatedPages, updateGeneratedPage, setCurrentPreviewPage])
 
   // ─── Apply Style Change ────────────────────────────────────────────────────
   const applyStyle = useCallback((property: string, value: string) => {
@@ -670,8 +734,17 @@ export default function EditorPage() {
 
   // ─── Save ──────────────────────────────────────────────────────────────────
   const save = useCallback(() => {
-    toast({ title: 'Project saved', description: 'All changes have been saved' })
-  }, [])
+    // Persist the current iframe HTML back to the store for the active page
+    if (iframeRef.current?.contentDocument) {
+      const currentHTML = iframeRef.current.contentDocument.documentElement.outerHTML
+      setWebsiteHTML(currentHTML)
+      const pageId = activePageIdRef.current
+      if (pageId && pageId !== 'default') {
+        updateGeneratedPage(pageId, { html: currentHTML })
+      }
+    }
+    toast({ title: 'Project saved', description: 'All changes have been saved to this page' })
+  }, [updateGeneratedPage])
 
   // ─── Export ─────────────────────────────────────────────────────────────────
   const exportHTML = useCallback(() => {
@@ -926,12 +999,32 @@ export default function HomePage() {
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}
       <div className="h-12 flex items-center justify-between px-4 border-b border-[#1a1a2e] bg-[#0a0a0f] shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors">
+          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors" title="Back to dashboard">
             <ArrowLeft size={18} />
           </button>
           <span className="font-bold text-[#7c3aed]">Forge</span>
           <Separator orientation="vertical" className="h-6 bg-[#2a2a3e]" />
-          <span className="text-sm text-zinc-400">Nexus Project</span>
+          <span className="text-sm text-zinc-400 truncate max-w-32" title={generatedSiteName || 'Untitled Site'}>
+            {generatedSiteName || 'Untitled Site'}
+          </span>
+          {generatedPages.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-6 bg-[#2a2a3e]" />
+              <Select value={activePageIdRef.current} onValueChange={switchPage}>
+                <SelectTrigger className="h-7 w-40 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+                  {generatedPages.map(p => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs text-white focus:bg-[#7c3aed]/30">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="ml-2 text-zinc-500">{p.route}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
