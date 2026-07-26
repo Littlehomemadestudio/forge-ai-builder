@@ -63,4 +63,14 @@ db/custom.db
 # Examples
 /examples/
 # Worklog
-worklog.mdtool-results/
+worklog.md
+# Tool results
+tool-results/
+# Agent context
+agent-ctx/
+# Screenshots
+*.png
+*.webp
+# Scripts
+restart-server.sh
+.zscripts/
