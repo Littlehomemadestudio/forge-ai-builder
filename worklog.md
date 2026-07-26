@@ -91,3 +91,72 @@ Stage Summary:
 - Purple selection borders now properly track scroll (position:absolute)
 - Only one selection overlay at a time (hideSelection before showSelection)
 - Editor UX improved for non-technical users with friendly labels
+
+---
+Task ID: 6
+Agent: Landing Page Redesign (Session 2)
+Task: Complete redesign of landing page per Mixin.ir reference — dense, polished, interactive
+
+Work Log:
+- Complete rewrite of LandingPage.tsx (~940 lines)
+- Font sizes dramatically reduced throughout
+- Hero with interactive prompt input field + suggestion pills + Generate button
+- Animated stats bar with counter effect
+- Interactive Product Showcase with 3 tabs
+- Testimonials with metric badges
+- Compact How It Works, Features, Pricing Hint, FAQ, Footer
+- Both light/dark themes work properly
+
+Stage Summary:
+- Landing page redesigned to be dense, polished, interactive, professional like Mixin.ir
+- Fonts properly sized (not zoomed in)
+- Interactive prompt input makes the page functional
+- Animated stats provide social proof
+
+---
+Task ID: 7
+Agent: Auth Page Redesign (Session 2)
+Task: Redesign auth pages to use theme-aware oklch colors
+
+Work Log:
+- LoginPage.tsx and RegisterPage.tsx rewritten
+- All hardcoded violet/teal colors replaced with CSS variable-based colors
+- ForgeLogo uses bg-primary / text-primary-foreground
+- Right panel uses branded oklch gradient
+- Submit buttons use bg-primary
+- Compact spacing (h-10 fields)
+- Lint passes
+
+Stage Summary:
+- Auth pages fully theme-aware using oklch CSS vars
+- Both light and dark themes work properly
+- More compact and polished design
+
+---
+Task ID: 8
+Agent: Main Agent (Self-Verification)
+Task: Browser-based verification of all changes
+
+Work Log:
+- Opened landing page with Agent Browser — verified all interactive elements present
+- Screenshot analysis (VLM) confirmed: professional, polished, reasonable font sizes, light theme looks great
+- Tested dark theme toggle — VLM confirmed dark mode is professional and consistent
+- Tested hero prompt input: typed text, clicked Generate → successfully navigated to builder page with prompt pre-filled
+- Tested Sign in button → navigated to login page — VLM confirmed polished, modern, split-screen works well
+- Tested Get Started → navigated to builder page
+- Scrolled builder page — templates section visible with 8 templates + category dropdown
+- Clicked Stellar Portfolio template → preview dialog opened with full iframe rendering of the actual website
+- Template preview has Close Preview and Edit this Template buttons
+- Mobile viewport (375px) — VLM confirmed responsive, well-executed mobile design
+- Desktop viewport (1280px) — footer sticky at bottom (min-h-screen flex flex-col + mt-auto)
+- No console errors, no hydration issues
+- Dev server returns 200 status for all routes
+
+Stage Summary:
+- All pages verified working: landing, login, builder, template preview
+- Light and dark themes both polished and professional
+- Interactive prompt input in hero works end-to-end
+- Template preview and edit flow works
+- Mobile responsive design works
+- Sticky footer verified
+- No runtime errors

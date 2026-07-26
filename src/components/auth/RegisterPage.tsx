@@ -74,7 +74,7 @@ function getPasswordStrength(password: string) {
     { label: 'Weak', color: 'bg-orange-500', textColor: 'text-orange-500' },
     { label: 'Fair', color: 'bg-yellow-500', textColor: 'text-yellow-600' },
     { label: 'Strong', color: 'bg-emerald-500', textColor: 'text-emerald-500' },
-    { label: 'Very strong', color: 'bg-violet-500', textColor: 'text-violet-500' },
+    { label: 'Very strong', color: 'bg-primary', textColor: 'text-primary' },
   ]
 
   const level = password.length === 0
@@ -88,12 +88,12 @@ function getPasswordStrength(password: string) {
 function ForgeLogo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="relative size-9 rounded-xl bg-gradient-to-br from-violet-600 to-teal-400 flex items-center justify-center shadow-lg shadow-violet-500/25">
+      <div className="relative size-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
         <div className="absolute inset-0 bg-white/10 rounded-xl" />
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="relative z-10">
-          <path d="M12 2L4 6V18L12 22L20 18V6L12 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-          <path d="M12 22V12" stroke="white" strokeWidth="1.5" />
-          <path d="M20 6L12 12L4 6" stroke="white" strokeWidth="1.5" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="relative z-10 text-primary-foreground">
+          <path d="M12 2L4 6V18L12 22L20 18V6L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M12 22V12" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M20 6L12 12L4 6" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       </div>
       <span className="text-xl font-bold tracking-tight text-foreground">
@@ -106,12 +106,12 @@ function ForgeLogo() {
 /* ── Right Panel Component ──────────────────────────────────── */
 function RightPanel() {
   return (
-    <div className="relative h-full flex flex-col items-center justify-center p-8 overflow-hidden bg-gradient-to-br from-violet-600 via-violet-500 to-teal-400">
+    <div className="relative h-full flex flex-col items-center justify-center p-8 overflow-hidden" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.65 0.2 200), oklch(0.55 0.22 140))' }}>
       {/* Abstract geometric shapes */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Large morphing blob */}
         <div className="absolute -top-20 -right-20 w-[300px] h-[300px] animate-morph bg-white/[0.08] mix-blend-overlay" />
-        <div className="absolute -bottom-16 -left-16 w-[250px] h-[250px] animate-morph bg-teal-400/[0.12] mix-blend-overlay" style={{ animationDelay: '-3s' }} />
+        <div className="absolute -bottom-16 -left-16 w-[250px] h-[250px] animate-morph bg-white/[0.12] mix-blend-overlay" style={{ animationDelay: '-3s' }} />
         {/* Floating hexagons */}
         <motion.div
           className="absolute top-[15%] left-[10%] opacity-20"
@@ -350,16 +350,16 @@ export function RegisterPage() {
 
         {/* Split-screen Card */}
         <motion.div variants={fadeInUp}>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row md:h-[640px]">
+          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row md:h-[620px]">
             {/* ── Left Panel: Form ────────────────────── */}
             <div className="flex-1 md:flex-[1.1] flex flex-col p-6 sm:p-8 md:p-10">
               {/* Logo */}
-              <motion.div variants={fadeInUp} className="mb-5">
+              <motion.div variants={fadeInUp} className="mb-4">
                 <ForgeLogo />
               </motion.div>
 
               {/* Heading */}
-              <motion.div variants={fadeInUp} className="mb-5">
+              <motion.div variants={fadeInUp} className="mb-4">
                 <h2 className="text-2xl font-semibold text-foreground tracking-tight">
                   Create your account
                 </h2>
@@ -375,7 +375,7 @@ export function RegisterPage() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm mb-4"
+                    className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm mb-3"
                   >
                     <AlertCircle className="size-4 shrink-0" />
                     {error}
@@ -384,12 +384,12 @@ export function RegisterPage() {
               </AnimatePresence>
 
               {/* Social buttons */}
-              <motion.div variants={fadeInUp} className="space-y-3 mb-3">
+              <motion.div variants={fadeInUp} className="space-y-2.5 mb-3">
                 <Button
                   variant="outline"
                   onClick={handleGoogleRegister}
                   disabled={isLoading}
-                  className="h-11 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
+                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
                 >
                   <Chrome className="size-4 mr-2" />
                   Continue with Google
@@ -398,7 +398,7 @@ export function RegisterPage() {
                   variant="outline"
                   onClick={handleGithubRegister}
                   disabled={isLoading}
-                  className="h-11 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
+                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
                 >
                   <Github className="size-4 mr-2" />
                   Continue with GitHub
@@ -417,7 +417,7 @@ export function RegisterPage() {
               <motion.form variants={fadeInUp} onSubmit={handleRegister} className="flex-1 flex flex-col gap-3 mt-2 overflow-y-auto max-h-[360px] md:max-h-none pr-1">
                 {/* Name */}
                 <div className="space-y-1.5">
-                  <Label className="text-muted-foreground text-xs font-medium tracking-wide">
+                  <Label className="text-xs text-muted-foreground font-medium tracking-wide">
                     Full name
                   </Label>
                   <div className="relative">
@@ -428,14 +428,14 @@ export function RegisterPage() {
                       value={name}
                       onChange={(e) => { setName(e.target.value); setError('') }}
                       disabled={isLoading}
-                      className="h-11 pl-10 rounded-lg transition-all duration-200"
+                      className="h-10 pl-10 rounded-lg transition-all duration-200"
                     />
                   </div>
                 </div>
 
                 {/* Email */}
                 <div className="space-y-1.5">
-                  <Label className="text-muted-foreground text-xs font-medium tracking-wide">
+                  <Label className="text-xs text-muted-foreground font-medium tracking-wide">
                     Email
                   </Label>
                   <div className="relative">
@@ -446,14 +446,14 @@ export function RegisterPage() {
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); setError('') }}
                       disabled={isLoading}
-                      className="h-11 pl-10 rounded-lg transition-all duration-200"
+                      className="h-10 pl-10 rounded-lg transition-all duration-200"
                     />
                   </div>
                 </div>
 
                 {/* Password */}
                 <div className="space-y-1.5">
-                  <Label className="text-muted-foreground text-xs font-medium tracking-wide">
+                  <Label className="text-xs text-muted-foreground font-medium tracking-wide">
                     Password
                   </Label>
                   <div className="relative">
@@ -464,7 +464,7 @@ export function RegisterPage() {
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); setError('') }}
                       disabled={isLoading}
-                      className="h-11 pl-10 pr-10 rounded-lg transition-all duration-200"
+                      className="h-10 pl-10 pr-10 rounded-lg transition-all duration-200"
                     />
                     <button
                       type="button"
@@ -521,7 +521,7 @@ export function RegisterPage() {
 
                 {/* Confirm password */}
                 <div className="space-y-1.5">
-                  <Label className="text-muted-foreground text-xs font-medium tracking-wide">
+                  <Label className="text-xs text-muted-foreground font-medium tracking-wide">
                     Confirm password
                   </Label>
                   <div className="relative">
@@ -532,7 +532,7 @@ export function RegisterPage() {
                       value={confirmPassword}
                       onChange={(e) => { setConfirmPassword(e.target.value); setError('') }}
                       disabled={isLoading}
-                      className="h-11 pl-10 pr-10 rounded-lg transition-all duration-200"
+                      className="h-10 pl-10 pr-10 rounded-lg transition-all duration-200"
                     />
                     <button
                       type="button"
@@ -576,7 +576,7 @@ export function RegisterPage() {
                       setError('')
                     }}
                     disabled={isLoading}
-                    className="mt-0.5 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
+                    className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
                   <Label
                     htmlFor="terms"
@@ -600,7 +600,7 @@ export function RegisterPage() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="h-11 w-full bg-gradient-to-r from-violet-600 to-teal-500 hover:from-violet-500 hover:to-teal-400 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 rounded-lg transition-all duration-300 font-medium"
+                  className="h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-primary/30 rounded-lg transition-all duration-300 font-medium"
                 >
                   {isLoading ? (
                     <Loader2 className="size-4 animate-spin mr-2" />
@@ -634,7 +634,7 @@ export function RegisterPage() {
         </motion.div>
 
         {/* Bottom note */}
-        <motion.p variants={fadeInUp} className="mt-6 text-center text-xs text-muted-foreground">
+        <motion.p variants={fadeInUp} className="mt-5 text-center text-xs text-muted-foreground">
           Free plan includes 100 AI credits. No credit card required.
         </motion.p>
       </motion.div>

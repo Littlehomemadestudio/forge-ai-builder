@@ -155,9 +155,9 @@ html {
 
 /* Glass effect utilities */
 .glass {
-  background: oklch(1 0 0 / 5%);
+  background: oklch(0.97 0.01 260 / 60%);
   backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid oklch(1 0 0 / 8%);
+  border: 1px solid oklch(0.85 0.02 260 / 40%);
 }
 
 .dark .glass {
@@ -166,9 +166,9 @@ html {
 }
 
 .glass-strong {
-  background: oklch(1 0 0 / 8%);
+  background: oklch(0.97 0.01 260 / 80%);
   backdrop-filter: blur(40px) saturate(200%);
-  border: 1px solid oklch(1 0 0 / 12%);
+  border: 1px solid oklch(0.85 0.02 260 / 50%);
 }
 
 .dark .glass-strong {
@@ -178,6 +178,13 @@ html {
 
 /* Gradient text */
 .gradient-text {
+  background: linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.65 0.2 200), oklch(0.55 0.22 140));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .gradient-text {
   background: linear-gradient(135deg, oklch(0.85 0.08 260), oklch(0.75 0.15 200), oklch(0.85 0.2 140));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
