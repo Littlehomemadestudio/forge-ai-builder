@@ -37,6 +37,8 @@ import {
   Table, File, FolderOpen, Star, Heart, Bookmark, Share2,
   Crop, Pipette, Eraser, Brush, Navigation
 } from 'lucide-react'
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
+import { useTranslation } from '@/lib/useTranslation'
 
 // ─── iframe Bridge Script (injected into the preview iframe) ──────────────
 function getIframeInjectScript(): string {
@@ -1344,16 +1346,17 @@ export default function EditorPage() {
   }
 
   // ─── Main Render ───────────────────────────────────────────────────────────
+  const t = useTranslation()
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}
       <div className="h-11 flex items-center justify-between px-3 border-b border-[#1a1a2e] bg-[#0a0a0f] shrink-0">
         {/* Left section */}
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors"><ArrowLeft size={16} /></button>
+          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors" title={t('common.back')}><ArrowLeft size={16} /></button>
           <span className="font-bold text-[#7c3aed] text-sm">Forge</span>
           <Separator orientation="vertical" className="h-5 bg-[#2a2a3e]" />
-          <span className="text-xs text-zinc-400 truncate max-w-28">{generatedSiteName || 'Untitled'}</span>
+          <span className="text-xs text-zinc-400 truncate max-w-28">{generatedSiteName || t('editor.untitled')}</span>
           {generatedPages.length > 0 && (
             <Select value={activePageIdRef.current} onValueChange={switchPage}>
               <SelectTrigger className="h-6 w-32 text-[11px] border-[#2a2a3e] bg-[#1a1a2e] text-white"><SelectValue /></SelectTrigger>
@@ -1442,7 +1445,8 @@ export default function EditorPage() {
               <Button onClick={handleExport} className="w-full mt-3 bg-[#7c3aed] hover:bg-[#6d28d9]">Download {exportFormat.toUpperCase()}</Button>
             </DialogContent>
           </Dialog>
-          <Button size="sm" onClick={() => toast({ title: 'Deployment started' })} className="h-6 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]"><Rocket size={12} className="mr-1" />Deploy</Button>
+          <Button size="sm" onClick={() => toast({ title: t('editor.deploymentStarted') })} className="h-6 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]"><Rocket size={12} className="mr-1 rtl:ml-1 rtl:mr-0" />{t('editor.deploy')}</Button>
+          <LanguageSwitcher variant="pill" compact />
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 
 // Static import for landing page (first thing user sees)
 import LandingPage from '@/components/landing/LandingPage'
+import { HtmlDirLangSync } from '@/components/ui/HtmlDirLangSync'
 
 // Lazy load all other pages - they're only needed when user navigates to them
 const LoginPage = dynamic(() => import('@/components/auth/LoginPage').then(m => ({ default: m.LoginPage })), { ssr: false })
@@ -20,6 +21,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      {/* Keeps <html lang/dir> + .rtl-ui class in sync with uiLanguage store */}
+      <HtmlDirLangSync />
       <AnimatePresence mode="wait">
         <motion.div
           key={currentView}

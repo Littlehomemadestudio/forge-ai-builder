@@ -44,6 +44,8 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion'
 import { Separator } from '@/components/ui/separator'
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
+import { useTranslation } from '@/lib/useTranslation'
 
 // Lazy-load heavy interactive components (not needed on initial render)
 const BuilderPlayground = dynamic(() => import('@/components/landing/BuilderPlayground').then(m => ({ default: m.BuilderPlayground })), { ssr: false })
@@ -300,6 +302,7 @@ export default function LandingPage() {
   const setBuilderPrompt = useAppStore(s => s.setBuilderPrompt)
   const themeMode = useAppStore(s => s.themeMode)
   const setThemeMode = useAppStore(s => s.setThemeMode)
+  const t = useTranslation()
   const [promptValue, setPromptValue] = useState('')
   const isDark = themeMode === 'dark'
 
@@ -321,6 +324,22 @@ export default function LandingPage() {
     navigate('builder')
   }, [navigate])
 
+  // Localized stats — labels come from i18n
+  const localizedStats = [
+    { value: 10000, suffix: '+', label: t('stats.sitesBuilt'), icon: Globe },
+    { value: 50000, suffix: '+', label: t('stats.pagesGenerated'), icon: LayoutGrid },
+    { value: 99, suffix: '.9%', label: t('stats.uptime'), icon: Shield },
+    { value: 180, suffix: '+', label: t('stats.countries'), icon: Users },
+  ]
+
+  // Localized suggestion pills
+  const localizedPills = [
+    t('hero.suggestion.saas'),
+    t('hero.suggestion.portfolio'),
+    t('hero.suggestion.restaurant'),
+    t('hero.suggestion.ecommerce'),
+  ]
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* ─── Navbar ───────────────────────────────────────────────────── */}
@@ -328,19 +347,21 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Hexagon className="w-5 h-5 text-primary" />
-            <span className="font-bold text-sm gradient-text">Forge</span>
+            <span className="font-bold text-sm gradient-text">{t('brand.name')}</span>
           </div>
           <div className="hidden sm:flex items-center gap-4">
-            <button onClick={() => navigate('builder')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Builder</button>
-            <button onClick={() => navigate('templates')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Templates</button>
-            <button onClick={handleGetStarted} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Pricing</button>
+            <button onClick={() => navigate('builder')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t('nav.builder')}</button>
+            <button onClick={() => navigate('templates')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t('nav.templates')}</button>
+            <button onClick={handleGetStarted} className="text-xs text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</button>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher variant="pill" compact />
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
               className="w-8 h-8 p-0"
+              title={isDark ? t('nav.theme.toggleLight') : t('nav.theme.toggleDark')}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </Button>
@@ -350,14 +371,14 @@ export default function LandingPage() {
               onClick={() => navigate('login')}
               className="text-xs text-muted-foreground"
             >
-              Sign in
+              {t('nav.signin')}
             </Button>
             <Button
               size="sm"
               onClick={handleGetStarted}
               className="text-xs bg-[oklch(0.55_0.25_270)] text-white hover:bg-[oklch(0.5_0.22_270)] border-0"
             >
-              Get Started
+              {t('nav.getStarted')}
             </Button>
           </div>
         </div>
@@ -381,18 +402,17 @@ export default function LandingPage() {
             >
               <motion.div variants={fadeInUp}>
                 <Badge className="bg-[oklch(0.55_0.25_270_/_10%)] text-[oklch(0.55_0.25_270)] border-[oklch(0.55_0.25_270_/_20%)] text-[10px] px-3 py-1">
-                  <Sparkles className="w-3 h-3 mr-1" /> AI-Powered Website Builder
+                  <Sparkles className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('hero.badge')}
                 </Badge>
               </motion.div>
 
               <motion.h1 variants={fadeInUp} className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground leading-tight mt-4">
-                Your idea. Our AI.{' '}
-                <span className="gradient-text">A complete website.</span>
+                {t('hero.title.pre')}{' '}
+                <span className="gradient-text">{t('hero.title.highlight')}</span>
               </motion.h1>
 
               <motion.p variants={fadeInUp} className="text-sm text-muted-foreground max-w-lg mt-3">
-                Describe what you want. Forge generates a full, responsive website in seconds.
-                Customize with the visual editor, then deploy anywhere.
+                {t('hero.subtitle')}
               </motion.p>
 
               {/* Prompt Input */}
@@ -402,7 +422,7 @@ export default function LandingPage() {
                     value={promptValue}
                     onChange={(e) => setPromptValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                    placeholder="A modern SaaS landing page with pricing..."
+                    placeholder={t('hero.placeholder')}
                     className="flex-1 bg-transparent text-foreground text-xs placeholder:text-muted-foreground px-3 py-2 outline-none"
                   />
                   <Button
@@ -410,14 +430,14 @@ export default function LandingPage() {
                     size="sm"
                     className="bg-[oklch(0.55_0.25_270)] text-white hover:bg-[oklch(0.5_0.22_270)] border-0 text-xs px-4 shadow-lg shadow-[oklch(0.55_0.25_270)_/_15]"
                   >
-                    <Sparkles className="w-3 h-3 mr-1" /> Generate
+                    <Sparkles className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('hero.generate')}
                   </Button>
                 </div>
               </motion.div>
 
               {/* Suggestion pills */}
               <motion.div variants={fadeInUp} className="flex flex-wrap gap-1.5 mt-3">
-                {['SaaS landing page', 'Portfolio site', 'Restaurant website', 'E-commerce store'].map((pill) => (
+                {localizedPills.map((pill) => (
                   <motion.button
                     key={pill}
                     whileHover={{ scale: 1.05 }}
@@ -447,7 +467,7 @@ export default function LandingPage() {
                     <div className="w-2.5 h-2.5 rounded-full bg-[oklch(0.6_0.2_160)_/_60%]" />
                   </div>
                   <div className="flex-1 h-5 rounded-md bg-secondary flex items-center px-2">
-                    <span className="text-[8px] text-muted-foreground font-mono">forge.ai/your-site</span>
+                    <span className="text-[8px] text-muted-foreground font-mono" dir="ltr">forge.ai/your-site</span>
                   </div>
                 </div>
 
@@ -472,7 +492,7 @@ export default function LandingPage() {
                     <div className="h-2 rounded bg-foreground/15 mx-auto mb-1 w-3/4" />
                     <div className="h-1 rounded bg-foreground/8 mx-auto mb-2 w-1/2" />
                     <div className="inline-block px-2 py-0.5 rounded-full text-[7px] font-medium text-white bg-[oklch(0.55_0.25_270)]">
-                      Get Started
+                      {t('hero.preview.cta')}
                     </div>
                   </div>
                   {/* Features */}
@@ -492,7 +512,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Floating accent dot */}
-                <div className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-[oklch(0.55_0.25_270)] shadow-lg shadow-[oklch(0.55_0.25_270)_/_30] animate-pulse" />
+                <div className="absolute -top-3 -right-3 rtl:-right-auto rtl:-left-3 w-6 h-6 rounded-full bg-[oklch(0.55_0.25_270)] shadow-lg shadow-[oklch(0.55_0.25_270)_/_30] animate-pulse" />
               </div>
             </motion.div>
           </div>
@@ -511,10 +531,10 @@ export default function LandingPage() {
           viewport={{ once: true, margin: '-50px' }}
           className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6"
         >
-          {stats.map((stat, i) => {
+          {localizedStats.map((stat, i) => {
             const Icon = stat.icon
             return (
-              <motion.div key={stat.label} variants={fadeInUp} className={`flex items-center gap-3 ${i === 0 ? '' : 'border-l border-border/50 pl-6'}`}>
+              <motion.div key={stat.label} variants={fadeInUp} className={`flex items-center gap-3 ${i === 0 ? '' : 'border-l border-border/50 rtl:border-r rtl:border-l-0 pl-6 rtl:pl-0 rtl:pr-6'}`}>
                 <div className="w-8 h-8 rounded-lg bg-[oklch(0.55_0.25_270_/_10%)] flex items-center justify-center flex-shrink-0">
                   <Icon className="w-4 h-4 text-[oklch(0.55_0.25_270)]" />
                 </div>
@@ -1035,16 +1055,16 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Hexagon className="w-4 h-4 text-[oklch(0.55_0.25_270)]" />
-                <span className="font-bold text-sm gradient-text">Forge</span>
+                <span className="font-bold text-sm gradient-text">{t('brand.name')}</span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI-powered website builder. Describe, generate, customize, deploy.
+                {t('footer.tagline')}
               </p>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">Product</h4>
+              <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.product')}</h4>
               <div className="space-y-1.5">
-                {['Builder', 'Editor', 'Templates', 'Deploy'].map((item) => (
+                {[t('nav.builder'), t('editor.export'), t('nav.templates'), t('common.deploy')].map((item) => (
                   <button key={item} onClick={handleGetStarted} className="block text-[10px] text-muted-foreground hover:text-[oklch(0.55_0.25_270)] transition-colors">
                     {item}
                   </button>
@@ -1052,7 +1072,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">Resources</h4>
+              <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.resources')}</h4>
               <div className="space-y-1.5">
                 {['Documentation', 'Blog', 'Changelog', 'Support'].map((item) => (
                   <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
@@ -1060,7 +1080,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">Company</h4>
+              <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.company')}</h4>
               <div className="space-y-1.5">
                 {['About', 'Careers', 'Privacy', 'Terms'].map((item) => (
                   <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
@@ -1070,7 +1090,7 @@ export default function LandingPage() {
           </div>
           <Separator className="mb-4" />
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">&copy; 2025 Forge. All rights reserved.</span>
+            <span className="text-[10px] text-muted-foreground">{t('footer.rights')}</span>
             <div className="flex items-center gap-3">
               <Github className="w-3.5 h-3.5 text-muted-foreground hover:text-[oklch(0.55_0.25_270)] transition-colors cursor-pointer" />
               <Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-[oklch(0.55_0.25_270)] transition-colors cursor-pointer" />

@@ -32,6 +32,8 @@ import {
   MessageSquare, Share2, Phone, Columns, Grip, Tag, AlignLeft, AlignCenter, AlignRight, LayoutGrid,
   FileText, Maximize2,
 } from 'lucide-react'
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
+import { useTranslation } from '@/lib/useTranslation'
 
 // ─── Industry metadata ──────────────────────────────────────────────────────
 
@@ -1169,7 +1171,9 @@ function PromptPhase() {
     builderStyle, setBuilderStyle,
     builderLanguage, setBuilderLanguage,
     builderAdvancedOptions,
+    navigate,
   } = useAppStore()
+  const t = useTranslation()
 
   const [cursorVisible, setCursorVisible] = useState(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -1181,7 +1185,7 @@ function PromptPhase() {
 
   const handleGenerate = () => {
     if (!builderPrompt.trim()) {
-      toast({ title: 'Please enter a prompt', description: 'Describe the website you want to build' })
+      toast({ title: t('builder.pleaseEnterPrompt'), description: t('builder.promptDesc') })
       return
     }
     startGeneration(builderPrompt)
@@ -1204,17 +1208,17 @@ function PromptPhase() {
       {/* Background floating elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute -top-20 -left-20 h-80 w-80 rounded-full bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-3xl"
+          className="absolute -top-20 -left-20 rtl:-left-auto rtl:-right-20 h-80 w-80 rounded-full bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-3xl"
           animate={{ y: [0, 30, 0], x: [0, 20, 0] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute -bottom-40 -right-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/10 blur-3xl"
+          className="absolute -bottom-40 -right-20 rtl:-right-auto rtl:-left-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/10 blur-3xl"
           animate={{ y: [0, -40, 0], x: [0, -30, 0] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute top-1/3 right-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-orange-500/8 to-amber-500/8 blur-3xl"
+          className="absolute top-1/3 right-1/4 rtl:right-auto rtl:left-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-orange-500/8 to-amber-500/8 blur-3xl"
           animate={{ y: [0, 20, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -1225,6 +1229,22 @@ function PromptPhase() {
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
         backgroundSize: '60px 60px',
       }} />
+
+      {/* Top-right language switcher + back button */}
+      <div className="absolute top-4 left-4 rtl:left-auto rtl:right-4 z-20 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('landing')}
+          className="text-white/60 hover:text-white hover:bg-white/5 text-xs"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 mr-1 rtl:ml-1 rtl:mr-0 rtl:rotate-180" />
+          {t('builder.backToHome')}
+        </Button>
+      </div>
+      <div className="absolute top-4 right-4 rtl:right-auto rtl:left-4 z-20">
+        <LanguageSwitcher variant="pill" compact />
+      </div>
 
       {/* Main content */}
       <motion.div
@@ -1242,14 +1262,14 @@ function PromptPhase() {
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm backdrop-blur-md"
           >
             <Sparkles className="h-4 w-4 text-purple-400" />
-            <span className="text-white/60">Powered by AI · Generates {totalEnabledPages} complete pages</span>
+            <span className="text-white/60">{t('builder.poweredBy', { n: totalEnabledPages })}</span>
           </motion.div>
 
           <h1 className="mb-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
-            Describe your vision
+            {t('builder.title')}
           </h1>
           <p className="text-lg text-white/40">
-            Tell us what you want — the AI will craft a complete multi-page website with your specifications
+            {t('builder.subtitle')}
           </p>
         </div>
 
@@ -1261,7 +1281,7 @@ function PromptPhase() {
           className="mb-5 grid gap-4 sm:grid-cols-3"
         >
           {/* Industry selector */}
-          <GlassCard label="Industry" icon={Briefcase}>
+          <GlassCard label={t('builder.industry')} icon={Briefcase}>
             <Select value={builderIndustry} onValueChange={(v) => setBuilderIndustry(v as Industry)}>
               <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
                 <SelectValue />
@@ -1286,7 +1306,7 @@ function PromptPhase() {
           </GlassCard>
 
           {/* Style selector */}
-          <GlassCard label="Visual Style" icon={Palette}>
+          <GlassCard label={t('builder.style')} icon={Palette}>
             <Select value={builderStyle} onValueChange={(v) => setBuilderStyle(v as BuilderStyle)}>
               <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
                 <SelectValue />
@@ -1299,7 +1319,7 @@ function PromptPhase() {
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-purple-400" />
                         <span className="text-sm font-medium">{opt.label}</span>
-                        <div className="ml-2 flex gap-1">
+                        <div className="ml-2 rtl:ml-0 rtl:mr-2 flex gap-1">
                           <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.bg }} />
                           <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.accent }} />
                           <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.text }} />
@@ -1312,8 +1332,8 @@ function PromptPhase() {
             </Select>
           </GlassCard>
 
-          {/* Language selector */}
-          <GlassCard label="Site Language" icon={Globe}>
+          {/* Language selector (generated site's language, NOT UI language) */}
+          <GlassCard label={t('builder.siteLanguage')} icon={Globe}>
             <Select value={builderLanguage} onValueChange={(v) => setBuilderLanguage(v as any)}>
               <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
                 <SelectValue />
@@ -1325,7 +1345,7 @@ function PromptPhase() {
                       <Globe className="h-4 w-4 text-purple-400" />
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{opt.label}</span>
-                        <span className="text-xs text-white/40">{opt.font} · {opt.dir.toUpperCase()}</span>
+                        <span className="text-xs text-white/40" dir="ltr">{opt.font} · {opt.dir.toUpperCase()}</span>
                       </div>
                     </div>
                   </SelectItem>
@@ -1348,7 +1368,7 @@ function PromptPhase() {
               ref={textareaRef}
               value={builderPrompt}
               onChange={(e) => setBuilderPrompt(e.target.value)}
-              placeholder="Be specific — describe your business, name, target audience, vibe, and any must-have sections. e.g. 'A cozy specialty coffee shop called Ember & Roast in Portland — focus on single-origin beans and a warm rustic vibe'"
+              placeholder={t('builder.placeholder')}
               className="relative min-h-[160px] resize-none border-0 bg-transparent p-6 text-base text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -1358,15 +1378,15 @@ function PromptPhase() {
               }}
             />
             {builderPrompt.length === 0 && cursorVisible && (
-              <div className="absolute left-6 top-[88px] h-5 w-0.5 animate-pulse bg-purple-400" />
+              <div className="absolute left-6 rtl:left-auto rtl:right-6 top-[88px] h-5 w-0.5 animate-pulse bg-purple-400" />
             )}
             {/* Footer of textarea */}
             <div className="flex items-center justify-between border-t border-white/5 bg-black/20 px-6 py-2.5">
-              <span className="text-xs text-white/30">
-                {builderPrompt.length} chars · ⌘+Enter to generate
+              <span className="text-xs text-white/30" dir="ltr">
+                {t('builder.chars', { n: builderPrompt.length })}
               </span>
               <span className="text-xs text-white/40">
-                {enabledPages.length} core pages · {totalEnabledPages} total enabled · ~4-6 min
+                {t('builder.pageCount', { enabled: enabledPages.length, total: totalEnabledPages })}
               </span>
             </div>
           </div>
@@ -1389,9 +1409,9 @@ function PromptPhase() {
             style={{ background: 'linear-gradient(135deg, #6c5ce7, #a855f7, #ec4899)' }}
           >
             <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s linear infinite' }} />
-            <Wand2 className="mr-2 h-5 w-5" />
-            Generate Website
-            <ChevronRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+            <Wand2 className="mr-2 rtl:ml-2 rtl:mr-0 h-5 w-5" />
+            {t('builder.generate')}
+            <ChevronRight className="ml-2 rtl:mr-2 rtl:ml-0 rtl:rotate-180 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 rtl:group-hover:-translate-x-1" />
           </Button>
         </motion.div>
 
@@ -1401,7 +1421,7 @@ function PromptPhase() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          <p className="mb-4 text-center text-sm text-white/30">Or try a fully-fleshed example</p>
+          <p className="mb-4 text-center text-sm text-white/30">{t('builder.tryExample')}</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PROMPT_SUGGESTIONS.map((suggestion, i) => (
               <motion.div
