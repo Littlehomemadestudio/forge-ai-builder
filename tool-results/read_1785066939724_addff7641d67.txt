@@ -1,0 +1,1628 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import React, { useState, useEffect, useRef, useCallback } from 'react'
+     4→     4→import { motion, useInView, AnimatePresence } from 'framer-motion'
+     5→     5→import { useAppStore } from '@/lib/store'
+     6→     6→import {
+     7→     7→  Sparkles,
+     8→     8→  Paintbrush,
+     9→     9→  Download,
+    10→    10→  Rocket,
+    11→    11→  Sun,
+    12→    12→  Moon,
+    13→    13→  ArrowRight,
+    14→    14→  Zap,
+    15→    15→  Shield,
+    16→    16→  MousePointerClick,
+    17→    17→  Github,
+    18→    18→  Twitter,
+    19→    19→  Linkedin,
+    20→    20→  Hexagon,
+    21→    21→  Eye,
+    22→    22→  LayoutGrid,
+    23→    23→  Palette,
+    24→    24→  CheckCircle2,
+    25→    25→  Globe,
+    26→    26→  TrendingUp,
+    27→    27→  Clock,
+    28→    28→  Users,
+    29→    29→  Shuffle,
+    30→    30→  Trash2,
+    31→    31→  RotateCcw,
+    32→    32→  Type,
+    33→    33→  Layout,
+    34→    34→  MessageSquare,
+    35→    35→  DollarSign,
+    36→    36→  Star,
+    37→    37→  Columns3,
+    38→    38→  Wand2,
+    39→    39→  ChevronRight,
+    40→    40→  GripVertical,
+    41→    41→} from 'lucide-react'
+    42→    42→import { Button } from '@/components/ui/button'
+    43→    43→import { Card, CardContent } from '@/components/ui/card'
+    44→    44→import { Badge } from '@/components/ui/badge'
+    45→    45→import {
+    46→    46→  Accordion,
+    47→    47→  AccordionItem,
+    48→    48→  AccordionTrigger,
+    49→    49→  AccordionContent,
+    50→    50→} from '@/components/ui/accordion'
+    51→    51→import { Separator } from '@/components/ui/separator'
+    52→    52→
+    53→    53→// ─── Animation Helpers ───────────────────────────────────────────────
+    54→    54→
+    55→    55→const fadeInUp = {
+    56→    56→  hidden: { opacity: 0, y: 20 },
+    57→    57→  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+    58→    58→}
+    59→    59→
+    60→    60→const fadeIn = {
+    61→    61→  hidden: { opacity: 0 },
+    62→    62→  visible: { opacity: 1, transition: { duration: 0.5 } },
+    63→    63→}
+    64→    64→
+    65→    65→const staggerContainer = {
+    66→    66→  hidden: { opacity: 0 },
+    67→    67→  visible: {
+    68→    68→    opacity: 1,
+    69→    69→    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+    70→    70→  },
+    71→    71→}
+    72→    72→
+    73→    73→const scaleIn = {
+    74→    74→  hidden: { opacity: 0, scale: 0.9 },
+    75→    75→  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut' } },
+    76→    76→}
+    77→    77→
+    78→    78→const slideInLeft = {
+    79→    79→  hidden: { opacity: 0, x: -30 },
+    80→    80→  visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+    81→    81→}
+    82→    82→
+    83→    83→const slideInRight = {
+    84→    84→  hidden: { opacity: 0, x: 30 },
+    85→    85→  visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+    86→    86→}
+    87→    87→
+    88→    88→// ─── Animated Counter ────────────────────────────────────────────────
+    89→    89→
+    90→    90→function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
+    91→    91→  const [count, setCount] = useState(0)
+    92→    92→  const ref = useRef<HTMLSpanElement>(null)
+    93→    93→  const inView = useInView(ref, { once: true, margin: '-50px' })
+    94→    94→  const hasAnimated = useRef(false)
+    95→    95→
+    96→    96→  useEffect(() => {
+    97→    97→    if (!inView || hasAnimated.current) return
+    98→    98→    hasAnimated.current = true
+    99→    99→    const startTime = performance.now()
+   100→   100→
+   101→   101→    const animate = (now: number) => {
+   102→   102→      const elapsed = now - startTime
+   103→   103→      const progress = Math.min(elapsed / duration, 1)
+   104→   104→      const eased = 1 - Math.pow(1 - progress, 3)
+   105→   105→      setCount(Math.floor(target * eased))
+   106→   106→      if (progress < 1) {
+   107→   107→        requestAnimationFrame(animate)
+   108→   108→      }
+   109→   109→    }
+   110→   110→
+   111→   111→    requestAnimationFrame(animate)
+   112→   112→  }, [inView, target, duration])
+   113→   113→
+   114→   114→  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+   115→   115→}
+   116→   116→
+   117→   117→// ─── Data ────────────────────────────────────────────────────────────
+   118→   118→
+   119→   119→const stats = [
+   120→   120→  { value: 10000, suffix: '+', label: 'Sites Built', icon: Globe },
+   121→   121→  { value: 50000, suffix: '+', label: 'Pages Generated', icon: LayoutGrid },
+   122→   122→  { value: 99, suffix: '.9%', label: 'Uptime', icon: Shield },
+   123→   123→  { value: 180, suffix: '+', label: 'Countries', icon: Users },
+   124→   124→]
+   125→   125→
+   126→   126→const features = [
+   127→   127→  {
+   128→   128→    icon: Sparkles,
+   129→   129→    title: 'AI Generation',
+   130→   130→    description: 'Describe your vision in plain language. Forge crafts production-quality websites from your words.',
+   131→   131→    gradient: 'from-pink-500 to-rose-500',
+   132→   132→    bgGlow: 'oklch(0.65 0.25 350 / 15%)',
+   133→   133→  },
+   134→   134→  {
+   135→   135→    icon: Paintbrush,
+   136→   136→    title: 'Visual Editor',
+   137→   137→    description: 'Refine every detail with an intuitive editor. Drag, drop, tweak — or let AI handle it.',
+   138→   138→    gradient: 'from-emerald-500 to-teal-500',
+   139→   139→    bgGlow: 'oklch(0.65 0.2 160 / 15%)',
+   140→   140→  },
+   141→   141→  {
+   142→   142→    icon: Download,
+   143→   143→    title: 'Export Freedom',
+   144→   144→    description: 'Export clean HTML, CSS, and JS anytime — no lock-in, no vendor dependency.',
+   145→   145→    gradient: 'from-amber-500 to-orange-500',
+   146→   146→    bgGlow: 'oklch(0.7 0.2 80 / 15%)',
+   147→   147→  },
+   148→   148→  {
+   149→   149→    icon: Rocket,
+   150→   150→    title: 'Deploy Anywhere',
+   151→   151→    description: 'Ship to Vercel, Netlify, or your own server. Forge doesn\'t tie you down.',
+   152→   152→    gradient: 'from-cyan-500 to-blue-500',
+   153→   153→    bgGlow: 'oklch(0.65 0.2 220 / 15%)',
+   154→   154→  },
+   155→   155→]
+   156→   156→
+   157→   157→const steps = [
+   158→   158→  {
+   159→   159→    number: '1',
+   160→   160→    title: 'Describe',
+   161→   161→    description: 'Tell Forge what you want — a portfolio, SaaS page, restaurant site, anything.',
+   162→   162→    icon: MousePointerClick,
+   163→   163→    color: 'oklch(0.65 0.25 350)',
+   164→   164→    colorLight: 'oklch(0.65 0.25 350 / 15%)',
+   165→   165→  },
+   166→   166→  {
+   167→   167→    number: '2',
+   168→   168→    title: 'AI Builds',
+   169→   169→    description: 'Forge generates a complete, responsive website with proper structure in seconds.',
+   170→   170→    icon: Zap,
+   171→   171→    color: 'oklch(0.65 0.2 180)',
+   172→   172→    colorLight: 'oklch(0.65 0.2 180 / 15%)',
+   173→   173→  },
+   174→   174→  {
+   175→   175→    number: '3',
+   176→   176→    title: 'Customize & Ship',
+   177→   177→    description: 'Polish with the visual editor, then deploy anywhere. Your site, your code.',
+   178→   178→    icon: Rocket,
+   179→   179→    color: 'oklch(0.65 0.25 270)',
+   180→   180→    colorLight: 'oklch(0.65 0.25 270 / 15%)',
+   181→   181→  },
+   182→   182→]
+   183→   183→
+   184→   184→const testimonials = [
+   185→   185→  {
+   186→   186→    name: 'Sarah Chen',
+   187→   187→    role: 'Founder, Lumina Design',
+   188→   188→    quote: 'Forge turned my rough idea into a stunning website in under 2 minutes. The AI understood exactly what I wanted.',
+   189→   189→    avatar: 'SC',
+   190→   190→    metric: 'Built in 2 min',
+   191→   191→    metricIcon: Clock,
+   192→   192→  },
+   193→   193→  {
+   194→   194→    name: 'Marcus Rivera',
+   195→   195→    role: 'CTO, BuildStack',
+   196→   196→    quote: 'We replaced weeks of frontend work with Forge. The export quality is so clean our devs actually prefer it.',
+   197→   197→    avatar: 'MR',
+   198→   198→    metric: '3,500 monthly visitors',
+   199→   199→    metricIcon: TrendingUp,
+   200→   200→  },
+   201→   201→  {
+   202→   202→    name: 'Aisha Patel',
+   203→   203→    role: 'Freelance Developer',
+   204→   204→    quote: 'I use Forge for every client project now. It handles the initial build, I customize — client gets results faster.',
+   205→   205→    avatar: 'AP',
+   206→   206→    metric: '12 client sites',
+   207→   207→    metricIcon: Globe,
+   208→   208→  },
+   209→   209→]
+   210→   210→
+   211→   211→const faqs = [
+   212→   212→  {
+   213→   213→    question: 'How does Forge\'s AI generate websites?',
+   214→   214→    answer: 'Forge uses advanced AI models that understand web design, UX patterns, and modern development practices. You describe what you want, and the AI generates complete, responsive code — custom-built, not templated.',
+   215→   215→  },
+   216→   216→  {
+   217→   217→    question: 'Can I edit the generated code?',
+   218→   218→    answer: 'Absolutely. Forge includes a visual editor for quick tweaks, and you can export full source code (HTML, CSS, JS) to edit in any tool. No lock-in — the code is yours.',
+   219→   219→  },
+   220→   220→  {
+   221→   221→    question: 'Is Forge free to use?',
+   222→   222→    answer: 'Forge offers a generous free tier for generating and customizing multiple sites. Upgrade to Pro for custom domains, team collaboration, and priority generation.',
+   223→   223→  },
+   224→   224→  {
+   225→   225→    question: 'What platforms does Forge support?',
+   226→   226→    answer: 'Forge generates standard web code that works everywhere. Deploy to Vercel, Netlify, AWS, GitHub Pages, or any host. Clean, framework-free HTML/CSS/JS.',
+   227→   227→  },
+   228→   228→  {
+   229→   229→    question: 'How does Forge compare to traditional builders?',
+   230→   230→    answer: 'Traditional builders give templates and drag-and-drop. Forge gives AI-powered generation that creates unique designs from your description — faster, more flexible, better results.',
+   231→   231→  },
+   232→   232→]
+   233→   233→
+   234→   234→// ─── Builder Playground Block Types ─────────────────────────────────
+   235→   235→
+   236→   236→interface PlaygroundBlock {
+   237→   237→  id: string
+   238→   238→  label: string
+   239→   239→  icon: React.ElementType
+   240→   240→  color: string
+   241→   241→  bgGradient: string
+   242→   242→  height: string
+   243→   243→}
+   244→   244→
+   245→   245→const BLOCK_TYPES: PlaygroundBlock[] = [
+   246→   246→  { id: 'hero', label: 'Hero', icon: Layout, color: '#f43f5e', bgGradient: 'linear-gradient(135deg, #f43f5e, #e11d48)', height: 'h-12' },
+   247→   247→  { id: 'features', label: 'Features', icon: Columns3, color: '#8b5cf6', bgGradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', height: 'h-10' },
+   248→   248→  { id: 'pricing', label: 'Pricing', icon: DollarSign, color: '#f59e0b', bgGradient: 'linear-gradient(135deg, #f59e0b, #d97706)', height: 'h-10' },
+   249→   249→  { id: 'testimonials', label: 'Testimonials', icon: Star, color: '#10b981', bgGradient: 'linear-gradient(135deg, #10b981, #059669)', height: 'h-10' },
+   250→   250→  { id: 'cta', label: 'CTA', icon: MessageSquare, color: '#06b6d4', bgGradient: 'linear-gradient(135deg, #06b6d4, #0891b2)', height: 'h-8' },
+   251→   251→  { id: 'footer', label: 'Footer', icon: Type, color: '#6366f1', bgGradient: 'linear-gradient(135deg, #6366f1, #4f46e5)', height: 'h-6' },
+   252→   252→]
+   253→   253→
+   254→   254→// ─── Interactive Builder Playground ──────────────────────────────────
+   255→   255→
+   256→   256→function BuilderPlayground() {
+   257→   257→  const [placedBlocks, setPlacedBlocks] = useState<PlaygroundBlock[]>([])
+   258→   258→  const [draggedBlock, setDraggedBlock] = useState<string | null>(null)
+   259→   259→  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+   260→   260→  const canvasRef = useRef<HTMLDivElement>(null)
+   261→   261→
+   262→   262→  const handleDragStart = useCallback((blockId: string) => {
+   263→   263→    setDraggedBlock(blockId)
+   264→   264→  }, [])
+   265→   265→
+   266→   266→  const handleDragEnd = useCallback(() => {
+   267→   267→    setDraggedBlock(null)
+   268→   268→    setDragOverIndex(null)
+   269→   269→  }, [])
+   270→   270→
+   271→   271→  const handleCanvasDrop = useCallback((e: React.DragEvent) => {
+   272→   272→    e.preventDefault()
+   273→   273→    if (!draggedBlock) return
+   274→   274→    const block = BLOCK_TYPES.find(b => b.id === draggedBlock)
+   275→   275→    if (block) {
+   276→   276→      const newBlock = { ...block, id: `${block.id}-${Date.now()}` }
+   277→   277→      if (dragOverIndex !== null) {
+   278→   278→        setPlacedBlocks(prev => {
+   279→   279→          const newBlocks = [...prev]
+   280→   280→          newBlocks.splice(dragOverIndex, 0, newBlock)
+   281→   281→          return newBlocks
+   282→   282→        })
+   283→   283→      } else {
+   284→   284→        setPlacedBlocks(prev => [...prev, newBlock])
+   285→   285→      }
+   286→   286→    }
+   287→   287→    setDraggedBlock(null)
+   288→   288→    setDragOverIndex(null)
+   289→   289→  }, [draggedBlock, dragOverIndex])
+   290→   290→
+   291→   291→  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+   292→   292→    e.preventDefault()
+   293→   293→    if (!canvasRef.current) return
+   294→   294→    const rect = canvasRef.current.getBoundingClientRect()
+   295→   295→    const y = e.clientY - rect.top
+   296→   296→    const blockHeight = 50
+   297→   297→    const index = Math.floor(y / blockHeight)
+   298→   298→    setDragOverIndex(Math.min(index, placedBlocks.length))
+   299→   299→  }, [placedBlocks.length])
+   300→   300→
+   301→   301→  const handleShuffle = useCallback(() => {
+   302→   302→    setPlacedBlocks(prev => {
+   303→   303→      const shuffled = [...prev]
+   304→   304→      for (let i = shuffled.length - 1; i > 0; i--) {
+   305→   305→        const j = Math.floor(Math.random() * (i + 1))
+   306→   306→        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+   307→   307→      }
+   308→   308→      return shuffled
+   309→   309→    })
+   310→   310→  }, [])
+   311→   311→
+   312→   312→  const handleClear = useCallback(() => {
+   313→   313→    setPlacedBlocks([])
+   314→   314→  }, [])
+   315→   315→
+   316→   316→  const handleRemoveBlock = useCallback((blockId: string) => {
+   317→   317→    setPlacedBlocks(prev => prev.filter(b => b.id !== blockId))
+   318→   318→  }, [])
+   319→   319→
+   320→   320→  return (
+   321→   321→    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+   322→   322→      {/* Block Palette */}
+   323→   323→      <div>
+   324→   324→        <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wider">Drag blocks to build</p>
+   325→   325→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+   326→   326→          {BLOCK_TYPES.map((block) => {
+   327→   327→            const Icon = block.icon
+   328→   328→            return (
+   329→   329→              <motion.div
+   330→   330→                key={block.id}
+   331→   331→                draggable
+   332→   332→                onDragStart={() => handleDragStart(block.id)}
+   333→   333→                onDragEnd={handleDragEnd}
+   334→   334→                whileHover={{ scale: 1.05, y: -2 }}
+   335→   335→                whileTap={{ scale: 0.95 }}
+   336→   336→                className="flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-grab active:cursor-grabbing transition-shadow"
+   337→   337→                style={{
+   338→   338→                  background: `${block.color}15`,
+   339→   339→                  border: `1px solid ${block.color}30`,
+   340→   340→                }}
+   341→   341→              >
+   342→   342→                <div
+   343→   343→                  className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+   344→   344→                  style={{ background: block.bgGradient }}
+   345→   345→                >
+   346→   346→                  <Icon className="w-3.5 h-3.5 text-white" />
+   347→   347→                </div>
+   348→   348→                <span className="text-xs font-medium text-white/90">{block.label}</span>
+   349→   349→                <GripVertical className="w-3 h-3 text-white/30 ml-auto" />
+   350→   350→              </motion.div>
+   351→   351→            )
+   352→   352→          })}
+   353→   353→        </div>
+   354→   354→        <div className="flex gap-2 mt-4">
+   355→   355→          <Button
+   356→   356→            size="sm"
+   357→   357→            variant="outline"
+   358→   358→            onClick={handleShuffle}
+   359→   359→            disabled={placedBlocks.length < 2}
+   360→   360→            className="text-xs border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+   361→   361→          >
+   362→   362→            <Shuffle className="w-3 h-3 mr-1" /> Shuffle
+   363→   363→          </Button>
+   364→   364→          <Button
+   365→   365→            size="sm"
+   366→   366→            variant="outline"
+   367→   367→            onClick={handleClear}
+   368→   368→            disabled={placedBlocks.length === 0}
+   369→   369→            className="text-xs border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+   370→   370→          >
+   371→   371→            <Trash2 className="w-3 h-3 mr-1" /> Clear
+   372→   372→          </Button>
+   373→   373→        </div>
+   374→   374→      </div>
+   375→   375→
+   376→   376→      {/* Mini Canvas Preview */}
+   377→   377→      <div>
+   378→   378→        <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wider">Live preview</p>
+   379→   379→        <div
+   380→   380→          ref={canvasRef}
+   381→   381→          onDrop={handleCanvasDrop}
+   382→   382→          onDragOver={handleCanvasDragOver}
+   383→   383→          onDragLeave={() => setDragOverIndex(null)}
+   384→   384→          className="min-h-[280px] rounded-xl border border-white/10 bg-gray-950/50 p-3 relative overflow-hidden"
+   385→   385→          style={{
+   386→   386→            backgroundImage: 'radial-gradient(circle at 1px 1px, oklch(1 0 0 / 5%) 1px, transparent 0)',
+   387→   387→            backgroundSize: '20px 20px',
+   388→   388→          }}
+   389→   389→        >
+   390→   390→          {/* Navbar mockup */}
+   391→   391→          <div className="h-5 rounded bg-white/5 mb-2 flex items-center px-2 gap-1">
+   392→   392→            <div className="w-2 h-2 rounded-full bg-rose-500/60" />
+   393→   393→            <div className="w-2 h-2 rounded-full bg-amber-500/60" />
+   394→   394→            <div className="w-2 h-2 rounded-full bg-emerald-500/60" />
+   395→   395→            <div className="flex-1" />
+   396→   396→            <div className="w-6 h-1.5 rounded bg-white/10" />
+   397→   397→            <div className="w-6 h-1.5 rounded bg-white/10" />
+   398→   398→          </div>
+   399→   399→
+   400→   400→          {/* Placed blocks */}
+   401→   401→          <AnimatePresence mode="popLayout">
+   402→   402→            {placedBlocks.map((block, index) => {
+   403→   403→              const Icon = block.icon
+   404→   404→              return (
+   405→   405→                <motion.div
+   406→   406→                  key={block.id}
+   407→   407→                  layout
+   408→   408→                  initial={{ opacity: 0, scale: 0.8, y: -10 }}
+   409→   409→                  animate={{ opacity: 1, scale: 1, y: 0 }}
+   410→   410→                  exit={{ opacity: 0, scale: 0.8, x: -50 }}
+   411→   411→                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   412→   412→                  className="relative group mb-1.5"
+   413→   413→                >
+   414→   414→                  {dragOverIndex === index && (
+   415→   415→                    <div className="absolute -top-1 left-0 right-0 h-0.5 bg-cyan-400 rounded-full" />
+   416→   416→                  )}
+   417→   417→                  <div
+   418→   418→                    className={`${block.height} rounded-lg flex items-center px-3 gap-2 cursor-pointer transition-all`}
+   419→   419→                    style={{
+   420→   420→                      background: block.bgGradient,
+   421→   421→                      opacity: 0.9,
+   422→   422→                    }}
+   423→   423→                    onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1' }}
+   424→   424→                    onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.9' }}
+   425→   425→                  >
+   426→   426→                    <Icon className="w-3 h-3 text-white/80" />
+   427→   427→                    <span className="text-[10px] font-medium text-white/80">{block.label}</span>
+   428→   428→                    <button
+   429→   429→                      onClick={() => handleRemoveBlock(block.id)}
+   430→   430→                      className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 rounded-full bg-black/30 flex items-center justify-center"
+   431→   431→                    >
+   432→   432→                      <span className="text-white/60 text-[8px] leading-none">✕</span>
+   433→   433→                    </button>
+   434→   434→                  </div>
+   435→   435→                </motion.div>
+   436→   436→              )
+   437→   437→            })}
+   438→   438→          </AnimatePresence>
+   439→   439→
+   440→   440→          {/* Drop indicator at end */}
+   441→   441→          {dragOverIndex === placedBlocks.length && draggedBlock && (
+   442→   442→            <div className="h-0.5 bg-cyan-400 rounded-full mb-1.5" />
+   443→   443→          )}
+   444→   444→
+   445→   445→          {/* Empty state */}
+   446→   446→          {placedBlocks.length === 0 && (
+   447→   447→            <div className="flex flex-col items-center justify-center h-48 text-gray-500">
+   448→   448→              <LayoutGrid className="w-8 h-8 mb-2 text-gray-600" />
+   449→   449→              <p className="text-xs">Drag blocks here to build your site</p>
+   450→   450→            </div>
+   451→   451→          )}
+   452→   452→
+   453→   453→          {/* Animated grid overlay */}
+   454→   454→          <div className="absolute inset-0 pointer-events-none opacity-20">
+   455→   455→            <div className="absolute top-4 right-4 w-16 h-16 rounded-full bg-cyan-500/20 animate-pulse-glow" />
+   456→   456→            <div className="absolute bottom-8 left-4 w-12 h-12 rounded-full bg-rose-500/20 animate-pulse-glow" style={{ animationDelay: '2s' }} />
+   457→   457→          </div>
+   458→   458→        </div>
+   459→   459→      </div>
+   460→   460→    </div>
+   461→   461→  )
+   462→   462→}
+   463→   463→
+   464→   464→// ─── Interactive Theme Playground ────────────────────────────────────
+   465→   465→
+   466→   466→function ThemePlayground() {
+   467→   467→  const [accentColor, setAccentColor] = useState('#8b5cf6')
+   468→   468→  const [isDark, setIsDark] = useState(false)
+   469→   469→  const [fontStyle, setFontStyle] = useState<'modern' | 'classic' | 'playful'>('modern')
+   470→   470→
+   471→   471→  const fontStyles = {
+   472→   472→    modern: { fontFamily: 'system-ui, sans-serif', letterSpacing: '-0.02em' },
+   473→   473→    classic: { fontFamily: 'Georgia, serif', letterSpacing: '0.01em' },
+   474→   474→    playful: { fontFamily: 'system-ui, sans-serif', letterSpacing: '0.02em' },
+   475→   475→  }
+   476→   476→
+   477→   477→  const colorPresets = ['#8b5cf6', '#f43f5e', '#10b981', '#f59e0b', '#06b6d4', '#ec4899']
+   478→   478→
+   479→   479→  return (
+   480→   480→    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+   481→   481→      {/* Controls */}
+   482→   482→      <div className="space-y-4">
+   483→   483→        <div>
+   484→   484→          <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Accent Color</p>
+   485→   485→          <div className="flex gap-2 flex-wrap">
+   486→   486→            {colorPresets.map((color) => (
+   487→   487→              <motion.button
+   488→   488→                key={color}
+   489→   489→                whileHover={{ scale: 1.15 }}
+   490→   490→                whileTap={{ scale: 0.9 }}
+   491→   491→                onClick={() => setAccentColor(color)}
+   492→   492→                className="w-8 h-8 rounded-full border-2 transition-all"
+   493→   493→                style={{
+   494→   494→                  background: color,
+   495→   495→                  borderColor: accentColor === color ? 'white' : 'transparent',
+   496→   496→                  boxShadow: accentColor === color ? `0 0 12px ${color}60` : 'none',
+   497→   497→                }}
+   498→   498→              />
+   499→   499→            ))}
+   500→   500→            <input
+   501→   501→              type="color"
+   502→   502→              value={accentColor}
+   503→   503→              onChange={(e) => setAccentColor(e.target.value)}
+   504→   504→              className="w-8 h-8 rounded-full cursor-pointer border-0 bg-transparent"
+   505→   505→            />
+   506→   506→          </div>
+   507→   507→        </div>
+   508→   508→
+   509→   509→        <div>
+   510→   510→          <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Mode</p>
+   511→   511→          <div className="flex gap-2">
+   512→   512→            <motion.button
+   513→   513→              whileHover={{ scale: 1.03 }}
+   514→   514→              whileTap={{ scale: 0.97 }}
+   515→   515→              onClick={() => setIsDark(false)}
+   516→   516→              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+   517→   517→              style={{
+   518→   518→                background: !isDark ? 'oklch(1 0 0 / 10%)' : 'oklch(1 0 0 / 3%)',
+   519→   519→                border: !isDark ? '1px solid oklch(1 0 0 / 20%)' : '1px solid oklch(1 0 0 / 5%)',
+   520→   520→                color: !isDark ? 'white' : 'oklch(1 0 0 / 50%)',
+   521→   521→              }}
+   522→   522→            >
+   523→   523→              <Sun className="w-3.5 h-3.5" /> Light
+   524→   524→            </motion.button>
+   525→   525→            <motion.button
+   526→   526→              whileHover={{ scale: 1.03 }}
+   527→   527→              whileTap={{ scale: 0.97 }}
+   528→   528→              onClick={() => setIsDark(true)}
+   529→   529→              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+   530→   530→              style={{
+   531→   531→                background: isDark ? 'oklch(1 0 0 / 10%)' : 'oklch(1 0 0 / 3%)',
+   532→   532→                border: isDark ? '1px solid oklch(1 0 0 / 20%)' : '1px solid oklch(1 0 0 / 5%)',
+   533→   533→                color: isDark ? 'white' : 'oklch(1 0 0 / 50%)',
+   534→   534→              }}
+   535→   535→            >
+   536→   536→              <Moon className="w-3.5 h-3.5" /> Dark
+   537→   537→            </motion.button>
+   538→   538→          </div>
+   539→   539→        </div>
+   540→   540→
+   541→   541→        <div>
+   542→   542→          <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Font Style</p>
+   543→   543→          <div className="flex gap-2">
+   544→   544→            {(['modern', 'classic', 'playful'] as const).map((style) => (
+   545→   545→              <motion.button
+   546→   546→                key={style}
+   547→   547→                whileHover={{ scale: 1.03 }}
+   548→   548→                whileTap={{ scale: 0.97 }}
+   549→   549→                onClick={() => setFontStyle(style)}
+   550→   550→                className="px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize"
+   551→   551→                style={{
+   552→   552→                  background: fontStyle === style ? 'oklch(1 0 0 / 10%)' : 'oklch(1 0 0 / 3%)',
+   553→   553→                  border: fontStyle === style ? '1px solid oklch(1 0 0 / 20%)' : '1px solid oklch(1 0 0 / 5%)',
+   554→   554→                  color: fontStyle === style ? 'white' : 'oklch(1 0 0 / 50%)',
+   555→   555→                  ...fontStyles[style],
+   556→   556→                }}
+   557→   557→              >
+   558→   558→                {style}
+   559→   559→              </motion.button>
+   560→   560→            ))}
+   561→   561→          </div>
+   562→   562→        </div>
+   563→   563→      </div>
+   564→   564→
+   565→   565→      {/* Live Preview */}
+   566→   566→      <div className="rounded-xl overflow-hidden border border-white/10 shadow-lg">
+   567→   567→        <motion.div
+   568→   568→          layout
+   569→   569→          className="p-3"
+   570→   570→          style={{
+   571→   571→            background: isDark ? '#0f0f1a' : '#ffffff',
+   572→   572→            transition: 'background 0.4s ease',
+   573→   573→          }}
+   574→   574→        >
+   575→   575→          {/* Mini nav */}
+   576→   576→          <div className="flex items-center justify-between mb-3">
+   577→   577→            <div className="flex items-center gap-1.5">
+   578→   578→              <div className="w-3 h-3 rounded" style={{ background: accentColor }} />
+   579→   579→              <span className="text-[9px] font-bold" style={{ color: isDark ? '#fff' : '#111', ...fontStyles[fontStyle] }}>Brand</span>
+   580→   580→            </div>
+   581→   581→            <div className="flex gap-2">
+   582→   582→              <div className="w-5 h-1 rounded" style={{ background: isDark ? '#ffffff20' : '#00000015' }} />
+   583→   583→              <div className="w-5 h-1 rounded" style={{ background: isDark ? '#ffffff20' : '#00000015' }} />
+   584→   584→            </div>
+   585→   585→          </div>
+   586→   586→
+   587→   587→          {/* Mini hero */}
+   588→   588→          <div
+   589→   589→            className="rounded-lg p-3 mb-2 text-center"
+   590→   590→            style={{
+   591→   591→              background: isDark
+   592→   592→                ? `linear-gradient(135deg, ${accentColor}30, ${accentColor}10)`
+   593→   593→                : `linear-gradient(135deg, ${accentColor}15, ${accentColor}05)`,
+   594→   594→              transition: 'background 0.4s ease',
+   595→   595→            }}
+   596→   596→          >
+   597→   597→            <motion.h3
+   598→   598→              layout
+   599→   599→              className="text-[11px] font-bold mb-1"
+   600→   600→              style={{ color: isDark ? '#fff' : '#111', ...fontStyles[fontStyle] }}
+   601→   601→            >
+   602→   602→              Build something amazing
+   603→   603→            </motion.h3>
+   604→   604→            <p className="text-[8px] mb-2" style={{ color: isDark ? '#ffffff80' : '#00000060' }}>
+   605→   605→              Create stunning websites with AI
+   606→   606→            </p>
+   607→   607→            <motion.div
+   608→   608→              layout
+   609→   609→              className="inline-block px-2.5 py-1 rounded-full text-[8px] font-medium text-white"
+   610→   610→              style={{ background: accentColor, transition: 'background 0.3s ease' }}
+   611→   611→            >
+   612→   612→              Get Started
+   613→   613→            </motion.div>
+   614→   614→          </div>
+   615→   615→
+   616→   616→          {/* Mini feature cards */}
+   617→   617→          <div className="grid grid-cols-3 gap-1.5 mb-2">
+   618→   618→            {[1, 2, 3].map((i) => (
+   619→   619→              <motion.div
+   620→   620→                key={i}
+   621→   621→                layout
+   622→   622→                className="rounded-md p-1.5 text-center"
+   623→   623→                style={{
+   624→   624→                  background: isDark ? '#ffffff08' : '#00000005',
+   625→   625→                  border: `1px solid ${isDark ? '#ffffff10' : '#00000008'}`,
+   626→   626→                  transition: 'background 0.4s ease',
+   627→   627→                }}
+   628→   628→              >
+   629→   629→                <div className="w-3 h-3 rounded mx-auto mb-0.5" style={{ background: `${accentColor}40` }} />
+   630→   630→                <div className="w-5 h-0.5 rounded mx-auto mb-0.5" style={{ background: isDark ? '#ffffff20' : '#00000015' }} />
+   631→   631→                <div className="w-7 h-0.5 rounded mx-auto" style={{ background: isDark ? '#ffffff10' : '#00000008' }} />
+   632→   632→              </motion.div>
+   633→   633→            ))}
+   634→   634→          </div>
+   635→   635→
+   636→   636→          {/* Mini footer */}
+   637→   637→          <div
+   638→   638→            className="rounded-md p-1.5 flex items-center justify-between"
+   639→   639→            style={{
+   640→   640→              background: isDark ? '#ffffff05' : '#00000003',
+   641→   641→              transition: 'background 0.4s ease',
+   642→   642→            }}
+   643→   643→          >
+   644→   644→            <div className="w-4 h-0.5 rounded" style={{ background: isDark ? '#ffffff15' : '#00000010' }} />
+   645→   645→            <div className="w-6 h-0.5 rounded" style={{ background: isDark ? '#ffffff10' : '#00000008' }} />
+   646→   646→          </div>
+   647→   647→        </motion.div>
+   648→   648→      </div>
+   649→   649→    </div>
+   650→   650→  )
+   651→   651→}
+   652→   652→
+   653→   653→// ─── Interactive AI Demo ─────────────────────────────────────────────
+   654→   654→
+   655→   655→function AIDemo() {
+   656→   656→  const [isGenerating, setIsGenerating] = useState(false)
+   657→   657→  const [progress, setProgress] = useState(0)
+   658→   658→  const [stage, setStage] = useState<'idle' | 'navbar' | 'hero' | 'features' | 'footer' | 'done'>('idle')
+   659→   659→
+   660→   660→  const handleGenerate = useCallback(() => {
+   661→   661→    setIsGenerating(true)
+   662→   662→    setProgress(0)
+   663→   663→    setStage('idle')
+   664→   664→
+   665→   665→    const timeline = [
+   666→   666→      { time: 0, progress: 5, stage: 'idle' as const },
+   667→   667→      { time: 400, progress: 15, stage: 'navbar' as const },
+   668→   668→      { time: 1200, progress: 35, stage: 'hero' as const },
+   669→   669→      { time: 2800, progress: 70, stage: 'features' as const },
+   670→   670→      { time: 4200, progress: 90, stage: 'footer' as const },
+   671→   671→      { time: 5000, progress: 100, stage: 'done' as const },
+   672→   672→    ]
+   673→   673→
+   674→   674→    timeline.forEach(({ time, progress: p, stage: s }) => {
+   675→   675→      setTimeout(() => {
+   676→   676→        setProgress(p)
+   677→   677→        setStage(s)
+   678→   678→      }, time)
+   679→   679→    })
+   680→   680→
+   681→   681→    setTimeout(() => {
+   682→   682→      setIsGenerating(false)
+   683→   683→    }, 5200)
+   684→   684→  }, [])
+   685→   685→
+   686→   686→  return (
+   687→   687→    <div className="space-y-4">
+   688→   688→      {/* Controls */}
+   689→   689→      <div className="flex items-center gap-3">
+   690→   690→        <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+   691→   691→          <Button
+   692→   692→            onClick={handleGenerate}
+   693→   693→            disabled={isGenerating}
+   694→   694→            className="text-xs bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white border-0 shadow-lg shadow-violet-500/20"
+   695→   695→          >
+   696→   696→            <Wand2 className="w-3.5 h-3.5 mr-1.5" />
+   697→   697→            {isGenerating ? 'Generating...' : 'Watch AI Build'}
+   698→   698→          </Button>
+   699→   699→        </motion.div>
+   700→   700→        {stage === 'done' && (
+   701→   701→          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+   702→   702→            <Button
+   703→   703→              size="sm"
+   704→   704→              variant="outline"
+   705→   705→              onClick={handleGenerate}
+   706→   706→              className="text-xs border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+   707→   707→            >
+   708→   708→              <RotateCcw className="w-3 h-3 mr-1" /> Regenerate
+   709→   709→            </Button>
+   710→   710→          </motion.div>
+   711→   711→        )}
+   712→   712→      </div>
+   713→   713→
+   714→   714→      {/* Progress bar */}
+   715→   715→      {isGenerating && (
+   716→   716→        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+   717→   717→          <motion.div
+   718→   718→            className="h-full rounded-full"
+   719→   719→            style={{ background: 'linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4)' }}
+   720→   720→            animate={{ width: `${progress}%` }}
+   721→   721→            transition={{ duration: 0.3, ease: 'easeOut' }}
+   722→   722→          />
+   723→   723→        </div>
+   724→   724→      )}
+   725→   725→
+   726→   726→      {/* Status text */}
+   727→   727→      {isGenerating && (
+   728→   728→        <motion.p
+   729→   729→          initial={{ opacity: 0 }}
+   730→   730→          animate={{ opacity: 1 }}
+   731→   731→          className="text-[10px] text-violet-300/70 font-mono"
+   732→   732→        >
+   733→   733→          {stage === 'idle' && 'Initializing AI model...'}
+   734→   734→          {stage === 'navbar' && 'Generating navigation component...'}
+   735→   735→          {stage === 'hero' && 'Building hero section with content...'}
+   736→   736→          {stage === 'features' && 'Creating feature grid layout...'}
+   737→   737→          {stage === 'footer' && 'Assembling footer and final touches...'}
+   738→   738→        </motion.p>
+   739→   739→      )}
+   740→   740→
+   741→   741→      {/* Generated Preview */}
+   742→   742→      <div
+   743→   743→        className="rounded-xl border border-white/10 bg-gray-950/50 p-3 min-h-[200px] relative overflow-hidden"
+   744→   744→        style={{
+   745→   745→          backgroundImage: 'radial-gradient(circle at 1px 1px, oklch(1 0 0 / 3%) 1px, transparent 0)',
+   746→   746→          backgroundSize: '16px 16px',
+   747→   747→        }}
+   748→   748→      >
+   749→   749→        {/* Navbar */}
+   750→   750→        <AnimatePresence>
+   751→   751→          {stage !== 'idle' && (
+   752→   752→            <motion.div
+   753→   753→              initial={{ opacity: 0, y: -10 }}
+   754→   754→              animate={{ opacity: 1, y: 0 }}
+   755→   755→              transition={{ duration: 0.4, ease: 'easeOut' }}
+   756→   756→              className="flex items-center justify-between mb-3 pb-2 border-b border-white/5"
+   757→   757→            >
+   758→   758→              <div className="flex items-center gap-1.5">
+   759→   759→                <div className="w-4 h-4 rounded bg-gradient-to-br from-violet-500 to-fuchsia-500" />
+   760→   760→                <div className="w-8 h-1.5 rounded bg-white/15" />
+   761→   761→              </div>
+   762→   762→              <div className="flex gap-2">
+   763→   763→                <div className="w-6 h-1 rounded bg-white/10" />
+   764→   764→                <div className="w-6 h-1 rounded bg-white/10" />
+   765→   765→                <div className="w-6 h-1 rounded bg-white/10" />
+   766→   766→              </div>
+   767→   767→            </motion.div>
+   768→   768→          )}
+   769→   769→        </AnimatePresence>
+   770→   770→
+   771→   771→        {/* Hero */}
+   772→   772→        <AnimatePresence>
+   773→   773→          {(stage === 'hero' || stage === 'features' || stage === 'footer' || stage === 'done') && (
+   774→   774→            <motion.div
+   775→   775→              initial={{ opacity: 0, scale: 0.95 }}
+   776→   776→              animate={{ opacity: 1, scale: 1 }}
+   777→   777→              transition={{ duration: 0.5, ease: 'easeOut' }}
+   778→   778→              className="mb-3 p-3 rounded-lg text-center"
+   779→   779→              style={{
+   780→   780→                background: 'linear-gradient(135deg, #8b5cf615, #ec489915)',
+   781→   781→              }}
+   782→   782→            >
+   783→   783→              <motion.div
+   784→   784→                initial={{ width: 0 }}
+   785→   785→                animate={{ width: '70%' }}
+   786→   786→                transition={{ duration: 0.8, delay: 0.2 }}
+   787→   787→                className="h-2 rounded bg-white/20 mx-auto mb-1.5"
+   788→   788→              />
+   789→   789→              <motion.div
+   790→   790→                initial={{ width: 0 }}
+   791→   791→                animate={{ width: '50%' }}
+   792→   792→                transition={{ duration: 0.6, delay: 0.5 }}
+   793→   793→                className="h-1 rounded bg-white/10 mx-auto mb-2"
+   794→   794→              />
+   795→   795→              <motion.div
+   796→   796→                initial={{ scale: 0 }}
+   797→   797→                animate={{ scale: 1 }}
+   798→   798→                transition={{ duration: 0.3, delay: 0.8 }}
+   799→   799→                className="inline-block px-2.5 py-1 rounded-full text-[8px] font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500"
+   800→   800→              >
+   801→   801→                Get Started
+   802→   802→              </motion.div>
+   803→   803→            </motion.div>
+   804→   804→          )}
+   805→   805→        </AnimatePresence>
+   806→   806→
+   807→   807→        {/* Features */}
+   808→   808→        <AnimatePresence>
+   809→   809→          {(stage === 'features' || stage === 'footer' || stage === 'done') && (
+   810→   810→            <motion.div
+   811→   811→              initial={{ opacity: 0, y: 10 }}
+   812→   812→              animate={{ opacity: 1, y: 0 }}
+   813→   813→              transition={{ duration: 0.5, ease: 'easeOut' }}
+   814→   814→              className="grid grid-cols-3 gap-1.5 mb-3"
+   815→   815→            >
+   816→   816→              {[0, 1, 2].map((i) => (
+   817→   817→                <motion.div
+   818→   818→                  key={i}
+   819→   819→                  initial={{ opacity: 0, y: 10 }}
+   820→   820→                  animate={{ opacity: 1, y: 0 }}
+   821→   821→                  transition={{ duration: 0.4, delay: i * 0.15 }}
+   822→   822→                  className="rounded-md p-2 bg-white/5 border border-white/5"
+   823→   823→                >
+   824→   824→                  <div className="w-4 h-4 rounded bg-white/10 mb-1" />
+   825→   825→                  <div className="w-full h-1 rounded bg-white/10 mb-0.5" />
+   826→   826→                  <div className="w-2/3 h-1 rounded bg-white/5" />
+   827→   827→                </motion.div>
+   828→   828→              ))}
+   829→   829→            </motion.div>
+   830→   830→          )}
+   831→   831→        </AnimatePresence>
+   832→   832→
+   833→   833→        {/* Footer */}
+   834→   834→        <AnimatePresence>
+   835→   835→          {(stage === 'footer' || stage === 'done') && (
+   836→   836→            <motion.div
+   837→   837→              initial={{ opacity: 0, y: 10 }}
+   838→   838→              animate={{ opacity: 1, y: 0 }}
+   839→   839→              transition={{ duration: 0.4, ease: 'easeOut' }}
+   840→   840→              className="flex items-center justify-between p-2 rounded-md bg-white/5"
+   841→   841→            >
+   842→   842→              <div className="w-6 h-1 rounded bg-white/10" />
+   843→   843→              <div className="flex gap-1.5">
+   844→   844→                <div className="w-3 h-1 rounded bg-white/5" />
+   845→   845→                <div className="w-3 h-1 rounded bg-white/5" />
+   846→   846→                <div className="w-3 h-1 rounded bg-white/5" />
+   847→   847→              </div>
+   848→   848→            </motion.div>
+   849→   849→          )}
+   850→   850→        </AnimatePresence>
+   851→   851→
+   852→   852→        {/* Done checkmark */}
+   853→   853→        <AnimatePresence>
+   854→   854→          {stage === 'done' && !isGenerating && (
+   855→   855→            <motion.div
+   856→   856→              initial={{ opacity: 0, scale: 0 }}
+   857→   857→              animate={{ opacity: 1, scale: 1 }}
+   858→   858→              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+   859→   859→              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"
+   860→   860→            >
+   861→   861→              <CheckCircle2 className="w-3 h-3 text-white" />
+   862→   862→            </motion.div>
+   863→   863→          )}
+   864→   864→        </AnimatePresence>
+   865→   865→
+   866→   866→        {/* Idle state */}
+   867→   867→        {stage === 'idle' && !isGenerating && (
+   868→   868→          <div className="flex flex-col items-center justify-center h-48 text-gray-500">
+   869→   869→            <Wand2 className="w-8 h-8 mb-2 text-gray-600" />
+   870→   870→            <p className="text-xs">Click &quot;Watch AI Build&quot; to see the magic</p>
+   871→   871→          </div>
+   872→   872→        )}
+   873→   873→
+   874→   874→        {/* Floating decorative elements */}
+   875→   875→        <div className="absolute top-6 right-6 w-10 h-10 rounded-full bg-violet-500/5 animate-pulse-glow pointer-events-none" />
+   876→   876→        <div className="absolute bottom-6 left-6 w-8 h-8 rounded-full bg-fuchsia-500/5 animate-pulse-glow pointer-events-none" style={{ animationDelay: '2s' }} />
+   877→   877→      </div>
+   878→   878→    </div>
+   879→   879→  )
+   880→   880→}
+   881→   881→
+   882→   882→// ─── Floating Particles Component ────────────────────────────────────
+   883→   883→
+   884→   884→function FloatingParticles() {
+   885→   885→  return (
+   886→   886→    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+   887→   887→      {[...Array(6)].map((_, i) => (
+   888→   888→        <motion.div
+   889→   889→          key={i}
+   890→   890→          className="absolute rounded-full"
+   891→   891→          style={{
+   892→   892→            width: 4 + Math.random() * 6,
+   893→   893→            height: 4 + Math.random() * 6,
+   894→   894→            left: `${10 + Math.random() * 80}%`,
+   895→   895→            top: `${10 + Math.random() * 80}%`,
+   896→   896→            background: `oklch(${0.7 + Math.random() * 0.2} ${0.15 + Math.random() * 0.1} ${Math.random() * 360} / 30%)`,
+   897→   897→          }}
+   898→   898→          animate={{
+   899→   899→            y: [0, -20, 0],
+   900→   900→            x: [0, (Math.random() - 0.5) * 20, 0],
+   901→   901→            opacity: [0.3, 0.6, 0.3],
+   902→   902→          }}
+   903→   903→          transition={{
+   904→   904→            duration: 4 + Math.random() * 4,
+   905→   905→            repeat: Infinity,
+   906→   906→            delay: Math.random() * 3,
+   907→   907→            ease: 'easeInOut',
+   908→   908→          }}
+   909→   909→        />
+   910→   910→      ))}
+   911→   911→    </div>
+   912→   912→  )
+   913→   913→}
+   914→   914→
+   915→   915→// ─── Main Landing Page Component ─────────────────────────────────────
+   916→   916→
+   917→   917→export default function LandingPage() {
+   918→   918→  const navigate = useAppStore(s => s.navigate)
+   919→   919→  const setBuilderPrompt = useAppStore(s => s.setBuilderPrompt)
+   920→   920→  const themeMode = useAppStore(s => s.themeMode)
+   921→   921→  const setThemeMode = useAppStore(s => s.setThemeMode)
+   922→   922→  const [promptValue, setPromptValue] = useState('')
+   923→   923→
+   924→   924→  const toggleTheme = useCallback(() => {
+   925→   925→    const newMode = themeMode === 'light' ? 'dark' : 'light'
+   926→   926→    setThemeMode(newMode)
+   927→   927→    if (newMode === 'dark') {
+   928→   928→      document.documentElement.classList.add('dark')
+   929→   929→    } else {
+   930→   930→      document.documentElement.classList.remove('dark')
+   931→   931→    }
+   932→   932→  }, [themeMode, setThemeMode])
+   933→   933→
+   934→   934→  const handleGenerate = useCallback(() => {
+   935→   935→    if (!promptValue.trim()) return
+   936→   936→    setBuilderPrompt(promptValue)
+   937→   937→    navigate('builder')
+   938→   938→  }, [promptValue, setBuilderPrompt, navigate])
+   939→   939→
+   940→   940→  const handleGetStarted = useCallback(() => {
+   941→   941→    navigate('builder')
+   942→   942→  }, [navigate])
+   943→   943→
+   944→   944→  return (
+   945→   945→    <div className="min-h-screen flex flex-col">
+   946→   946→      {/* ─── Navbar ───────────────────────────────────────────────────── */}
+   947→   947→      <nav className="fixed top-0 left-0 right-0 z-50 glass">
+   948→   948→        <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
+   949→   949→          <div className="flex items-center gap-2">
+   950→   950→            <Hexagon className="w-5 h-5 text-primary" />
+   951→   951→            <span className="font-bold text-sm gradient-text">Forge</span>
+   952→   952→          </div>
+   953→   953→          <div className="flex items-center gap-2">
+   954→   954→            <Button
+   955→   955→              variant="ghost"
+   956→   956→              size="sm"
+   957→   957→              onClick={toggleTheme}
+   958→   958→              className="w-8 h-8 p-0"
+   959→   959→            >
+   960→   960→              {themeMode === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+   961→   961→            </Button>
+   962→   962→            <Button
+   963→   963→              variant="ghost"
+   964→   964→              size="sm"
+   965→   965→              onClick={() => navigate('login')}
+   966→   966→              className="text-xs text-muted-foreground"
+   967→   967→            >
+   968→   968→              Sign in
+   969→   969→            </Button>
+   970→   970→            <Button
+   971→   971→              size="sm"
+   972→   972→              onClick={handleGetStarted}
+   973→   973→              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+   974→   974→            >
+   975→   975→              Get Started
+   976→   976→            </Button>
+   977→   977→          </div>
+   978→   978→        </div>
+   979→   979→      </nav>
+   980→   980→
+   981→   981→      {/* ─── Hero Section ─────────────────────────────────────────────── */}
+   982→   982→      <section className="relative overflow-hidden pt-16 pb-16 md:pt-20 md:pb-20" style={{
+   983→   983→        background: 'linear-gradient(135deg, oklch(0.2 0.08 290), oklch(0.15 0.06 270), oklch(0.18 0.05 200))',
+   984→   984→      }}>
+   985→   985→        {/* Animated mesh gradient background */}
+   986→   986→        <div className="absolute inset-0">
+   987→   987→          <div className="absolute top-1/4 left-1/4 w-72 h-72 rounded-full animate-morph" style={{
+   988→   988→            background: 'radial-gradient(circle, oklch(0.55 0.25 290 / 30%), transparent 70%)',
+   989→   989→          }} />
+   990→   990→          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full animate-morph" style={{
+   991→   991→            background: 'radial-gradient(circle, oklch(0.55 0.2 180 / 25%), transparent 70%)',
+   992→   992→            animationDelay: '-3s',
+   993→   993→          }} />
+   994→   994→          <div className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full animate-pulse-glow" style={{
+   995→   995→            background: 'radial-gradient(circle, oklch(0.6 0.22 350 / 20%), transparent 70%)',
+   996→   996→          }} />
+   997→   997→        </div>
+   998→   998→
+   999→   999→        {/* Floating orbs */}
+  1000→  1000→        <div className="absolute inset-0">
+  1001→  1001→          <motion.div
+  1002→  1002→            className="absolute w-3 h-3 rounded-full bg-fuchsia-400/30"
+  1003→  1003→            style={{ top: '20%', left: '15%' }}
+  1004→  1004→            animate={{ y: [0, -15, 0], x: [0, 10, 0] }}
+  1005→  1005→            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+  1006→  1006→          />
+  1007→  1007→          <motion.div
+  1008→  1008→            className="absolute w-2 h-2 rounded-full bg-cyan-400/30"
+  1009→  1009→            style={{ top: '30%', right: '20%' }}
+  1010→  1010→            animate={{ y: [0, 12, 0], x: [0, -8, 0] }}
+  1011→  1011→            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+  1012→  1012→          />
+  1013→  1013→          <motion.div
+  1014→  1014→            className="absolute w-4 h-4 rounded-full bg-violet-400/20"
+  1015→  1015→            style={{ bottom: '30%', left: '30%' }}
+  1016→  1016→            animate={{ y: [0, -10, 0], x: [0, 15, 0] }}
+  1017→  1017→            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+  1018→  1018→          />
+  1019→  1019→          <motion.div
+  1020→  1020→            className="absolute w-2 h-2 rounded-full bg-rose-400/30"
+  1021→  1021→            style={{ bottom: '20%', right: '35%' }}
+  1022→  1022→            animate={{ y: [0, 8, 0], x: [0, -12, 0] }}
+  1023→  1023→            transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+  1024→  1024→          />
+  1025→  1025→        </div>
+  1026→  1026→
+  1027→  1027→        {/* Grid pattern overlay */}
+  1028→  1028→        <div className="absolute inset-0 opacity-[0.03]" style={{
+  1029→  1029→          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+  1030→  1030→          backgroundSize: '40px 40px',
+  1031→  1031→        }} />
+  1032→  1032→
+  1033→  1033→        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
+  1034→  1034→          <motion.div
+  1035→  1035→            variants={staggerContainer}
+  1036→  1036→            initial="hidden"
+  1037→  1037→            animate="visible"
+  1038→  1038→            className="space-y-4"
+  1039→  1039→          >
+  1040→  1040→            <motion.div variants={fadeInUp}>
+  1041→  1041→              <Badge className="bg-white/10 text-white/80 border-white/10 text-[10px] px-3 py-1 hover:bg-white/15">
+  1042→  1042→                <Sparkles className="w-3 h-3 mr-1" /> AI-Powered Website Builder
+  1043→  1043→              </Badge>
+  1044→  1044→            </motion.div>
+  1045→  1045→
+  1046→  1046→            <motion.h1 variants={fadeInUp} className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
+  1047→  1047→              Your idea. Our AI.{' '}
+  1048→  1048→              <span className="bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent animate-gradient" style={{ backgroundSize: '200% 200%' }}>
+  1049→  1049→                A complete website.
+  1050→  1050→              </span>
+  1051→  1051→            </motion.h1>
+  1052→  1052→
+  1053→  1053→            <motion.p variants={fadeInUp} className="text-sm text-white/60 max-w-lg mx-auto">
+  1054→  1054→              Describe what you want. Forge generates a full, responsive website in seconds.
+  1055→  1055→              Customize with the visual editor, then deploy anywhere.
+  1056→  1056→            </motion.p>
+  1057→  1057→
+  1058→  1058→            {/* Prompt Input */}
+  1059→  1059→            <motion.div variants={fadeInUp} className="max-w-md mx-auto">
+  1060→  1060→              <div className="flex gap-2 p-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+  1061→  1061→                <input
+  1062→  1062→                  value={promptValue}
+  1063→  1063→                  onChange={(e) => setPromptValue(e.target.value)}
+  1064→  1064→                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+  1065→  1065→                  placeholder="A modern SaaS landing page with pricing..."
+  1066→  1066→                  className="flex-1 bg-transparent text-white text-xs placeholder:text-white/40 px-3 py-2 outline-none"
+  1067→  1067→                />
+  1068→  1068→                <Button
+  1069→  1069→                  onClick={handleGenerate}
+  1070→  1070→                  size="sm"
+  1071→  1071→                  className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 text-white border-0 text-xs px-4 shadow-lg shadow-violet-500/20"
+  1072→  1072→                >
+  1073→  1073→                  <Sparkles className="w-3 h-3 mr-1" /> Generate
+  1074→  1074→                </Button>
+  1075→  1075→              </div>
+  1076→  1076→            </motion.div>
+  1077→  1077→
+  1078→  1078→            {/* Suggestion pills */}
+  1079→  1079→            <motion.div variants={fadeInUp} className="flex flex-wrap justify-center gap-1.5">
+  1080→  1080→              {['SaaS landing page', 'Portfolio site', 'Restaurant website', 'E-commerce store'].map((pill) => (
+  1081→  1081→                <motion.button
+  1082→  1082→                  key={pill}
+  1083→  1083→                  whileHover={{ scale: 1.05, backgroundColor: 'oklch(1 0 0 / 15%)' }}
+  1084→  1084→                  whileTap={{ scale: 0.95 }}
+  1085→  1085→                  onClick={() => { setPromptValue(pill); setBuilderPrompt(pill); navigate('builder') }}
+  1086→  1086→                  className="text-[10px] text-white/50 px-2.5 py-1 rounded-full bg-white/5 border border-white/5 hover:text-white/80 transition-colors"
+  1087→  1087→                >
+  1088→  1088→                  {pill}
+  1089→  1089→                </motion.button>
+  1090→  1090→              ))}
+  1091→  1091→            </motion.div>
+  1092→  1092→          </motion.div>
+  1093→  1093→        </div>
+  1094→  1094→      </section>
+  1095→  1095→
+  1096→  1096→      {/* ─── Stats Section ────────────────────────────────────────────── */}
+  1097→  1097→      <section className="relative py-8 overflow-hidden" style={{
+  1098→  1098→        background: 'linear-gradient(135deg, oklch(0.65 0.2 25), oklch(0.55 0.2 290), oklch(0.5 0.18 270))',
+  1099→  1099→      }}>
+  1100→  1100→        <div className="absolute inset-0 opacity-10" style={{
+  1101→  1101→          backgroundImage: 'radial-gradient(circle at 2px 2px, oklch(1 0 0 / 30%) 1px, transparent 0)',
+  1102→  1102→          backgroundSize: '24px 24px',
+  1103→  1103→        }} />
+  1104→  1104→        <motion.div
+  1105→  1105→          variants={staggerContainer}
+  1106→  1106→          initial="hidden"
+  1107→  1107→          whileInView="visible"
+  1108→  1108→          viewport={{ once: true, margin: '-50px' }}
+  1109→  1109→          className="relative z-10 max-w-6xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-4"
+  1110→  1110→        >
+  1111→  1111→          {stats.map((stat) => {
+  1112→  1112→            const Icon = stat.icon
+  1113→  1113→            return (
+  1114→  1114→              <motion.div key={stat.label} variants={fadeInUp} className="text-center">
+  1115→  1115→                <Icon className="w-4 h-4 text-white/60 mx-auto mb-1" />
+  1116→  1116→                <div className="text-lg sm:text-xl font-bold text-white">
+  1117→  1117→                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+  1118→  1118→                </div>
+  1119→  1119→                <div className="text-[10px] text-white/60">{stat.label}</div>
+  1120→  1120→              </motion.div>
+  1121→  1121→            )
+  1122→  1122→          })}
+  1123→  1123→        </motion.div>
+  1124→  1124→      </section>
+  1125→  1125→
+  1126→  1126→      {/* ─── Interactive Builder Playground ────────────────────────────── */}
+  1127→  1127→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1128→  1128→        background: 'linear-gradient(180deg, oklch(0.13 0.03 270), oklch(0.1 0.02 260))',
+  1129→  1129→      }}>
+  1130→  1130→        {/* Decorative blobs */}
+  1131→  1131→        <div className="absolute top-10 left-10 w-32 h-32 rounded-full animate-morph" style={{
+  1132→  1132→          background: 'radial-gradient(circle, oklch(0.6 0.25 290 / 15%), transparent 70%)',
+  1133→  1133→        }} />
+  1134→  1134→        <div className="absolute bottom-10 right-10 w-40 h-40 rounded-full animate-morph" style={{
+  1135→  1135→          background: 'radial-gradient(circle, oklch(0.6 0.2 180 / 12%), transparent 70%)',
+  1136→  1136→          animationDelay: '-4s',
+  1137→  1137→        }} />
+  1138→  1138→
+  1139→  1139→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1140→  1140→          <motion.div
+  1141→  1141→            variants={staggerContainer}
+  1142→  1142→            initial="hidden"
+  1143→  1143→            whileInView="visible"
+  1144→  1144→            viewport={{ once: true, margin: '-50px' }}
+  1145→  1145→            className="text-center mb-6"
+  1146→  1146→          >
+  1147→  1147→            <motion.div variants={fadeInUp}>
+  1148→  1148→              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[10px] mb-3">
+  1149→  1149→                <MousePointerClick className="w-3 h-3 mr-1" /> Interactive
+  1150→  1150→              </Badge>
+  1151→  1151→            </motion.div>
+  1152→  1152→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1153→  1153→              Build a site,{' '}
+  1154→  1154→              <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">your way</span>
+  1155→  1155→            </motion.h2>
+  1156→  1156→            <motion.p variants={fadeInUp} className="text-xs text-white/50 max-w-md mx-auto">
+  1157→  1157→              Drag blocks onto the canvas to arrange your website layout. Try different combinations — it&apos;s fun!
+  1158→  1158→            </motion.p>
+  1159→  1159→          </motion.div>
+  1160→  1160→
+  1161→  1161→          <motion.div
+  1162→  1162→            initial={{ opacity: 0, y: 20 }}
+  1163→  1163→            whileInView={{ opacity: 1, y: 0 }}
+  1164→  1164→            viewport={{ once: true }}
+  1165→  1165→            transition={{ duration: 0.6, delay: 0.2 }}
+  1166→  1166→          >
+  1167→  1167→            <BuilderPlayground />
+  1168→  1168→          </motion.div>
+  1169→  1169→        </div>
+  1170→  1170→      </section>
+  1171→  1171→
+  1172→  1172→      {/* ─── Features Section ─────────────────────────────────────────── */}
+  1173→  1173→      <section className="relative py-12 md:py-16 bg-background overflow-hidden">
+  1174→  1174→        {/* Decorative elements */}
+  1175→  1175→        <div className="absolute top-20 right-20 w-48 h-48 rounded-full animate-morph" style={{
+  1176→  1176→          background: 'radial-gradient(circle, oklch(0.65 0.2 290 / 8%), transparent 70%)',
+  1177→  1177→        }} />
+  1178→  1178→        <div className="absolute bottom-20 left-10 w-36 h-36 rounded-full animate-morph" style={{
+  1179→  1179→          background: 'radial-gradient(circle, oklch(0.65 0.2 180 / 8%), transparent 70%)',
+  1180→  1180→          animationDelay: '-5s',
+  1181→  1181→        }} />
+  1182→  1182→        <FloatingParticles />
+  1183→  1183→
+  1184→  1184→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1185→  1185→          <motion.div
+  1186→  1186→            variants={staggerContainer}
+  1187→  1187→            initial="hidden"
+  1188→  1188→            whileInView="visible"
+  1189→  1189→            viewport={{ once: true, margin: '-50px' }}
+  1190→  1190→            className="text-center mb-8"
+  1191→  1191→          >
+  1192→  1192→            <motion.div variants={fadeInUp}>
+  1193→  1193→              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+  1194→  1194→                <Zap className="w-3 h-3 mr-1" /> Features
+  1195→  1195→              </Badge>
+  1196→  1196→            </motion.div>
+  1197→  1197→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+  1198→  1198→              Everything you need to build
+  1199→  1199→            </motion.h2>
+  1200→  1200→            <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-md mx-auto">
+  1201→  1201→              From AI generation to deployment, Forge has every tool to take your idea live.
+  1202→  1202→            </motion.p>
+  1203→  1203→          </motion.div>
+  1204→  1204→
+  1205→  1205→          <motion.div
+  1206→  1206→            variants={staggerContainer}
+  1207→  1207→            initial="hidden"
+  1208→  1208→            whileInView="visible"
+  1209→  1209→            viewport={{ once: true, margin: '-50px' }}
+  1210→  1210→            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+  1211→  1211→          >
+  1212→  1212→            {features.map((feature, i) => {
+  1213→  1213→              const Icon = feature.icon
+  1214→  1214→              return (
+  1215→  1215→                <motion.div
+  1216→  1216→                  key={feature.title}
+  1217→  1217→                  variants={fadeInUp}
+  1218→  1218→                  whileHover={{
+  1219→  1219→                    y: -4,
+  1220→  1220→                    rotateY: 2,
+  1221→  1221→                    transition: { duration: 0.2 },
+  1222→  1222→                  }}
+  1223→  1223→                  style={{ perspective: 1000 }}
+  1224→  1224→                >
+  1225→  1225→                  <Card className="group relative overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5">
+  1226→  1226→                    {/* Glow effect on hover */}
+  1227→  1227→                    <div
+  1228→  1228→                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+  1229→  1229→                      style={{ background: feature.bgGlow }}
+  1230→  1230→                    />
+  1231→  1231→                    <CardContent className="relative z-10 p-5">
+  1232→  1232→                      <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-3 shadow-lg`}>
+  1233→  1233→                        <Icon className="w-4 h-4 text-white" />
+  1234→  1234→                      </div>
+  1235→  1235→                      <h3 className="text-sm font-semibold text-foreground mb-1">{feature.title}</h3>
+  1236→  1236→                      <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+  1237→  1237→                    </CardContent>
+  1238→  1238→                    {/* Gradient border bottom on hover */}
+  1239→  1239→                    <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+  1240→  1240→                  </Card>
+  1241→  1241→                </motion.div>
+  1242→  1242→              )
+  1243→  1243→            })}
+  1244→  1244→          </motion.div>
+  1245→  1245→        </div>
+  1246→  1246→      </section>
+  1247→  1247→
+  1248→  1248→      {/* ─── Interactive Theme Playground ──────────────────────────────── */}
+  1249→  1249→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1250→  1250→        background: 'linear-gradient(180deg, oklch(0.12 0.02 270), oklch(0.1 0.02 260))',
+  1251→  1251→      }}>
+  1252→  1252→        <div className="absolute top-10 right-1/4 w-44 h-44 rounded-full animate-morph" style={{
+  1253→  1253→          background: 'radial-gradient(circle, oklch(0.6 0.22 200 / 12%), transparent 70%)',
+  1254→  1254→        }} />
+  1255→  1255→        <div className="absolute bottom-10 left-1/4 w-32 h-32 rounded-full animate-morph" style={{
+  1256→  1256→          background: 'radial-gradient(circle, oklch(0.6 0.2 350 / 10%), transparent 70%)',
+  1257→  1257→          animationDelay: '-3s',
+  1258→  1258→        }} />
+  1259→  1259→
+  1260→  1260→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1261→  1261→          <motion.div
+  1262→  1262→            variants={staggerContainer}
+  1263→  1263→            initial="hidden"
+  1264→  1264→            whileInView="visible"
+  1265→  1265→            viewport={{ once: true, margin: '-50px' }}
+  1266→  1266→            className="text-center mb-6"
+  1267→  1267→          >
+  1268→  1268→            <motion.div variants={fadeInUp}>
+  1269→  1269→              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] mb-3">
+  1270→  1270→                <Palette className="w-3 h-3 mr-1" /> Live Customizer
+  1271→  1271→              </Badge>
+  1272→  1272→            </motion.div>
+  1273→  1273→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1274→  1274→              Make it{' '}
+  1275→  1275→              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">yours</span>
+  1276→  1276→            </motion.h2>
+  1277→  1277→            <motion.p variants={fadeInUp} className="text-xs text-white/50 max-w-md mx-auto">
+  1278→  1278→              Pick your accent color, toggle light/dark, and choose a font style. Watch the preview update live.
+  1279→  1279→            </motion.p>
+  1280→  1280→          </motion.div>
+  1281→  1281→
+  1282→  1282→          <motion.div
+  1283→  1283→            initial={{ opacity: 0, y: 20 }}
+  1284→  1284→            whileInView={{ opacity: 1, y: 0 }}
+  1285→  1285→            viewport={{ once: true }}
+  1286→  1286→            transition={{ duration: 0.6, delay: 0.2 }}
+  1287→  1287→          >
+  1288→  1288→            <ThemePlayground />
+  1289→  1289→          </motion.div>
+  1290→  1290→        </div>
+  1291→  1291→      </section>
+  1292→  1292→
+  1293→  1293→      {/* ─── How It Works ─────────────────────────────────────────────── */}
+  1294→  1294→      <section className="relative py-12 md:py-16 bg-background overflow-hidden">
+  1295→  1295→        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+  1296→  1296→        <FloatingParticles />
+  1297→  1297→
+  1298→  1298→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1299→  1299→          <motion.div
+  1300→  1300→            variants={staggerContainer}
+  1301→  1301→            initial="hidden"
+  1302→  1302→            whileInView="visible"
+  1303→  1303→            viewport={{ once: true, margin: '-50px' }}
+  1304→  1304→            className="text-center mb-8"
+  1305→  1305→          >
+  1306→  1306→            <motion.div variants={fadeInUp}>
+  1307→  1307→              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+  1308→  1308→                <ArrowRight className="w-3 h-3 mr-1" /> How It Works
+  1309→  1309→              </Badge>
+  1310→  1310→            </motion.div>
+  1311→  1311→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+  1312→  1312→              Three steps to your site
+  1313→  1313→            </motion.h2>
+  1314→  1314→          </motion.div>
+  1315→  1315→
+  1316→  1316→          <motion.div
+  1317→  1317→            variants={staggerContainer}
+  1318→  1318→            initial="hidden"
+  1319→  1319→            whileInView="visible"
+  1320→  1320→            viewport={{ once: true, margin: '-50px' }}
+  1321→  1321→            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+  1322→  1322→          >
+  1323→  1323→            {steps.map((step, i) => {
+  1324→  1324→              const Icon = step.icon
+  1325→  1325→              return (
+  1326→  1326→                <motion.div key={step.number} variants={fadeInUp} className="text-center">
+  1327→  1327→                  <div className="relative inline-flex items-center justify-center mb-3">
+  1328→  1328→                    <div
+  1329→  1329→                      className="w-12 h-12 rounded-2xl flex items-center justify-center"
+  1330→  1330→                      style={{ background: step.colorLight }}
+  1331→  1331→                    >
+  1332→  1332→                      <Icon className="w-5 h-5" style={{ color: step.color }} />
+  1333→  1333→                    </div>
+  1334→  1334→                    <div
+  1335→  1335→                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
+  1336→  1336→                      style={{ background: step.color }}
+  1337→  1337→                    >
+  1338→  1338→                      {step.number}
+  1339→  1339→                    </div>
+  1340→  1340→                  </div>
+  1341→  1341→                  <h3 className="text-sm font-semibold text-foreground mb-1">{step.title}</h3>
+  1342→  1342→                  <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
+  1343→  1343→                  {i < steps.length - 1 && (
+  1344→  1344→                    <div className="hidden md:block absolute top-1/2 -right-3 text-muted-foreground/30">
+  1345→  1345→                      <ChevronRight className="w-6 h-6" />
+  1346→  1346→                    </div>
+  1347→  1347→                  )}
+  1348→  1348→                </motion.div>
+  1349→  1349→              )
+  1350→  1350→            })}
+  1351→  1351→          </motion.div>
+  1352→  1352→        </div>
+  1353→  1353→      </section>
+  1354→  1354→
+  1355→  1355→      {/* ─── Interactive AI Demo ──────────────────────────────────────── */}
+  1356→  1356→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1357→  1357→        background: 'linear-gradient(180deg, oklch(0.15 0.04 290), oklch(0.12 0.03 270), oklch(0.1 0.02 260))',
+  1358→  1358→      }}>
+  1359→  1359→        {/* Decorative elements */}
+  1360→  1360→        <div className="absolute top-20 left-20 w-52 h-52 rounded-full animate-morph" style={{
+  1361→  1361→          background: 'radial-gradient(circle, oklch(0.5 0.25 290 / 15%), transparent 70%)',
+  1362→  1362→        }} />
+  1363→  1363→        <div className="absolute bottom-20 right-20 w-40 h-40 rounded-full animate-morph" style={{
+  1364→  1364→          background: 'radial-gradient(circle, oklch(0.5 0.2 330 / 12%), transparent 70%)',
+  1365→  1365→          animationDelay: '-6s',
+  1366→  1366→        }} />
+  1367→  1367→
+  1368→  1368→        {/* Grid pattern */}
+  1369→  1369→        <div className="absolute inset-0 opacity-[0.03]" style={{
+  1370→  1370→          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+  1371→  1371→          backgroundSize: '32px 32px',
+  1372→  1372→        }} />
+  1373→  1373→
+  1374→  1374→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1375→  1375→          <motion.div
+  1376→  1376→            variants={staggerContainer}
+  1377→  1377→            initial="hidden"
+  1378→  1378→            whileInView="visible"
+  1379→  1379→            viewport={{ once: true, margin: '-50px' }}
+  1380→  1380→            className="text-center mb-6"
+  1381→  1381→          >
+  1382→  1382→            <motion.div variants={fadeInUp}>
+  1383→  1383→              <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[10px] mb-3">
+  1384→  1384→                <Wand2 className="w-3 h-3 mr-1" /> AI Demo
+  1385→  1385→              </Badge>
+  1386→  1386→            </motion.div>
+  1387→  1387→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1388→  1388→              Watch AI build a site{' '}
+  1389→  1389→              <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">in real-time</span>
+  1390→  1390→            </motion.h2>
+  1391→  1391→            <motion.p variants={fadeInUp} className="text-xs text-white/50 max-w-md mx-auto">
+  1392→  1392→              See how Forge generates a complete website piece by piece — navbar, hero, features, and footer.
+  1393→  1393→            </motion.p>
+  1394→  1394→          </motion.div>
+  1395→  1395→
+  1396→  1396→          <motion.div
+  1397→  1397→            initial={{ opacity: 0, y: 20 }}
+  1398→  1398→            whileInView={{ opacity: 1, y: 0 }}
+  1399→  1399→            viewport={{ once: true }}
+  1400→  1400→            transition={{ duration: 0.6, delay: 0.2 }}
+  1401→  1401→            className="max-w-2xl mx-auto"
+  1402→  1402→          >
+  1403→  1403→            <AIDemo />
+  1404→  1404→          </motion.div>
+  1405→  1405→        </div>
+  1406→  1406→      </section>
+  1407→  1407→
+  1408→  1408→      {/* ─── Testimonials ─────────────────────────────────────────────── */}
+  1409→  1409→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1410→  1410→        background: 'linear-gradient(135deg, oklch(0.55 0.08 290), oklch(0.5 0.06 270), oklch(0.45 0.05 200))',
+  1411→  1411→      }}>
+  1412→  1412→        <div className="absolute inset-0 opacity-[0.03]" style={{
+  1413→  1413→          backgroundImage: 'radial-gradient(circle at 2px 2px, oklch(1 0 0 / 30%) 1px, transparent 0)',
+  1414→  1414→          backgroundSize: '20px 20px',
+  1415→  1415→        }} />
+  1416→  1416→        <div className="absolute top-10 right-20 w-40 h-40 rounded-full animate-morph" style={{
+  1417→  1417→          background: 'radial-gradient(circle, oklch(0.7 0.15 200 / 10%), transparent 70%)',
+  1418→  1418→        }} />
+  1419→  1419→
+  1420→  1420→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1421→  1421→          <motion.div
+  1422→  1422→            variants={staggerContainer}
+  1423→  1423→            initial="hidden"
+  1424→  1424→            whileInView="visible"
+  1425→  1425→            viewport={{ once: true, margin: '-50px' }}
+  1426→  1426→            className="text-center mb-8"
+  1427→  1427→          >
+  1428→  1428→            <motion.div variants={fadeInUp}>
+  1429→  1429→              <Badge className="bg-white/10 text-white/80 border-white/10 text-[10px] mb-3">
+  1430→  1430→                <Star className="w-3 h-3 mr-1" /> Testimonials
+  1431→  1431→              </Badge>
+  1432→  1432→            </motion.div>
+  1433→  1433→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1434→  1434→              Loved by builders everywhere
+  1435→  1435→            </motion.h2>
+  1436→  1436→          </motion.div>
+  1437→  1437→
+  1438→  1438→          <motion.div
+  1439→  1439→            variants={staggerContainer}
+  1440→  1440→            initial="hidden"
+  1441→  1441→            whileInView="visible"
+  1442→  1442→            viewport={{ once: true, margin: '-50px' }}
+  1443→  1443→            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+  1444→  1444→          >
+  1445→  1445→            {testimonials.map((t) => {
+  1446→  1446→              const MetricIcon = t.metricIcon
+  1447→  1447→              return (
+  1448→  1448→                <motion.div key={t.name} variants={fadeInUp}>
+  1449→  1449→                  <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/8 transition-all duration-300 hover:-translate-y-1">
+  1450→  1450→                    <div className="flex items-center gap-2 mb-3">
+  1451→  1451→                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 flex items-center justify-center text-[10px] font-bold text-white">
+  1452→  1452→                        {t.avatar}
+  1453→  1453→                      </div>
+  1454→  1454→                      <div>
+  1455→  1455→                        <div className="text-xs font-medium text-white">{t.name}</div>
+  1456→  1456→                        <div className="text-[10px] text-white/50">{t.role}</div>
+  1457→  1457→                      </div>
+  1458→  1458→                    </div>
+  1459→  1459→                    <p className="text-xs text-white/70 leading-relaxed mb-3">&ldquo;{t.quote}&rdquo;</p>
+  1460→  1460→                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/80">
+  1461→  1461→                      <MetricIcon className="w-3 h-3" />
+  1462→  1462→                      {t.metric}
+  1463→  1463→                    </div>
+  1464→  1464→                  </div>
+  1465→  1465→                </motion.div>
+  1466→  1466→              )
+  1467→  1467→            })}
+  1468→  1468→          </motion.div>
+  1469→  1469→        </div>
+  1470→  1470→      </section>
+  1471→  1471→
+  1472→  1472→      {/* ─── Pricing Hint / CTA Banner ───────────────────────────────── */}
+  1473→  1473→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1474→  1474→        background: 'linear-gradient(135deg, oklch(0.55 0.25 350), oklch(0.5 0.2 290), oklch(0.45 0.18 250))',
+  1475→  1475→      }}>
+  1476→  1476→        {/* Animated gradient */}
+  1477→  1477→        <div className="absolute inset-0 animate-gradient" style={{
+  1478→  1478→          background: 'linear-gradient(135deg, oklch(0.55 0.25 350 / 50%), oklch(0.5 0.2 290 / 50%), oklch(0.45 0.18 250 / 50%))',
+  1479→  1479→          backgroundSize: '200% 200%',
+  1480→  1480→        }} />
+  1481→  1481→        <div className="absolute inset-0 opacity-[0.04]" style={{
+  1482→  1482→          backgroundImage: 'radial-gradient(circle at 1px 1px, oklch(1 0 0 / 40%) 1px, transparent 0)',
+  1483→  1483→          backgroundSize: '24px 24px',
+  1484→  1484→        }} />
+  1485→  1485→
+  1486→  1486→        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
+  1487→  1487→          <motion.div
+  1488→  1488→            variants={staggerContainer}
+  1489→  1489→            initial="hidden"
+  1490→  1490→            whileInView="visible"
+  1491→  1491→            viewport={{ once: true, margin: '-50px' }}
+  1492→  1492→            className="space-y-4"
+  1493→  1493→          >
+  1494→  1494→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white">
+  1495→  1495→              Free to start. Scale when ready.
+  1496→  1496→            </motion.h2>
+  1497→  1497→            <motion.p variants={fadeInUp} className="text-xs text-white/60 max-w-md mx-auto">
+  1498→  1498→              Generate your first site in seconds — no credit card needed. Upgrade for custom domains, team features, and more.
+  1499→  1499→            </motion.p>
+  1500→  1500→            <motion.div variants={fadeInUp} className="flex flex-wrap justify-center gap-3">
+  1501→  1501→              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+  1502→  1502→                <Button
+  1503→  1503→                  onClick={handleGetStarted}
+  1504→  1504→                  className="bg-white text-black hover:bg-white/90 text-xs font-semibold shadow-lg shadow-black/20 px-6"
+  1505→  1505→                >
+  1506→  1506→                  Start Building Free <ArrowRight className="w-3 h-3 ml-1" />
+  1507→  1507→                </Button>
+  1508→  1508→              </motion.div>
+  1509→  1509→              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+  1510→  1510→                <Button
+  1511→  1511→                  variant="outline"
+  1512→  1512→                  onClick={() => navigate('login')}
+  1513→  1513→                  className="border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white text-xs"
+  1514→  1514→                >
+  1515→  1515→                  Sign In
+  1516→  1516→                </Button>
+  1517→  1517→              </motion.div>
+  1518→  1518→            </motion.div>
+  1519→  1519→          </motion.div>
+  1520→  1520→        </div>
+  1521→  1521→      </section>
+  1522→  1522→
+  1523→  1523→      {/* ─── FAQ ──────────────────────────────────────────────────────── */}
+  1524→  1524→      <section className="relative py-12 md:py-16 bg-background overflow-hidden">
+  1525→  1525→        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+  1526→  1526→        <div className="absolute bottom-10 right-10 w-32 h-32 rounded-full animate-morph" style={{
+  1527→  1527→          background: 'radial-gradient(circle, oklch(0.65 0.2 290 / 8%), transparent 70%)',
+  1528→  1528→        }} />
+  1529→  1529→
+  1530→  1530→        <div className="relative z-10 max-w-3xl mx-auto px-4">
+  1531→  1531→          <motion.div
+  1532→  1532→            variants={staggerContainer}
+  1533→  1533→            initial="hidden"
+  1534→  1534→            whileInView="visible"
+  1535→  1535→            viewport={{ once: true, margin: '-50px' }}
+  1536→  1536→            className="text-center mb-6"
+  1537→  1537→          >
+  1538→  1538→            <motion.div variants={fadeInUp}>
+  1539→  1539→              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+  1540→  1540→                <Eye className="w-3 h-3 mr-1" /> FAQ
+  1541→  1541→              </Badge>
+  1542→  1542→            </motion.div>
+  1543→  1543→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+  1544→  1544→              Common questions
+  1545→  1545→            </motion.h2>
+  1546→  1546→          </motion.div>
+  1547→  1547→
+  1548→  1548→          <motion.div
+  1549→  1549→            initial={{ opacity: 0, y: 20 }}
+  1550→  1550→            whileInView={{ opacity: 1, y: 0 }}
+  1551→  1551→            viewport={{ once: true }}
+  1552→  1552→            transition={{ duration: 0.5, delay: 0.2 }}
+  1553→  1553→          >
+  1554→  1554→            <Accordion type="single" collapsible className="space-y-2">
+  1555→  1555→              {faqs.map((faq, i) => (
+  1556→  1556→                <AccordionItem
+  1557→  1557→                  key={i}
+  1558→  1558→                  value={`faq-${i}`}
+  1559→  1559→                  className="border border-border/50 rounded-lg px-4 data-[state=open]:border-primary/30 data-[state=open]:bg-primary/5 transition-all"
+  1560→  1560→                >
+  1561→  1561→                  <AccordionTrigger className="text-xs font-medium text-foreground hover:no-underline py-3">
+  1562→  1562→                    {faq.question}
+  1563→  1563→                  </AccordionTrigger>
+  1564→  1564→                  <AccordionContent className="text-xs text-muted-foreground leading-relaxed pb-3">
+  1565→  1565→                    {faq.answer}
+  1566→  1566→                  </AccordionContent>
+  1567→  1567→                </AccordionItem>
+  1568→  1568→              ))}
+  1569→  1569→            </Accordion>
+  1570→  1570→          </motion.div>
+  1571→  1571→        </div>
+  1572→  1572→      </section>
+  1573→  1573→
+  1574→  1574→      {/* ─── Footer ───────────────────────────────────────────────────── */}
+  1575→  1575→      <footer className="mt-auto border-t border-border bg-background">
+  1576→  1576→        <div className="max-w-6xl mx-auto px-4 py-8">
+  1577→  1577→          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+  1578→  1578→            <div>
+  1579→  1579→              <div className="flex items-center gap-2 mb-3">
+  1580→  1580→                <Hexagon className="w-4 h-4 text-primary" />
+  1581→  1581→                <span className="font-bold text-sm gradient-text">Forge</span>
+  1582→  1582→              </div>
+  1583→  1583→              <p className="text-[10px] text-muted-foreground leading-relaxed">
+  1584→  1584→                AI-powered website builder. Describe, generate, customize, deploy.
+  1585→  1585→              </p>
+  1586→  1586→            </div>
+  1587→  1587→            <div>
+  1588→  1588→              <h4 className="text-xs font-semibold text-foreground mb-2">Product</h4>
+  1589→  1589→              <div className="space-y-1.5">
+  1590→  1590→                {['Builder', 'Editor', 'Templates', 'Deploy'].map((item) => (
+  1591→  1591→                  <button key={item} onClick={handleGetStarted} className="block text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+  1592→  1592→                    {item}
+  1593→  1593→                  </button>
+  1594→  1594→                ))}
+  1595→  1595→              </div>
+  1596→  1596→            </div>
+  1597→  1597→            <div>
+  1598→  1598→              <h4 className="text-xs font-semibold text-foreground mb-2">Resources</h4>
+  1599→  1599→              <div className="space-y-1.5">
+  1600→  1600→                {['Documentation', 'Blog', 'Changelog', 'Support'].map((item) => (
+  1601→  1601→                  <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
+  1602→  1602→                ))}
+  1603→  1603→              </div>
+  1604→  1604→            </div>
+  1605→  1605→            <div>
+  1606→  1606→              <h4 className="text-xs font-semibold text-foreground mb-2">Company</h4>
+  1607→  1607→              <div className="space-y-1.5">
+  1608→  1608→                {['About', 'Careers', 'Privacy', 'Terms'].map((item) => (
+  1609→  1609→                  <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
+  1610→  1610→                ))}
+  1611→  1611→              </div>
+  1612→  1612→            </div>
+  1613→  1613→          </div>
+  1614→  1614→          <Separator className="mb-4" />
+  1615→  1615→          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+  1616→  1616→            <span className="text-[10px] text-muted-foreground">&copy; 2025 Forge. All rights reserved.</span>
+  1617→  1617→            <div className="flex items-center gap-3">
+  1618→  1618→              <Github className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+  1619→  1619→              <Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+  1620→  1620→              <Linkedin className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+  1621→  1621→            </div>
+  1622→  1622→          </div>
+  1623→  1623→        </div>
+  1624→  1624→      </footer>
+  1625→  1625→    </div>
+  1626→  1626→  )
+  1627→  1627→}
+  1628→  1628→

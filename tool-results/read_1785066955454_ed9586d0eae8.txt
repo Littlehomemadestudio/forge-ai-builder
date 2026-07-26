@@ -1,0 +1,630 @@
+  1000→        <div className="absolute inset-0">
+  1001→          <motion.div
+  1002→            className="absolute w-3 h-3 rounded-full bg-fuchsia-400/30"
+  1003→            style={{ top: '20%', left: '15%' }}
+  1004→            animate={{ y: [0, -15, 0], x: [0, 10, 0] }}
+  1005→            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+  1006→          />
+  1007→          <motion.div
+  1008→            className="absolute w-2 h-2 rounded-full bg-cyan-400/30"
+  1009→            style={{ top: '30%', right: '20%' }}
+  1010→            animate={{ y: [0, 12, 0], x: [0, -8, 0] }}
+  1011→            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+  1012→          />
+  1013→          <motion.div
+  1014→            className="absolute w-4 h-4 rounded-full bg-violet-400/20"
+  1015→            style={{ bottom: '30%', left: '30%' }}
+  1016→            animate={{ y: [0, -10, 0], x: [0, 15, 0] }}
+  1017→            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+  1018→          />
+  1019→          <motion.div
+  1020→            className="absolute w-2 h-2 rounded-full bg-rose-400/30"
+  1021→            style={{ bottom: '20%', right: '35%' }}
+  1022→            animate={{ y: [0, 8, 0], x: [0, -12, 0] }}
+  1023→            transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+  1024→          />
+  1025→        </div>
+  1026→
+  1027→        {/* Grid pattern overlay */}
+  1028→        <div className="absolute inset-0 opacity-[0.03]" style={{
+  1029→          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+  1030→          backgroundSize: '40px 40px',
+  1031→        }} />
+  1032→
+  1033→        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
+  1034→          <motion.div
+  1035→            variants={staggerContainer}
+  1036→            initial="hidden"
+  1037→            animate="visible"
+  1038→            className="space-y-4"
+  1039→          >
+  1040→            <motion.div variants={fadeInUp}>
+  1041→              <Badge className="bg-white/10 text-white/80 border-white/10 text-[10px] px-3 py-1 hover:bg-white/15">
+  1042→                <Sparkles className="w-3 h-3 mr-1" /> AI-Powered Website Builder
+  1043→              </Badge>
+  1044→            </motion.div>
+  1045→
+  1046→            <motion.h1 variants={fadeInUp} className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
+  1047→              Your idea. Our AI.{' '}
+  1048→              <span className="bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent animate-gradient" style={{ backgroundSize: '200% 200%' }}>
+  1049→                A complete website.
+  1050→              </span>
+  1051→            </motion.h1>
+  1052→
+  1053→            <motion.p variants={fadeInUp} className="text-sm text-white/60 max-w-lg mx-auto">
+  1054→              Describe what you want. Forge generates a full, responsive website in seconds.
+  1055→              Customize with the visual editor, then deploy anywhere.
+  1056→            </motion.p>
+  1057→
+  1058→            {/* Prompt Input */}
+  1059→            <motion.div variants={fadeInUp} className="max-w-md mx-auto">
+  1060→              <div className="flex gap-2 p-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+  1061→                <input
+  1062→                  value={promptValue}
+  1063→                  onChange={(e) => setPromptValue(e.target.value)}
+  1064→                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+  1065→                  placeholder="A modern SaaS landing page with pricing..."
+  1066→                  className="flex-1 bg-transparent text-white text-xs placeholder:text-white/40 px-3 py-2 outline-none"
+  1067→                />
+  1068→                <Button
+  1069→                  onClick={handleGenerate}
+  1070→                  size="sm"
+  1071→                  className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 text-white border-0 text-xs px-4 shadow-lg shadow-violet-500/20"
+  1072→                >
+  1073→                  <Sparkles className="w-3 h-3 mr-1" /> Generate
+  1074→                </Button>
+  1075→              </div>
+  1076→            </motion.div>
+  1077→
+  1078→            {/* Suggestion pills */}
+  1079→            <motion.div variants={fadeInUp} className="flex flex-wrap justify-center gap-1.5">
+  1080→              {['SaaS landing page', 'Portfolio site', 'Restaurant website', 'E-commerce store'].map((pill) => (
+  1081→                <motion.button
+  1082→                  key={pill}
+  1083→                  whileHover={{ scale: 1.05, backgroundColor: 'oklch(1 0 0 / 15%)' }}
+  1084→                  whileTap={{ scale: 0.95 }}
+  1085→                  onClick={() => { setPromptValue(pill); setBuilderPrompt(pill); navigate('builder') }}
+  1086→                  className="text-[10px] text-white/50 px-2.5 py-1 rounded-full bg-white/5 border border-white/5 hover:text-white/80 transition-colors"
+  1087→                >
+  1088→                  {pill}
+  1089→                </motion.button>
+  1090→              ))}
+  1091→            </motion.div>
+  1092→          </motion.div>
+  1093→        </div>
+  1094→      </section>
+  1095→
+  1096→      {/* ─── Stats Section ────────────────────────────────────────────── */}
+  1097→      <section className="relative py-8 overflow-hidden" style={{
+  1098→        background: 'linear-gradient(135deg, oklch(0.65 0.2 25), oklch(0.55 0.2 290), oklch(0.5 0.18 270))',
+  1099→      }}>
+  1100→        <div className="absolute inset-0 opacity-10" style={{
+  1101→          backgroundImage: 'radial-gradient(circle at 2px 2px, oklch(1 0 0 / 30%) 1px, transparent 0)',
+  1102→          backgroundSize: '24px 24px',
+  1103→        }} />
+  1104→        <motion.div
+  1105→          variants={staggerContainer}
+  1106→          initial="hidden"
+  1107→          whileInView="visible"
+  1108→          viewport={{ once: true, margin: '-50px' }}
+  1109→          className="relative z-10 max-w-6xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-4"
+  1110→        >
+  1111→          {stats.map((stat) => {
+  1112→            const Icon = stat.icon
+  1113→            return (
+  1114→              <motion.div key={stat.label} variants={fadeInUp} className="text-center">
+  1115→                <Icon className="w-4 h-4 text-white/60 mx-auto mb-1" />
+  1116→                <div className="text-lg sm:text-xl font-bold text-white">
+  1117→                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+  1118→                </div>
+  1119→                <div className="text-[10px] text-white/60">{stat.label}</div>
+  1120→              </motion.div>
+  1121→            )
+  1122→          })}
+  1123→        </motion.div>
+  1124→      </section>
+  1125→
+  1126→      {/* ─── Interactive Builder Playground ────────────────────────────── */}
+  1127→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1128→        background: 'linear-gradient(180deg, oklch(0.13 0.03 270), oklch(0.1 0.02 260))',
+  1129→      }}>
+  1130→        {/* Decorative blobs */}
+  1131→        <div className="absolute top-10 left-10 w-32 h-32 rounded-full animate-morph" style={{
+  1132→          background: 'radial-gradient(circle, oklch(0.6 0.25 290 / 15%), transparent 70%)',
+  1133→        }} />
+  1134→        <div className="absolute bottom-10 right-10 w-40 h-40 rounded-full animate-morph" style={{
+  1135→          background: 'radial-gradient(circle, oklch(0.6 0.2 180 / 12%), transparent 70%)',
+  1136→          animationDelay: '-4s',
+  1137→        }} />
+  1138→
+  1139→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1140→          <motion.div
+  1141→            variants={staggerContainer}
+  1142→            initial="hidden"
+  1143→            whileInView="visible"
+  1144→            viewport={{ once: true, margin: '-50px' }}
+  1145→            className="text-center mb-6"
+  1146→          >
+  1147→            <motion.div variants={fadeInUp}>
+  1148→              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[10px] mb-3">
+  1149→                <MousePointerClick className="w-3 h-3 mr-1" /> Interactive
+  1150→              </Badge>
+  1151→            </motion.div>
+  1152→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1153→              Build a site,{' '}
+  1154→              <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">your way</span>
+  1155→            </motion.h2>
+  1156→            <motion.p variants={fadeInUp} className="text-xs text-white/50 max-w-md mx-auto">
+  1157→              Drag blocks onto the canvas to arrange your website layout. Try different combinations — it&apos;s fun!
+  1158→            </motion.p>
+  1159→          </motion.div>
+  1160→
+  1161→          <motion.div
+  1162→            initial={{ opacity: 0, y: 20 }}
+  1163→            whileInView={{ opacity: 1, y: 0 }}
+  1164→            viewport={{ once: true }}
+  1165→            transition={{ duration: 0.6, delay: 0.2 }}
+  1166→          >
+  1167→            <BuilderPlayground />
+  1168→          </motion.div>
+  1169→        </div>
+  1170→      </section>
+  1171→
+  1172→      {/* ─── Features Section ─────────────────────────────────────────── */}
+  1173→      <section className="relative py-12 md:py-16 bg-background overflow-hidden">
+  1174→        {/* Decorative elements */}
+  1175→        <div className="absolute top-20 right-20 w-48 h-48 rounded-full animate-morph" style={{
+  1176→          background: 'radial-gradient(circle, oklch(0.65 0.2 290 / 8%), transparent 70%)',
+  1177→        }} />
+  1178→        <div className="absolute bottom-20 left-10 w-36 h-36 rounded-full animate-morph" style={{
+  1179→          background: 'radial-gradient(circle, oklch(0.65 0.2 180 / 8%), transparent 70%)',
+  1180→          animationDelay: '-5s',
+  1181→        }} />
+  1182→        <FloatingParticles />
+  1183→
+  1184→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1185→          <motion.div
+  1186→            variants={staggerContainer}
+  1187→            initial="hidden"
+  1188→            whileInView="visible"
+  1189→            viewport={{ once: true, margin: '-50px' }}
+  1190→            className="text-center mb-8"
+  1191→          >
+  1192→            <motion.div variants={fadeInUp}>
+  1193→              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+  1194→                <Zap className="w-3 h-3 mr-1" /> Features
+  1195→              </Badge>
+  1196→            </motion.div>
+  1197→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+  1198→              Everything you need to build
+  1199→            </motion.h2>
+  1200→            <motion.p variants={fadeInUp} className="text-xs text-muted-foreground max-w-md mx-auto">
+  1201→              From AI generation to deployment, Forge has every tool to take your idea live.
+  1202→            </motion.p>
+  1203→          </motion.div>
+  1204→
+  1205→          <motion.div
+  1206→            variants={staggerContainer}
+  1207→            initial="hidden"
+  1208→            whileInView="visible"
+  1209→            viewport={{ once: true, margin: '-50px' }}
+  1210→            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+  1211→          >
+  1212→            {features.map((feature, i) => {
+  1213→              const Icon = feature.icon
+  1214→              return (
+  1215→                <motion.div
+  1216→                  key={feature.title}
+  1217→                  variants={fadeInUp}
+  1218→                  whileHover={{
+  1219→                    y: -4,
+  1220→                    rotateY: 2,
+  1221→                    transition: { duration: 0.2 },
+  1222→                  }}
+  1223→                  style={{ perspective: 1000 }}
+  1224→                >
+  1225→                  <Card className="group relative overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5">
+  1226→                    {/* Glow effect on hover */}
+  1227→                    <div
+  1228→                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+  1229→                      style={{ background: feature.bgGlow }}
+  1230→                    />
+  1231→                    <CardContent className="relative z-10 p-5">
+  1232→                      <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-3 shadow-lg`}>
+  1233→                        <Icon className="w-4 h-4 text-white" />
+  1234→                      </div>
+  1235→                      <h3 className="text-sm font-semibold text-foreground mb-1">{feature.title}</h3>
+  1236→                      <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+  1237→                    </CardContent>
+  1238→                    {/* Gradient border bottom on hover */}
+  1239→                    <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+  1240→                  </Card>
+  1241→                </motion.div>
+  1242→              )
+  1243→            })}
+  1244→          </motion.div>
+  1245→        </div>
+  1246→      </section>
+  1247→
+  1248→      {/* ─── Interactive Theme Playground ──────────────────────────────── */}
+  1249→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1250→        background: 'linear-gradient(180deg, oklch(0.12 0.02 270), oklch(0.1 0.02 260))',
+  1251→      }}>
+  1252→        <div className="absolute top-10 right-1/4 w-44 h-44 rounded-full animate-morph" style={{
+  1253→          background: 'radial-gradient(circle, oklch(0.6 0.22 200 / 12%), transparent 70%)',
+  1254→        }} />
+  1255→        <div className="absolute bottom-10 left-1/4 w-32 h-32 rounded-full animate-morph" style={{
+  1256→          background: 'radial-gradient(circle, oklch(0.6 0.2 350 / 10%), transparent 70%)',
+  1257→          animationDelay: '-3s',
+  1258→        }} />
+  1259→
+  1260→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1261→          <motion.div
+  1262→            variants={staggerContainer}
+  1263→            initial="hidden"
+  1264→            whileInView="visible"
+  1265→            viewport={{ once: true, margin: '-50px' }}
+  1266→            className="text-center mb-6"
+  1267→          >
+  1268→            <motion.div variants={fadeInUp}>
+  1269→              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] mb-3">
+  1270→                <Palette className="w-3 h-3 mr-1" /> Live Customizer
+  1271→              </Badge>
+  1272→            </motion.div>
+  1273→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1274→              Make it{' '}
+  1275→              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">yours</span>
+  1276→            </motion.h2>
+  1277→            <motion.p variants={fadeInUp} className="text-xs text-white/50 max-w-md mx-auto">
+  1278→              Pick your accent color, toggle light/dark, and choose a font style. Watch the preview update live.
+  1279→            </motion.p>
+  1280→          </motion.div>
+  1281→
+  1282→          <motion.div
+  1283→            initial={{ opacity: 0, y: 20 }}
+  1284→            whileInView={{ opacity: 1, y: 0 }}
+  1285→            viewport={{ once: true }}
+  1286→            transition={{ duration: 0.6, delay: 0.2 }}
+  1287→          >
+  1288→            <ThemePlayground />
+  1289→          </motion.div>
+  1290→        </div>
+  1291→      </section>
+  1292→
+  1293→      {/* ─── How It Works ─────────────────────────────────────────────── */}
+  1294→      <section className="relative py-12 md:py-16 bg-background overflow-hidden">
+  1295→        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+  1296→        <FloatingParticles />
+  1297→
+  1298→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1299→          <motion.div
+  1300→            variants={staggerContainer}
+  1301→            initial="hidden"
+  1302→            whileInView="visible"
+  1303→            viewport={{ once: true, margin: '-50px' }}
+  1304→            className="text-center mb-8"
+  1305→          >
+  1306→            <motion.div variants={fadeInUp}>
+  1307→              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+  1308→                <ArrowRight className="w-3 h-3 mr-1" /> How It Works
+  1309→              </Badge>
+  1310→            </motion.div>
+  1311→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+  1312→              Three steps to your site
+  1313→            </motion.h2>
+  1314→          </motion.div>
+  1315→
+  1316→          <motion.div
+  1317→            variants={staggerContainer}
+  1318→            initial="hidden"
+  1319→            whileInView="visible"
+  1320→            viewport={{ once: true, margin: '-50px' }}
+  1321→            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+  1322→          >
+  1323→            {steps.map((step, i) => {
+  1324→              const Icon = step.icon
+  1325→              return (
+  1326→                <motion.div key={step.number} variants={fadeInUp} className="text-center">
+  1327→                  <div className="relative inline-flex items-center justify-center mb-3">
+  1328→                    <div
+  1329→                      className="w-12 h-12 rounded-2xl flex items-center justify-center"
+  1330→                      style={{ background: step.colorLight }}
+  1331→                    >
+  1332→                      <Icon className="w-5 h-5" style={{ color: step.color }} />
+  1333→                    </div>
+  1334→                    <div
+  1335→                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
+  1336→                      style={{ background: step.color }}
+  1337→                    >
+  1338→                      {step.number}
+  1339→                    </div>
+  1340→                  </div>
+  1341→                  <h3 className="text-sm font-semibold text-foreground mb-1">{step.title}</h3>
+  1342→                  <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
+  1343→                  {i < steps.length - 1 && (
+  1344→                    <div className="hidden md:block absolute top-1/2 -right-3 text-muted-foreground/30">
+  1345→                      <ChevronRight className="w-6 h-6" />
+  1346→                    </div>
+  1347→                  )}
+  1348→                </motion.div>
+  1349→              )
+  1350→            })}
+  1351→          </motion.div>
+  1352→        </div>
+  1353→      </section>
+  1354→
+  1355→      {/* ─── Interactive AI Demo ──────────────────────────────────────── */}
+  1356→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1357→        background: 'linear-gradient(180deg, oklch(0.15 0.04 290), oklch(0.12 0.03 270), oklch(0.1 0.02 260))',
+  1358→      }}>
+  1359→        {/* Decorative elements */}
+  1360→        <div className="absolute top-20 left-20 w-52 h-52 rounded-full animate-morph" style={{
+  1361→          background: 'radial-gradient(circle, oklch(0.5 0.25 290 / 15%), transparent 70%)',
+  1362→        }} />
+  1363→        <div className="absolute bottom-20 right-20 w-40 h-40 rounded-full animate-morph" style={{
+  1364→          background: 'radial-gradient(circle, oklch(0.5 0.2 330 / 12%), transparent 70%)',
+  1365→          animationDelay: '-6s',
+  1366→        }} />
+  1367→
+  1368→        {/* Grid pattern */}
+  1369→        <div className="absolute inset-0 opacity-[0.03]" style={{
+  1370→          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+  1371→          backgroundSize: '32px 32px',
+  1372→        }} />
+  1373→
+  1374→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1375→          <motion.div
+  1376→            variants={staggerContainer}
+  1377→            initial="hidden"
+  1378→            whileInView="visible"
+  1379→            viewport={{ once: true, margin: '-50px' }}
+  1380→            className="text-center mb-6"
+  1381→          >
+  1382→            <motion.div variants={fadeInUp}>
+  1383→              <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[10px] mb-3">
+  1384→                <Wand2 className="w-3 h-3 mr-1" /> AI Demo
+  1385→              </Badge>
+  1386→            </motion.div>
+  1387→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1388→              Watch AI build a site{' '}
+  1389→              <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">in real-time</span>
+  1390→            </motion.h2>
+  1391→            <motion.p variants={fadeInUp} className="text-xs text-white/50 max-w-md mx-auto">
+  1392→              See how Forge generates a complete website piece by piece — navbar, hero, features, and footer.
+  1393→            </motion.p>
+  1394→          </motion.div>
+  1395→
+  1396→          <motion.div
+  1397→            initial={{ opacity: 0, y: 20 }}
+  1398→            whileInView={{ opacity: 1, y: 0 }}
+  1399→            viewport={{ once: true }}
+  1400→            transition={{ duration: 0.6, delay: 0.2 }}
+  1401→            className="max-w-2xl mx-auto"
+  1402→          >
+  1403→            <AIDemo />
+  1404→          </motion.div>
+  1405→        </div>
+  1406→      </section>
+  1407→
+  1408→      {/* ─── Testimonials ─────────────────────────────────────────────── */}
+  1409→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1410→        background: 'linear-gradient(135deg, oklch(0.55 0.08 290), oklch(0.5 0.06 270), oklch(0.45 0.05 200))',
+  1411→      }}>
+  1412→        <div className="absolute inset-0 opacity-[0.03]" style={{
+  1413→          backgroundImage: 'radial-gradient(circle at 2px 2px, oklch(1 0 0 / 30%) 1px, transparent 0)',
+  1414→          backgroundSize: '20px 20px',
+  1415→        }} />
+  1416→        <div className="absolute top-10 right-20 w-40 h-40 rounded-full animate-morph" style={{
+  1417→          background: 'radial-gradient(circle, oklch(0.7 0.15 200 / 10%), transparent 70%)',
+  1418→        }} />
+  1419→
+  1420→        <div className="relative z-10 max-w-6xl mx-auto px-4">
+  1421→          <motion.div
+  1422→            variants={staggerContainer}
+  1423→            initial="hidden"
+  1424→            whileInView="visible"
+  1425→            viewport={{ once: true, margin: '-50px' }}
+  1426→            className="text-center mb-8"
+  1427→          >
+  1428→            <motion.div variants={fadeInUp}>
+  1429→              <Badge className="bg-white/10 text-white/80 border-white/10 text-[10px] mb-3">
+  1430→                <Star className="w-3 h-3 mr-1" /> Testimonials
+  1431→              </Badge>
+  1432→            </motion.div>
+  1433→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white mb-2">
+  1434→              Loved by builders everywhere
+  1435→            </motion.h2>
+  1436→          </motion.div>
+  1437→
+  1438→          <motion.div
+  1439→            variants={staggerContainer}
+  1440→            initial="hidden"
+  1441→            whileInView="visible"
+  1442→            viewport={{ once: true, margin: '-50px' }}
+  1443→            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+  1444→          >
+  1445→            {testimonials.map((t) => {
+  1446→              const MetricIcon = t.metricIcon
+  1447→              return (
+  1448→                <motion.div key={t.name} variants={fadeInUp}>
+  1449→                  <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/8 transition-all duration-300 hover:-translate-y-1">
+  1450→                    <div className="flex items-center gap-2 mb-3">
+  1451→                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 flex items-center justify-center text-[10px] font-bold text-white">
+  1452→                        {t.avatar}
+  1453→                      </div>
+  1454→                      <div>
+  1455→                        <div className="text-xs font-medium text-white">{t.name}</div>
+  1456→                        <div className="text-[10px] text-white/50">{t.role}</div>
+  1457→                      </div>
+  1458→                    </div>
+  1459→                    <p className="text-xs text-white/70 leading-relaxed mb-3">&ldquo;{t.quote}&rdquo;</p>
+  1460→                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/80">
+  1461→                      <MetricIcon className="w-3 h-3" />
+  1462→                      {t.metric}
+  1463→                    </div>
+  1464→                  </div>
+  1465→                </motion.div>
+  1466→              )
+  1467→            })}
+  1468→          </motion.div>
+  1469→        </div>
+  1470→      </section>
+  1471→
+  1472→      {/* ─── Pricing Hint / CTA Banner ───────────────────────────────── */}
+  1473→      <section className="relative py-12 md:py-16 overflow-hidden" style={{
+  1474→        background: 'linear-gradient(135deg, oklch(0.55 0.25 350), oklch(0.5 0.2 290), oklch(0.45 0.18 250))',
+  1475→      }}>
+  1476→        {/* Animated gradient */}
+  1477→        <div className="absolute inset-0 animate-gradient" style={{
+  1478→          background: 'linear-gradient(135deg, oklch(0.55 0.25 350 / 50%), oklch(0.5 0.2 290 / 50%), oklch(0.45 0.18 250 / 50%))',
+  1479→          backgroundSize: '200% 200%',
+  1480→        }} />
+  1481→        <div className="absolute inset-0 opacity-[0.04]" style={{
+  1482→          backgroundImage: 'radial-gradient(circle at 1px 1px, oklch(1 0 0 / 40%) 1px, transparent 0)',
+  1483→          backgroundSize: '24px 24px',
+  1484→        }} />
+  1485→
+  1486→        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
+  1487→          <motion.div
+  1488→            variants={staggerContainer}
+  1489→            initial="hidden"
+  1490→            whileInView="visible"
+  1491→            viewport={{ once: true, margin: '-50px' }}
+  1492→            className="space-y-4"
+  1493→          >
+  1494→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-white">
+  1495→              Free to start. Scale when ready.
+  1496→            </motion.h2>
+  1497→            <motion.p variants={fadeInUp} className="text-xs text-white/60 max-w-md mx-auto">
+  1498→              Generate your first site in seconds — no credit card needed. Upgrade for custom domains, team features, and more.
+  1499→            </motion.p>
+  1500→            <motion.div variants={fadeInUp} className="flex flex-wrap justify-center gap-3">
+  1501→              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+  1502→                <Button
+  1503→                  onClick={handleGetStarted}
+  1504→                  className="bg-white text-black hover:bg-white/90 text-xs font-semibold shadow-lg shadow-black/20 px-6"
+  1505→                >
+  1506→                  Start Building Free <ArrowRight className="w-3 h-3 ml-1" />
+  1507→                </Button>
+  1508→              </motion.div>
+  1509→              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+  1510→                <Button
+  1511→                  variant="outline"
+  1512→                  onClick={() => navigate('login')}
+  1513→                  className="border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white text-xs"
+  1514→                >
+  1515→                  Sign In
+  1516→                </Button>
+  1517→              </motion.div>
+  1518→            </motion.div>
+  1519→          </motion.div>
+  1520→        </div>
+  1521→      </section>
+  1522→
+  1523→      {/* ─── FAQ ──────────────────────────────────────────────────────── */}
+  1524→      <section className="relative py-12 md:py-16 bg-background overflow-hidden">
+  1525→        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+  1526→        <div className="absolute bottom-10 right-10 w-32 h-32 rounded-full animate-morph" style={{
+  1527→          background: 'radial-gradient(circle, oklch(0.65 0.2 290 / 8%), transparent 70%)',
+  1528→        }} />
+  1529→
+  1530→        <div className="relative z-10 max-w-3xl mx-auto px-4">
+  1531→          <motion.div
+  1532→            variants={staggerContainer}
+  1533→            initial="hidden"
+  1534→            whileInView="visible"
+  1535→            viewport={{ once: true, margin: '-50px' }}
+  1536→            className="text-center mb-6"
+  1537→          >
+  1538→            <motion.div variants={fadeInUp}>
+  1539→              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+  1540→                <Eye className="w-3 h-3 mr-1" /> FAQ
+  1541→              </Badge>
+  1542→            </motion.div>
+  1543→            <motion.h2 variants={fadeInUp} className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+  1544→              Common questions
+  1545→            </motion.h2>
+  1546→          </motion.div>
+  1547→
+  1548→          <motion.div
+  1549→            initial={{ opacity: 0, y: 20 }}
+  1550→            whileInView={{ opacity: 1, y: 0 }}
+  1551→            viewport={{ once: true }}
+  1552→            transition={{ duration: 0.5, delay: 0.2 }}
+  1553→          >
+  1554→            <Accordion type="single" collapsible className="space-y-2">
+  1555→              {faqs.map((faq, i) => (
+  1556→                <AccordionItem
+  1557→                  key={i}
+  1558→                  value={`faq-${i}`}
+  1559→                  className="border border-border/50 rounded-lg px-4 data-[state=open]:border-primary/30 data-[state=open]:bg-primary/5 transition-all"
+  1560→                >
+  1561→                  <AccordionTrigger className="text-xs font-medium text-foreground hover:no-underline py-3">
+  1562→                    {faq.question}
+  1563→                  </AccordionTrigger>
+  1564→                  <AccordionContent className="text-xs text-muted-foreground leading-relaxed pb-3">
+  1565→                    {faq.answer}
+  1566→                  </AccordionContent>
+  1567→                </AccordionItem>
+  1568→              ))}
+  1569→            </Accordion>
+  1570→          </motion.div>
+  1571→        </div>
+  1572→      </section>
+  1573→
+  1574→      {/* ─── Footer ───────────────────────────────────────────────────── */}
+  1575→      <footer className="mt-auto border-t border-border bg-background">
+  1576→        <div className="max-w-6xl mx-auto px-4 py-8">
+  1577→          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+  1578→            <div>
+  1579→              <div className="flex items-center gap-2 mb-3">
+  1580→                <Hexagon className="w-4 h-4 text-primary" />
+  1581→                <span className="font-bold text-sm gradient-text">Forge</span>
+  1582→              </div>
+  1583→              <p className="text-[10px] text-muted-foreground leading-relaxed">
+  1584→                AI-powered website builder. Describe, generate, customize, deploy.
+  1585→              </p>
+  1586→            </div>
+  1587→            <div>
+  1588→              <h4 className="text-xs font-semibold text-foreground mb-2">Product</h4>
+  1589→              <div className="space-y-1.5">
+  1590→                {['Builder', 'Editor', 'Templates', 'Deploy'].map((item) => (
+  1591→                  <button key={item} onClick={handleGetStarted} className="block text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+  1592→                    {item}
+  1593→                  </button>
+  1594→                ))}
+  1595→              </div>
+  1596→            </div>
+  1597→            <div>
+  1598→              <h4 className="text-xs font-semibold text-foreground mb-2">Resources</h4>
+  1599→              <div className="space-y-1.5">
+  1600→                {['Documentation', 'Blog', 'Changelog', 'Support'].map((item) => (
+  1601→                  <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
+  1602→                ))}
+  1603→              </div>
+  1604→            </div>
+  1605→            <div>
+  1606→              <h4 className="text-xs font-semibold text-foreground mb-2">Company</h4>
+  1607→              <div className="space-y-1.5">
+  1608→                {['About', 'Careers', 'Privacy', 'Terms'].map((item) => (
+  1609→                  <span key={item} className="block text-[10px] text-muted-foreground">{item}</span>
+  1610→                ))}
+  1611→              </div>
+  1612→            </div>
+  1613→          </div>
+  1614→          <Separator className="mb-4" />
+  1615→          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+  1616→            <span className="text-[10px] text-muted-foreground">&copy; 2025 Forge. All rights reserved.</span>
+  1617→            <div className="flex items-center gap-3">
+  1618→              <Github className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+  1619→              <Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+  1620→              <Linkedin className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+  1621→            </div>
+  1622→          </div>
+  1623→        </div>
+  1624→      </footer>
+  1625→    </div>
+  1626→  )
+  1627→}
+
+[showing lines 1000-1627 of 1628; use offset=1628 with limit to continue reading]

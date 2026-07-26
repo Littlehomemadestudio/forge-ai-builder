@@ -224,3 +224,28 @@ Stage Summary:
 - Abstract art backgrounds (blobs, gradients, patterns) throughout
 - Both light/dark themes verified working via Agent Browser + VLM analysis
 - VLM verdict: "Extremely engaging, vibrant with high contrast, not boring"
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix alignment monotony (everything centered), theme balance (dark dominant, light weak), use deep purple as small accent pops only
+
+Work Log:
+- Complete rewrite of LandingPage.tsx (~830 lines) with new design philosophy
+- **Layout varied**: Hero uses asymmetric 3+2 grid (text left, browser mockup right); Builder Playground left heading + right playground; Theme Customizer reversed (playground left, heading right-aligned); How It Works uses alternating left/right layout per step; Testimonials with offset grid (middle card shifted down); Stats bar with left-aligned icon+text groups separated by vertical dividers; FAQ left-aligned; CTA banner left-aligned
+- **Theme-first design**: ALL sections now use `bg-background` (theme-aware) instead of hardcoded dark gradients. The page follows the active theme naturally - light looks bright/strong, dark looks dark/balanced
+- **Deep purple accents**: `oklch(0.55 0.25 270)` used ONLY as small pops - badges, buttons, accent lines/dividers, hover borders, shadows, icon backgrounds, floating accent dots. NOT as full-section backgrounds
+- **Abstract backgrounds**: Subtle morphing purple blobs that adapt opacity per theme (8% in dark, 5% in light) - decorative but not overwhelming
+- **Interactive elements**: BuilderPlayground, ThemePlayground, AIDemo all adapted to be theme-aware (isDark prop controls their internal styling)
+- **globals.css updates**: Glass effects now use border-bottom only (not full border ring); glass backgrounds strengthened for light theme (85% opacity instead of 60%); gradient-text uses deeper purple range (270→290→310) for both themes; dark theme gradient-text is more subdued (0.75→0.7→0.65)
+- Lint passes (0 errors, 1 pre-existing warning)
+- Dev server compiles and serves 200s
+- Agent Browser verification: all criteria PASS - layout varied, light theme strong, dark theme balanced, purple accents as small pops, interactive elements visible, footer at bottom
+
+Stage Summary:
+- Landing page no longer has monotonous centered layout - varied left/right/offset designs
+- Light theme is strong and bright (white background, near-black text, proper contrast)
+- Dark theme is balanced (not overpowering, proper depth hierarchy)
+- Deep purple is used as strategic accent pops only (badges, buttons, lines, shadows, hover states)
+- All sections follow the active theme naturally
+- Both themes verified working via Agent Browser
