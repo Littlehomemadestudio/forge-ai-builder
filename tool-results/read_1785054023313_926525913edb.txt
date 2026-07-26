@@ -1,0 +1,1390 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
+     5→import { useAppStore, type AppView } from '@/lib/store'
+     6→import {
+     7→  Sparkles,
+     8→  Paintbrush,
+     9→  Palette,
+    10→  Download,
+    11→  Eye,
+    12→  Globe,
+    13→  ArrowRight,
+    14→  ChevronDown,
+    15→  Check,
+    16→  Star,
+    17→  Zap,
+    18→  Shield,
+    19→  Menu,
+    20→  X,
+    21→  MessageSquare,
+    22→  MousePointerClick,
+    23→  Code2,
+    24→  Layers,
+    25→  LayoutGrid,
+    26→  ShoppingCart,
+    27→  UtensilsCrossed,
+    28→  PenTool,
+    29→  FileText,
+    30→  Building2,
+    31→  Github,
+    32→  Twitter,
+    33→  Linkedin,
+    34→  Youtube,
+    35→} from 'lucide-react'
+    36→import { Button } from '@/components/ui/button'
+    37→import {
+    38→  Accordion,
+    39→  AccordionItem,
+    40→  AccordionTrigger,
+    41→  AccordionContent,
+    42→} from '@/components/ui/accordion'
+    43→
+    44→// ─── Animation Helpers ───────────────────────────────────────────────
+    45→
+    46→const fadeInUp = {
+    47→  hidden: { opacity: 0, y: 30 },
+    48→  visible: { opacity: 1, y: 0 },
+    49→}
+    50→
+    51→const staggerContainer = {
+    52→  hidden: { opacity: 0 },
+    53→  visible: {
+    54→    opacity: 1,
+    55→    transition: { staggerChildren: 0.1, delayChildren: 0.2 },
+    56→  },
+    57→}
+    58→
+    59→const scaleIn = {
+    60→  hidden: { opacity: 0, scale: 0.9 },
+    61→  visible: { opacity: 1, scale: 1 },
+    62→}
+    63→
+    64→// ─── Section Data ────────────────────────────────────────────────────
+    65→
+    66→const features = [
+    67→  {
+    68→    icon: Sparkles,
+    69→    title: 'AI Generation',
+    70→    description: 'Describe what you want. Our AI understands context, style, and intent to generate production-quality websites.',
+    71→    accent: 'oklch(0.85 0.08 260)',
+    72→  },
+    73→  {
+    74→    icon: Paintbrush,
+    75→    title: 'Visual Editor',
+    76→    description: 'Click, drag, refine. Every element is editable visually — no code needed, but code is always accessible.',
+    77→    accent: 'oklch(0.75 0.15 200)',
+    78→  },
+    79→  {
+    80→    icon: Palette,
+    81→    title: 'Design System',
+    82→    description: 'Built-in design tokens, spacing rules, and typography scales. Consistent, beautiful, every time.',
+    83→    accent: 'oklch(0.85 0.2 140)',
+    84→  },
+    85→  {
+    86→    icon: Download,
+    87→    title: 'Export Freedom',
+    88→    description: 'Download clean HTML, React, or Next.js code. Your website belongs to you — no lock-in, ever.',
+    89→    accent: 'oklch(0.85 0.08 260)',
+    90→  },
+    91→  {
+    92→    icon: Eye,
+    93→    title: 'Live Preview',
+    94→    description: 'See changes instantly. Real-time preview across desktop, tablet, and mobile as you build.',
+    95→    accent: 'oklch(0.75 0.15 200)',
+    96→  },
+    97→  {
+    98→    icon: Globe,
+    99→    title: 'Deploy Anywhere',
+   100→    description: 'One-click deploy to Vercel, Netlify, or your own server. Go from idea to live site in minutes.',
+   101→    accent: 'oklch(0.85 0.2 140)',
+   102→  },
+   103→]
+   104→
+   105→const builderSteps = [
+   106→  { icon: MessageSquare, label: 'Type Prompt', sublabel: 'Describe your vision' },
+   107→  { icon: Sparkles, label: 'AI Generates', sublabel: 'Website appears' },
+   108→  { icon: MousePointerClick, label: 'Edit Visually', sublabel: 'Refine every detail' },
+   109→  { icon: Code2, label: 'Export / Deploy', sublabel: 'Ship it live' },
+   110→]
+   111→
+   112→const showcaseSites = [
+   113→  {
+   114→    category: 'Portfolio',
+   115→    icon: PenTool,
+   116→    title: 'Creative Portfolio',
+   117→    description: 'Minimalist designer portfolio with smooth animations',
+   118→    gradient: 'from-[oklch(0.85_0.08_260)] to-[oklch(0.75_0.15_200)]',
+   119→  },
+   120→  {
+   121→    category: 'E-commerce',
+   122→    icon: ShoppingCart,
+   123→    title: 'Premium Store',
+   124→    description: 'Luxury e-commerce with product galleries and checkout',
+   125→    gradient: 'from-[oklch(0.75_0.15_200)] to-[oklch(0.85_0.2_140)]',
+   126→  },
+   127→  {
+   128→    category: 'SaaS',
+   129→    icon: Layers,
+   130→    title: 'SaaS Dashboard',
+   131→    description: 'Analytics dashboard with charts and data visualization',
+   132→    gradient: 'from-[oklch(0.85_0.2_140)] to-[oklch(0.85_0.08_260)]',
+   133→  },
+   134→  {
+   135→    category: 'Restaurant',
+   136→    icon: UtensilsCrossed,
+   137→    title: 'Bistro Website',
+   138→    description: 'Elegant restaurant site with menu and reservations',
+   139→    gradient: 'from-[oklch(0.85_0.08_260)] to-[oklch(0.7_0.15_330)]',
+   140→  },
+   141→  {
+   142→    category: 'Agency',
+   143→    icon: Building2,
+   144→    title: 'Agency Studio',
+   145→    description: 'Creative agency with case studies and team showcase',
+   146→    gradient: 'from-[oklch(0.75_0.15_200)] to-[oklch(0.85_0.08_260)]',
+   147→  },
+   148→  {
+   149→    category: 'Blog',
+   150→    icon: FileText,
+   151→    title: 'Editorial Blog',
+   152→    description: 'Typography-focused blog with reading experience',
+   153→    gradient: 'from-[oklch(0.85_0.2_140)] to-[oklch(0.75_0.15_200)]',
+   154→  },
+   155→]
+   156→
+   157→const pricingPlans = [
+   158→  {
+   159→    name: 'Free',
+   160→    price: '$0',
+   161→    period: '/month',
+   162→    credits: '10 AI credits/month',
+   163→    features: [
+   164→      'Basic AI generation',
+   165→      'Visual editor',
+   166→      'HTML export',
+   167→      '1 live deployment',
+   168→      'Community support',
+   169→    ],
+   170→    cta: 'Get Started',
+   171→    highlighted: false,
+   172→  },
+   173→  {
+   174→    name: 'Pro',
+   175→    price: '$19',
+   176→    period: '/month',
+   177→    credits: '500 credits/month',
+   178→    features: [
+   179→      'Advanced AI generation',
+   180→      'Full visual editor',
+   181→      'All export formats',
+   182→      'Unlimited deployments',
+   183→      'Custom domains',
+   184→      'Design system library',
+   185→      'Priority support',
+   186→    ],
+   187→    cta: 'Start Pro Trial',
+   188→    highlighted: true,
+   189→  },
+   190→  {
+   191→    name: 'Enterprise',
+   192→    price: '$49',
+   193→    period: '/month',
+   194→    credits: 'Unlimited credits',
+   195→    features: [
+   196→      'Unlimited AI generation',
+   197→      'White-label export',
+   198→      'API access',
+   199→      'Team collaboration',
+   200→      'Custom integrations',
+   201→      'SLA guarantee',
+   202→      'Dedicated support',
+   203→    ],
+   204→    cta: 'Contact Sales',
+   205→    highlighted: false,
+   206→  },
+   207→]
+   208→
+   209→const testimonials = [
+   210→  {
+   211→    name: 'Sarah Chen',
+   212→    role: 'Freelance Designer',
+   213→    quote: 'Forge replaced my entire design-to-code workflow. I ship client sites in hours instead of weeks.',
+   214→    avatar: 'SC',
+   215→  },
+   216→  {
+   217→    name: 'Marcus Rivera',
+   218→    role: 'Startup Founder',
+   219→    quote: 'I built our MVP landing page in 15 minutes. The AI understood exactly what I wanted — no back and forth.',
+   220→    avatar: 'MR',
+   221→  },
+   222→  {
+   223→    name: 'Aisha Patel',
+   224→    role: 'Creative Director',
+   225→    quote: 'The export quality is remarkable. Clean, semantic code that my developers actually want to work with.',
+   226→    avatar: 'AP',
+   227→  },
+   228→  {
+   229→    name: 'James Okonkwo',
+   230→    role: 'Agency Owner',
+   231→    quote: 'We went from 3-day turnarounds to same-day delivery. Forge is a game-changer for our business.',
+   232→    avatar: 'JO',
+   233→  },
+   234→]
+   235→
+   236→const faqItems = [
+   237→  {
+   238→    question: 'How does the AI website generation work?',
+   239→    answer: 'You describe your website using natural language — the style, content, sections, and feel you want. Our AI model processes your prompt and generates complete, production-quality HTML, CSS, and JavaScript. It understands design principles, accessibility, and modern web standards.',
+   240→  },
+   241→  {
+   242→    question: 'Can I edit the generated website?',
+   243→    answer: 'Absolutely. Every generated website is fully editable through our visual editor. Click any element to modify its text, styles, layout, or animation. You can also switch to code view for direct editing. Changes are reflected in real-time.',
+   244→  },
+   245→  {
+   246→    question: 'What export formats are available?',
+   247→    answer: 'Free users can export clean HTML/CSS/JS. Pro users get React components, Next.js projects, and Tailwind CSS configurations. Enterprise users can white-label exports and access our API for programmatic generation.',
+   248→  },
+   249→  {
+   250→    question: 'Where can I deploy my website?',
+   251→    answer: 'One-click deployment to Vercel, Netlify, and Cloudflare Pages. You can also download the code and deploy to any server — AWS, DigitalOcean, your own VPS, or any static hosting provider. No lock-in whatsoever.',
+   252→  },
+   253→  {
+   254→    question: 'Do I own the generated code?',
+   255→    answer: 'Yes, 100%. All code generated by Forge belongs to you. There are no licensing restrictions, no attribution requirements, and no lock-in. Export it, modify it, sell it — it\'s yours.',
+   256→  },
+   257→  {
+   258→    question: 'How are AI credits consumed?',
+   259→    answer: 'Each generation consumes 1 credit. Refinements and edits within the visual editor are free. Pro plans include 500 credits/month (enough for most users), and Enterprise plans have unlimited generation.',
+   260→  },
+   261→  {
+   262→    question: 'Is there a free trial for Pro?',
+   263→    answer: 'Yes — every new user gets a 7-day Pro trial with full access to all features. No credit card required. After the trial, you can continue on the Free plan or upgrade to Pro.',
+   264→  },
+   265→  {
+   266→    question: 'Can I use Forge for client projects?',
+   267→    answer: 'Absolutely. Many agencies and freelancers use Forge to deliver client websites faster. Pro and Enterprise plans include features specifically designed for professional workflows — custom domains, white-label exports, and team collaboration.',
+   268→  },
+   269→]
+   270→
+   271→// ─── Typing Animation Component ──────────────────────────────────────
+   272→
+   273→function TypingAnimation() {
+   274→  const prompts = [
+   275→    'A minimalist portfolio for a photographer with dark theme...',
+   276→    'SaaS landing page with pricing, testimonials, and hero...',
+   277→    'Restaurant website with menu cards and reservation form...',
+   278→    'E-commerce store for luxury watches with product grid...',
+   279→  ]
+   280→  const [currentPromptIndex, setCurrentPromptIndex] = useState(0)
+   281→  const [displayedText, setDisplayedText] = useState('')
+   282→  const isDeletingRef = useRef(false)
+   283→  const [isDeletingFlag, setIsDeletingFlag] = useState(false)
+   284→
+   285→  useEffect(() => {
+   286→    const currentPrompt = prompts[currentPromptIndex]
+   287→    let timeout: NodeJS.Timeout
+   288→
+   289→    if (!isDeletingRef.current) {
+   290→      if (displayedText.length < currentPrompt.length) {
+   291→        timeout = setTimeout(() => {
+   292→          setDisplayedText(currentPrompt.slice(0, displayedText.length + 1))
+   293→        }, 40 + Math.random() * 30)
+   294→      } else {
+   295→        timeout = setTimeout(() => {
+   296→          isDeletingRef.current = true
+   297→          setIsDeletingFlag(true)
+   298→        }, 2000)
+   299→      }
+   300→    } else {
+   301→      if (displayedText.length > 0) {
+   302→        timeout = setTimeout(() => {
+   303→          setDisplayedText(displayedText.slice(0, -1))
+   304→        }, 20)
+   305→      } else {
+   306→        timeout = setTimeout(() => {
+   307→          isDeletingRef.current = false
+   308→          setIsDeletingFlag(false)
+   309→          setCurrentPromptIndex((prev) => (prev + 1) % prompts.length)
+   310→        }, 0)
+   311→      }
+   312→    }
+   313→
+   314→    return () => clearTimeout(timeout)
+   315→  }, [displayedText, currentPromptIndex, isDeletingFlag])
+   316→
+   317→  return (
+   318→    <span className="font-mono">
+   319→      {displayedText}
+   320→      <span className="animate-blink-cursor text-[oklch(0.85_0.08_260)]">|</span>
+   321→    </span>
+   322→  )
+   323→}
+   324→
+   325→// ─── Mouse Glow Tracker ──────────────────────────────────────────────
+   326→
+   327→function HeroSection() {
+   328→  const heroRef = useRef<HTMLDivElement>(null)
+   329→  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+   330→  const navigate = useAppStore((s) => s.navigate)
+   331→
+   332→  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+   333→    if (!heroRef.current) return
+   334→    const rect = heroRef.current.getBoundingClientRect()
+   335→    setMousePos({
+   336→      x: e.clientX - rect.left,
+   337→      y: e.clientY - rect.top,
+   338→    })
+   339→  }, [])
+   340→
+   341→  return (
+   342→    <section
+   343→      ref={heroRef}
+   344→      onMouseMove={handleMouseMove}
+   345→      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+   346→    >
+   347→      {/* Animated gradient mesh background */}
+   348→      <div className="absolute inset-0 noise" style={{ zIndex: 0 }}>
+   349→        {/* Morphing gradient blobs */}
+   350→        <div
+   351→          className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] animate-morph animate-pulse-glow"
+   352→          style={{
+   353→            background: 'radial-gradient(circle, oklch(0.85 0.08 260 / 30%), transparent 70%)',
+   354→            filter: 'blur(80px)',
+   355→          }}
+   356→        />
+   357→        <div
+   358→          className="absolute top-1/2 -right-1/4 w-[500px] h-[500px] animate-morph"
+   359→          style={{
+   360→            background: 'radial-gradient(circle, oklch(0.75 0.15 200 / 25%), transparent 70%)',
+   361→            filter: 'blur(80px)',
+   362→            animationDelay: '-4s',
+   363→          }}
+   364→        />
+   365→        <div
+   366→          className="absolute -bottom-1/4 left-1/3 w-[400px] h-[400px] animate-morph"
+   367→          style={{
+   368→            background: 'radial-gradient(circle, oklch(0.85 0.2 140 / 20%), transparent 70%)',
+   369→            filter: 'blur(80px)',
+   370→            animationDelay: '-2s',
+   371→          }}
+   372→        />
+   373→
+   374→        {/* Mouse-tracking glow */}
+   375→        <div
+   376→          className="absolute transition-all duration-300 ease-out"
+   377→          style={{
+   378→            left: mousePos.x - 200,
+   379→            top: mousePos.y - 200,
+   380→            width: 400,
+   381→            height: 400,
+   382→            background: 'radial-gradient(circle, oklch(0.85 0.08 260 / 8%), transparent 70%)',
+   383→            filter: 'blur(40px)',
+   384→            pointerEvents: 'none',
+   385→          }}
+   386→        />
+   387→
+   388→        {/* Grid overlay */}
+   389→        <div
+   390→          className="absolute inset-0 opacity-[0.03]"
+   391→          style={{
+   392→            backgroundImage: `
+   393→              linear-gradient(oklch(1 0 0 / 1px) 1px, transparent 1px),
+   394→              linear-gradient(90deg, oklch(1 0 0 / 1px) 1px, transparent 1px)
+   395→            `,
+   396→            backgroundSize: '60px 60px',
+   397→          }}
+   398→        />
+   399→      </div>
+   400→
+   401→      {/* Content */}
+   402→      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
+   403→        {/* Badge */}
+   404→        <motion.div
+   405→          initial={{ opacity: 0, y: 20 }}
+   406→          animate={{ opacity: 1, y: 0 }}
+   407→          transition={{ duration: 0.6 }}
+   408→          className="mb-6"
+   409→        >
+   410→          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-medium text-muted-foreground">
+   411→            <Zap className="w-3 h-3 text-[oklch(0.85_0.08_260)]" />
+   412→            Now with AI-powered design systems
+   413→          </span>
+   414→        </motion.div>
+   415→
+   416→        {/* Main heading */}
+   417→        <motion.h1
+   418→          initial={{ opacity: 0, y: 30 }}
+   419→          animate={{ opacity: 1, y: 0 }}
+   420→          transition={{ duration: 0.8, delay: 0.1 }}
+   421→          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6"
+   422→        >
+   423→          <span className="block">Build websites with AI.</span>
+   424→          <span className="block gradient-text">Ship in seconds.</span>
+   425→        </motion.h1>
+   426→
+   427→        {/* Subheading */}
+   428→        <motion.p
+   429→          initial={{ opacity: 0, y: 20 }}
+   430→          animate={{ opacity: 1, y: 0 }}
+   431→          transition={{ duration: 0.8, delay: 0.3 }}
+   432→          className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed"
+   433→        >
+   434→          Describe your vision. Forge generates production-quality websites you can edit visually, export cleanly, and deploy anywhere.
+   435→        </motion.p>
+   436→
+   437→        {/* CTA buttons */}
+   438→        <motion.div
+   439→          initial={{ opacity: 0, y: 20 }}
+   440→          animate={{ opacity: 1, y: 0 }}
+   441→          transition={{ duration: 0.8, delay: 0.5 }}
+   442→          className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-12"
+   443→        >
+   444→          <Button
+   445→            onClick={() => navigate('builder')}
+   446→            size="lg"
+   447→            className="bg-[oklch(0.85_0.08_260)] text-[oklch(0.15_0.01_260)] hover:bg-[oklch(0.85_0.08_260/90%)] h-12 px-8 text-base font-semibold rounded-xl"
+   448→          >
+   449→            Start Building
+   450→            <ArrowRight className="w-4 h-4 ml-1" />
+   451→          </Button>
+   452→          <Button
+   453→            variant="outline"
+   454→            size="lg"
+   455→            className="h-12 px-8 text-base font-medium rounded-xl border-border/50 hover:border-border"
+   456→          >
+   457→            See Examples
+   458→          </Button>
+   459→        </motion.div>
+   460→
+   461→        {/* Typing prompt preview */}
+   462→        <motion.div
+   463→          initial={{ opacity: 0, scale: 0.95 }}
+   464→          animate={{ opacity: 1, scale: 1 }}
+   465→          transition={{ duration: 0.8, delay: 0.7 }}
+   466→          className="relative max-w-2xl mx-auto"
+   467→        >
+   468→          <div className="glass rounded-2xl p-4 sm:p-6 shadow-2xl">
+   469→            {/* Prompt bar */}
+   470→            <div className="flex items-center gap-3 mb-4">
+   471→              <div className="flex gap-1.5">
+   472→                <div className="w-3 h-3 rounded-full bg-[oklch(0.577_0.245_27.325/80%)]" />
+   473→                <div className="w-3 h-3 rounded-full bg-[oklch(0.75_0.15_200/80%)]" />
+   474→                <div className="w-3 h-3 rounded-full bg-[oklch(0.85_0.2_140/80%)]" />
+   475→              </div>
+   476→              <span className="text-xs text-muted-foreground font-mono">forge.ai</span>
+   477→            </div>
+   478→
+   479→            {/* Typing area */}
+   480→            <div className="bg-[oklch(0.05_0.01_260)] rounded-xl p-4 sm:p-5 text-sm sm:text-base">
+   481→              <div className="flex items-start gap-2">
+   482→                <Sparkles className="w-5 h-5 text-[oklch(0.85_0.08_260)] shrink-0 mt-0.5" />
+   483→                <div className="text-foreground/80 min-h-[1.5em]">
+   484→                  <TypingAnimation />
+   485→                </div>
+   486→              </div>
+   487→            </div>
+   488→
+   489→            {/* Generated preview hint */}
+   490→            <motion.div
+   491→              initial={{ opacity: 0 }}
+   492→              animate={{ opacity: 1 }}
+   493→              transition={{ delay: 1.5, duration: 1 }}
+   494→              className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"
+   495→            >
+   496→              <div className="w-2 h-2 rounded-full bg-[oklch(0.85_0.2_140)]" />
+   497→              AI understands context, style, and layout intent
+   498→            </motion.div>
+   499→          </div>
+   500→
+   501→          {/* Floating decorative elements */}
+   502→          <motion.div
+   503→            animate={{ y: [-10, 10, -10] }}
+   504→            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+   505→            className="absolute -top-6 -right-4 glass rounded-xl p-3 shadow-lg hidden sm:block"
+   506→          >
+   507→            <LayoutGrid className="w-5 h-5 text-[oklch(0.75_0.15_200)]" />
+   508→          </motion.div>
+   509→          <motion.div
+   510→            animate={{ y: [10, -10, 10] }}
+   511→            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+   512→            className="absolute -bottom-6 -left-4 glass rounded-xl p-3 shadow-lg hidden sm:block"
+   513→          >
+   514→            <Palette className="w-5 h-5 text-[oklch(0.85_0.08_260)]" />
+   515→          </motion.div>
+   516→        </motion.div>
+   517→      </div>
+   518→
+   519→      {/* Bottom fade */}
+   520→      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent z-10" />
+   521→    </section>
+   522→  )
+   523→}
+   524→
+   525→// ─── Features Section ─────────────────────────────────────────────────
+   526→
+   527→function FeaturesSection() {
+   528→  return (
+   529→    <section id="features" className="relative py-24 sm:py-32">
+   530→      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+   531→        <motion.div
+   532→          initial="hidden"
+   533→          whileInView="visible"
+   534→          viewport={{ once: true, margin: '-100px' }}
+   535→          variants={staggerContainer}
+   536→          className="text-center mb-16"
+   537→        >
+   538→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+   539→            Everything you need.
+   540→            <span className="gradient-text"> Nothing you don&apos;t.</span>
+   541→          </motion.h2>
+   542→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+   543→            From idea to live website — Forge handles generation, editing, and deployment so you can focus on creating.
+   544→          </motion.p>
+   545→        </motion.div>
+   546→
+   547→        <motion.div
+   548→          initial="hidden"
+   549→          whileInView="visible"
+   550→          viewport={{ once: true, margin: '-50px' }}
+   551→          variants={staggerContainer}
+   552→          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+   553→        >
+   554→          {features.map((feature) => (
+   555→            <motion.div key={feature.title} variants={fadeInUp}>
+   556→              <motion.div
+   557→                whileHover={{ y: -4, scale: 1.02 }}
+   558→                transition={{ duration: 0.2 }}
+   559→                className="glass rounded-2xl p-6 sm:p-8 group cursor-default h-full"
+   560→              >
+   561→                <div
+   562→                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-colors duration-300"
+   563→                  style={{
+   564→                    background: `${feature.accent} / 15%`,
+   565→                  }}
+   566→                >
+   567→                  <feature.icon
+   568→                    className="w-6 h-6 transition-colors duration-300"
+   569→                    style={{ color: feature.accent }}
+   570→                  />
+   571→                </div>
+   572→                <h3 className="text-xl font-semibold mb-3 tracking-tight">{feature.title}</h3>
+   573→                <p className="text-muted-foreground leading-relaxed text-sm">{feature.description}</p>
+   574→
+   575→                {/* Hover glow */}
+   576→                <div
+   577→                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+   578→                  style={{
+   579→                    background: `radial-gradient(circle at 50% 0%, ${feature.accent} / 5%, transparent 70%)`,
+   580→                  }}
+   581→                />
+   582→              </motion.div>
+   583→            </motion.div>
+   584→          ))}
+   585→        </motion.div>
+   586→      </div>
+   587→    </section>
+   588→  )
+   589→}
+   590→
+   591→// ─── AI Builder Explanation ──────────────────────────────────────────
+   592→
+   593→function BuilderExplanationSection() {
+   594→  return (
+   595→    <section className="relative py-24 sm:py-32">
+   596→      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+   597→        <motion.div
+   598→          initial="hidden"
+   599→          whileInView="visible"
+   600→          viewport={{ once: true, margin: '-100px' }}
+   601→          variants={staggerContainer}
+   602→          className="text-center mb-16"
+   603→        >
+   604→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+   605→            How it works
+   606→          </motion.h2>
+   607→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+   608→            Four steps. Zero friction.
+   609→          </motion.p>
+   610→        </motion.div>
+   611→
+   612→        {/* Steps with connecting lines */}
+   613→        <motion.div
+   614→          initial="hidden"
+   615→          whileInView="visible"
+   616→          viewport={{ once: true, margin: '-50px' }}
+   617→          variants={staggerContainer}
+   618→          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative"
+   619→        >
+   620→          {builderSteps.map((step, index) => (
+   621→            <motion.div key={step.label} variants={fadeInUp} className="relative">
+   622→              {/* Connecting line (desktop only) */}
+   623→              {index < builderSteps.length - 1 && (
+   624→                <div className="hidden lg:block absolute top-12 -right-4 w-8 h-[2px]">
+   625→                  <div className="w-full h-full bg-gradient-to-r from-border to-transparent" />
+   626→                </div>
+   627→              )}
+   628→
+   629→              <motion.div whileHover={{ y: -4 }} className="text-center group">
+   630→                {/* Step number */}
+   631→                <div className="text-xs font-mono text-muted-foreground mb-3">0{index + 1}</div>
+   632→
+   633→                {/* Icon circle */}
+   634→                <div
+   635→                  className="w-16 h-16 rounded-2xl glass mx-auto mb-5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
+   636→                  style={{
+   637→                    boxShadow: `0 0 30px ${index === 0 ? 'oklch(0.85 0.08 260 / 15%)' : index === 1 ? 'oklch(0.75 0.15 200 / 15%)' : index === 2 ? 'oklch(0.85 0.2 140 / 15%)' : 'oklch(0.85 0.08 260 / 15%)'}`,
+   638→                  }}
+   639→                >
+   640→                  <step.icon
+   641→                    className="w-7 h-7"
+   642→                    style={{
+   643→                      color: index === 0 ? 'oklch(0.85 0.08 260)' : index === 1 ? 'oklch(0.75 0.15 200)' : index === 2 ? 'oklch(0.85 0.2 140)' : 'oklch(0.85 0.08 260)',
+   644→                    }}
+   645→                  />
+   646→                </div>
+   647→
+   648→                <h3 className="text-lg font-semibold mb-2 tracking-tight">{step.label}</h3>
+   649→                <p className="text-sm text-muted-foreground">{step.sublabel}</p>
+   650→              </motion.div>
+   651→            </motion.div>
+   652→          ))}
+   653→        </motion.div>
+   654→      </div>
+   655→    </section>
+   656→  )
+   657→}
+   658→
+   659→// ─── Live Builder Preview ────────────────────────────────────────────
+   660→
+   661→function LiveBuilderPreview() {
+   662→  const [activeStep, setActiveStep] = useState(0)
+   663→  const navigate = useAppStore((s) => s.navigate)
+   664→
+   665→  useEffect(() => {
+   666→    const interval = setInterval(() => {
+   667→      setActiveStep((prev) => (prev + 1) % 4)
+   668→    }, 3000)
+   669→    return () => clearInterval(interval)
+   670→  }, [])
+   671→
+   672→  const steps = [
+   673→    { label: 'Prompt', content: 'A sleek SaaS dashboard with analytics cards, user charts, and a clean navigation sidebar...' },
+   674→    { label: 'Generating', content: 'AI is analyzing your prompt and generating layout structures...' },
+   675→    { label: 'Preview', content: 'Website generated — viewing live preview with responsive breakpoints' },
+   676→    { label: 'Export', content: 'Exporting as Next.js project with Tailwind CSS and clean component structure' },
+   677→  ]
+   678→
+   679→  return (
+   680→    <section className="relative py-24 sm:py-32">
+   681→      {/* Background accent */}
+   682→      <div className="absolute inset-0 overflow-hidden">
+   683→        <div
+   684→          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-[0.03]"
+   685→          style={{
+   686→            background: 'radial-gradient(circle, oklch(0.85 0.08 260), transparent 70%)',
+   687→            filter: 'blur(80px)',
+   688→          }}
+   689→        />
+   690→      </div>
+   691→
+   692→      <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
+   693→        <motion.div
+   694→          initial="hidden"
+   695→          whileInView="visible"
+   696→          viewport={{ once: true, margin: '-100px' }}
+   697→          variants={staggerContainer}
+   698→          className="text-center mb-12"
+   699→        >
+   700→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+   701→            See it in action
+   702→          </motion.h2>
+   703→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+   704→            From prompt to production — watch the entire workflow.
+   705→          </motion.p>
+   706→        </motion.div>
+   707→
+   708→        <motion.div
+   709→          initial={{ opacity: 0, y: 30 }}
+   710→          whileInView={{ opacity: 1, y: 0 }}
+   711→          viewport={{ once: true }}
+   712→          transition={{ duration: 0.8 }}
+   713→        >
+   714→          <div className="glass rounded-2xl p-4 sm:p-6 shadow-2xl">
+   715→            {/* Builder mock UI */}
+   716→            <div className="bg-[oklch(0.05_0.01_260)] rounded-xl overflow-hidden">
+   717→              {/* Top bar */}
+   718→              <div className="flex items-center justify-between px-4 py-3 border-b border-[oklch(0.25_0.02_260)]">
+   719→                <div className="flex items-center gap-3">
+   720→                  <div className="flex gap-1.5">
+   721→                    <div className="w-3 h-3 rounded-full bg-[oklch(0.577_0.245_27.325/80%)]" />
+   722→                    <div className="w-3 h-3 rounded-full bg-[oklch(0.75_0.15_200/80%)]" />
+   723→                    <div className="w-3 h-3 rounded-full bg-[oklch(0.85_0.2_140/80%)]" />
+   724→                  </div>
+   725→                  <span className="text-xs font-mono text-muted-foreground">Forge Builder</span>
+   726→                </div>
+   727→
+   728→                {/* Step indicators */}
+   729→                <div className="flex items-center gap-2">
+   730→                  {steps.map((step, i) => (
+   731→                    <motion.div
+   732→                      key={step.label}
+   733→                      animate={{
+   734→                        backgroundColor: i <= activeStep ? 'oklch(0.85 0.08 260)' : 'oklch(0.25 0.02 260)',
+   735→                        scale: i === activeStep ? 1.1 : 1,
+   736→                      }}
+   737→                      transition={{ duration: 0.3 }}
+   738→                      className="w-2 h-2 rounded-full"
+   739→                    />
+   740→                  ))}
+   741→                </div>
+   742→              </div>
+   743→
+   744→              {/* Main content area */}
+   745→              <div className="flex flex-col sm:flex-row min-h-[280px] sm:min-h-[320px]">
+   746→                {/* Left panel - prompt/edit */}
+   747→                <div className="sm:w-1/2 p-4 sm:p-6 border-b sm:border-b-0 sm:border-r border-[oklch(0.25_0.02_260)]">
+   748→                  <AnimatePresence mode="wait">
+   749→                    <motion.div
+   750→                      key={activeStep}
+   751→                      initial={{ opacity: 0, y: 10 }}
+   752→                      animate={{ opacity: 1, y: 0 }}
+   753→                      exit={{ opacity: 0, y: -10 }}
+   754→                      transition={{ duration: 0.3 }}
+   755→                    >
+   756→                      <div className="flex items-center gap-2 mb-3">
+   757→                        {activeStep === 0 && <MessageSquare className="w-4 h-4 text-[oklch(0.85_0.08_260)]" />}
+   758→                        {activeStep === 1 && <Sparkles className="w-4 h-4 text-[oklch(0.75_0.15_200)] animate-pulse" />}
+   759→                        {activeStep === 2 && <MousePointerClick className="w-4 h-4 text-[oklch(0.85_0.2_140)]" />}
+   760→                        {activeStep === 3 && <Code2 className="w-4 h-4 text-[oklch(0.85_0.08_260)]" />}
+   761→                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+   762→                          {steps[activeStep].label}
+   763→                        </span>
+   764→                      </div>
+   765→                      <p className="text-sm text-foreground/70 leading-relaxed font-mono">
+   766→                        {steps[activeStep].content}
+   767→                      </p>
+   768→                    </motion.div>
+   769→                  </AnimatePresence>
+   770→
+   771→                  {/* Progress bar for generating */}
+   772→                  {activeStep === 1 && (
+   773→                    <motion.div
+   774→                      initial={{ width: '0%' }}
+   775→                      animate={{ width: '100%' }}
+   776→                      transition={{ duration: 2.5, ease: 'easeInOut' }}
+   777→                      className="mt-4 h-1 rounded-full bg-gradient-to-r from-[oklch(0.85_0.08_260)] to-[oklch(0.75_0.15_200)]"
+   778→                    />
+   779→                  )}
+   780→                </div>
+   781→
+   782→                {/* Right panel - preview */}
+   783→                <div className="sm:w-1/2 p-4 sm:p-6 flex items-center justify-center">
+   784→                  {activeStep < 2 ? (
+   785→                    <motion.div
+   786→                      animate={{ opacity: activeStep === 0 ? 0.3 : [0.3, 0.6, 0.3] }}
+   787→                      transition={{ duration: activeStep === 0 ? 0.3 : 2, repeat: activeStep === 1 ? Infinity : 0 }}
+   788→                      className="w-full space-y-3"
+   789→                    >
+   790→                      {/* Skeleton preview */}
+   791→                      <div className="h-8 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   792→                      <div className="grid grid-cols-3 gap-2">
+   793→                        <div className="h-16 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   794→                        <div className="h-16 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   795→                        <div className="h-16 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   796→                      </div>
+   797→                      <div className="h-24 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   798→                      <div className="grid grid-cols-2 gap-2">
+   799→                        <div className="h-12 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   800→                        <div className="h-12 rounded-lg bg-[oklch(0.15_0.01_260)] shimmer" />
+   801→                      </div>
+   802→                    </motion.div>
+   803→                  ) : (
+   804→                    <motion.div
+   805→                      initial={{ opacity: 0 }}
+   806→                      animate={{ opacity: 1 }}
+   807→                      transition={{ duration: 0.5 }}
+   808→                      className="w-full space-y-3"
+   809→                    >
+   810→                      {/* Generated preview */}
+   811→                      <div className="h-8 rounded-lg bg-[oklch(0.15_0.01_260)] flex items-center px-3">
+   812→                        <div className="flex gap-2">
+   813→                          <div className="w-6 h-2 rounded bg-[oklch(0.85_0.08_260/30%)]" />
+   814→                          <div className="w-8 h-2 rounded bg-[oklch(0.3_0.02_260)]" />
+   815→                          <div className="w-8 h-2 rounded bg-[oklch(0.3_0.02_260)]" />
+   816→                        </div>
+   817→                      </div>
+   818→                      <div className="grid grid-cols-3 gap-2">
+   819→                        <div className="h-16 rounded-lg bg-[oklch(0.15_0.01_260)] flex items-center justify-center">
+   820→                          <div className="w-8 h-8 rounded-full bg-[oklch(0.85_0.08_260/15%)]" />
+   821→                        </div>
+   822→                        <div className="h-16 rounded-lg bg-[oklch(0.15_0.01_260)] flex items-center justify-center">
+   823→                          <div className="w-8 h-8 rounded-full bg-[oklch(0.75_0.15_200/15%)]" />
+   824→                        </div>
+   825→                        <div className="h-16 rounded-lg bg-[oklch(0.15_0.01_260)] flex items-center justify-center">
+   826→                          <div className="w-8 h-8 rounded-full bg-[oklch(0.85_0.2_140/15%)]" />
+   827→                        </div>
+   828→                      </div>
+   829→                      <div className="h-24 rounded-lg bg-[oklch(0.15_0.01_260)] flex items-center justify-center">
+   830→                        <div className="w-3/4 h-3/4 rounded bg-[oklch(0.75_0.15_200/10%)]" />
+   831→                      </div>
+   832→                      <div className="grid grid-cols-2 gap-2">
+   833→                        <div className="h-12 rounded-lg bg-[oklch(0.15_0.01_260)]" />
+   834→                        <div className="h-12 rounded-lg bg-[oklch(0.15_0.01_260)]" />
+   835→                      </div>
+   836→                    </motion.div>
+   837→                  )}
+   838→                </div>
+   839→              </div>
+   840→            </div>
+   841→
+   842→            {/* Try it button */}
+   843→            <div className="mt-4 text-center">
+   844→              <Button
+   845→                onClick={() => navigate('builder')}
+   846→                className="bg-[oklch(0.85_0.08_260)] text-[oklch(0.15_0.01_260)] hover:bg-[oklch(0.85_0.08_260/90%)] rounded-xl"
+   847→              >
+   848→                Try the Builder
+   849→                <ArrowRight className="w-4 h-4 ml-1" />
+   850→              </Button>
+   851→            </div>
+   852→          </div>
+   853→        </motion.div>
+   854→      </div>
+   855→    </section>
+   856→  )
+   857→}
+   858→
+   859→// ─── Showcase Section ─────────────────────────────────────────────────
+   860→
+   861→function ShowcaseSection() {
+   862→  return (
+   863→    <section id="showcase" className="relative py-24 sm:py-32">
+   864→      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+   865→        <motion.div
+   866→          initial="hidden"
+   867→          whileInView="visible"
+   868→          viewport={{ once: true, margin: '-100px' }}
+   869→          variants={staggerContainer}
+   870→          className="text-center mb-16"
+   871→        >
+   872→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+   873→            Built with Forge
+   874→          </motion.h2>
+   875→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+   876→            Real websites, generated in minutes. Each one started as a single prompt.
+   877→          </motion.p>
+   878→        </motion.div>
+   879→
+   880→        <motion.div
+   881→          initial="hidden"
+   882→          whileInView="visible"
+   883→          viewport={{ once: true, margin: '-50px' }}
+   884→          variants={staggerContainer}
+   885→          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+   886→        >
+   887→          {showcaseSites.map((site) => (
+   888→            <motion.div key={site.title} variants={scaleIn}>
+   889→              <motion.div
+   890→                whileHover={{ y: -6, scale: 1.03 }}
+   891→                transition={{ duration: 0.25 }}
+   892→                className="glass rounded-2xl overflow-hidden group cursor-default"
+   893→              >
+   894→                {/* Preview area */}
+   895→                <div className={`h-40 sm:h-48 bg-gradient-to-br ${site.gradient} relative overflow-hidden`}>
+   896→                  {/* Mock website skeleton */}
+   897→                  <div className="absolute inset-4 rounded-lg bg-[oklch(0.05_0.01_260/80%)] p-3">
+   898→                    <div className="h-4 w-1/3 rounded bg-white/10 mb-3" />
+   899→                    <div className="h-2 w-2/3 rounded bg-white/5 mb-2" />
+   900→                    <div className="h-2 w-1/2 rounded bg-white/5 mb-4" />
+   901→                    <div className="grid grid-cols-2 gap-2">
+   902→                      <div className="h-10 rounded bg-white/5" />
+   903→                      <div className="h-10 rounded bg-white/5" />
+   904→                    </div>
+   905→                    <div className="mt-3 h-12 rounded bg-white/5" />
+   906→                  </div>
+   907→
+   908→                  {/* Hover overlay */}
+   909→                  <div className="absolute inset-0 bg-[oklch(0.05_0.01_260/60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+   910→                    <span className="text-sm font-medium text-foreground/80">View Site</span>
+   911→                  </div>
+   912→                </div>
+   913→
+   914→                {/* Info */}
+   915→                <div className="p-4 sm:p-5">
+   916→                  <div className="flex items-center gap-2 mb-2">
+   917→                    <site.icon className="w-4 h-4 text-muted-foreground" />
+   918→                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{site.category}</span>
+   919→                  </div>
+   920→                  <h3 className="text-base font-semibold mb-1 tracking-tight">{site.title}</h3>
+   921→                  <p className="text-xs text-muted-foreground">{site.description}</p>
+   922→                </div>
+   923→              </motion.div>
+   924→            </motion.div>
+   925→          ))}
+   926→        </motion.div>
+   927→      </div>
+   928→    </section>
+   929→  )
+   930→}
+   931→
+   932→// ─── Pricing Section ──────────────────────────────────────────────────
+   933→
+   934→function PricingSection() {
+   935→  const navigate = useAppStore((s) => s.navigate)
+   936→
+   937→  return (
+   938→    <section id="pricing" className="relative py-24 sm:py-32">
+   939→      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+   940→        <motion.div
+   941→          initial="hidden"
+   942→          whileInView="visible"
+   943→          viewport={{ once: true, margin: '-100px' }}
+   944→          variants={staggerContainer}
+   945→          className="text-center mb-16"
+   946→        >
+   947→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+   948→            Simple pricing.
+   949→            <span className="gradient-text"> No surprises.</span>
+   950→          </motion.h2>
+   951→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+   952→            Start free. Upgrade when you need more power.
+   953→          </motion.p>
+   954→        </motion.div>
+   955→
+   956→        <motion.div
+   957→          initial="hidden"
+   958→          whileInView="visible"
+   959→          viewport={{ once: true, margin: '-50px' }}
+   960→          variants={staggerContainer}
+   961→          className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8"
+   962→        >
+   963→          {pricingPlans.map((plan) => (
+   964→            <motion.div key={plan.name} variants={fadeInUp}>
+   965→              <motion.div
+   966→                whileHover={{ y: -4 }}
+   967→                className={`rounded-2xl p-6 sm:p-8 h-full ${
+   968→                  plan.highlighted
+   969→                    ? 'glass-strong border-[oklch(0.85_0.08_260/30%)] relative'
+   970→                    : 'glass'
+   971→                }`}
+   972→              >
+   973→                {/* Highlight badge */}
+   974→                {plan.highlighted && (
+   975→                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[oklch(0.85_0.08_260)] text-[oklch(0.15_0.01_260)] text-xs font-semibold">
+   976→                    Most Popular
+   977→                  </div>
+   978→                )}
+   979→
+   980→                <div className="mb-6">
+   981→                  <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
+   982→                  <div className="flex items-baseline gap-1">
+   983→                    <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+   984→                    <span className="text-muted-foreground">{plan.period}</span>
+   985→                  </div>
+   986→                  <p className="text-sm text-muted-foreground mt-2">{plan.credits}</p>
+   987→                </div>
+   988→
+   989→                <div className="space-y-3 mb-8">
+   990→                  {plan.features.map((feature) => (
+   991→                    <div key={feature} className="flex items-center gap-3">
+   992→                      <Check
+   993→                        className="w-4 h-4 shrink-0"
+   994→                        style={{ color: plan.highlighted ? 'oklch(0.85 0.08 260)' : 'oklch(0.65 0.02 260)' }}
+   995→                      />
+   996→                      <span className="text-sm text-muted-foreground">{feature}</span>
+   997→                    </div>
+   998→                  ))}
+   999→                </div>
+  1000→
+  1001→                <Button
+  1002→                  onClick={() => navigate(plan.highlighted ? 'register' : 'login')}
+  1003→                  className={`w-full rounded-xl h-11 ${
+  1004→                    plan.highlighted
+  1005→                      ? 'bg-[oklch(0.85_0.08_260)] text-[oklch(0.15_0.01_260)] hover:bg-[oklch(0.85_0.08_260/90%)]'
+  1006→                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+  1007→                  }`}
+  1008→                >
+  1009→                  {plan.cta}
+  1010→                </Button>
+  1011→              </motion.div>
+  1012→            </motion.div>
+  1013→          ))}
+  1014→        </motion.div>
+  1015→      </div>
+  1016→    </section>
+  1017→  )
+  1018→}
+  1019→
+  1020→// ─── Testimonials Section ─────────────────────────────────────────────
+  1021→
+  1022→function TestimonialsSection() {
+  1023→  return (
+  1024→    <section className="relative py-24 sm:py-32">
+  1025→      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+  1026→        <motion.div
+  1027→          initial="hidden"
+  1028→          whileInView="visible"
+  1029→          viewport={{ once: true, margin: '-100px' }}
+  1030→          variants={staggerContainer}
+  1031→          className="text-center mb-16"
+  1032→        >
+  1033→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+  1034→            Loved by builders
+  1035→          </motion.h2>
+  1036→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+  1037→            Designers, founders, and agencies building faster with Forge.
+  1038→          </motion.p>
+  1039→        </motion.div>
+  1040→
+  1041→        <motion.div
+  1042→          initial="hidden"
+  1043→          whileInView="visible"
+  1044→          viewport={{ once: true, margin: '-50px' }}
+  1045→          variants={staggerContainer}
+  1046→          className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+  1047→        >
+  1048→          {testimonials.map((testimonial) => (
+  1049→            <motion.div key={testimonial.name} variants={fadeInUp}>
+  1050→              <motion.div
+  1051→                whileHover={{ y: -3 }}
+  1052→                className="glass rounded-2xl p-6 sm:p-8 group"
+  1053→              >
+  1054→                {/* Quote */}
+  1055→                <div className="mb-6">
+  1056→                  <p className="text-base sm:text-lg leading-relaxed text-foreground/80">
+  1057→                    &ldquo;{testimonial.quote}&rdquo;
+  1058→                  </p>
+  1059→                </div>
+  1060→
+  1061→                {/* Author */}
+  1062→                <div className="flex items-center gap-3">
+  1063→                  <div
+  1064→                    className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold"
+  1065→                    style={{
+  1066→                      background: 'oklch(0.85 0.08 260 / 15%)',
+  1067→                      color: 'oklch(0.85 0.08 260)',
+  1068→                    }}
+  1069→                  >
+  1070→                    {testimonial.avatar}
+  1071→                  </div>
+  1072→                  <div>
+  1073→                    <div className="text-sm font-semibold">{testimonial.name}</div>
+  1074→                    <div className="text-xs text-muted-foreground">{testimonial.role}</div>
+  1075→                  </div>
+  1076→                </div>
+  1077→
+  1078→                {/* Stars */}
+  1079→                <div className="flex gap-0.5 mt-4">
+  1080→                  {[...Array(5)].map((_, i) => (
+  1081→                    <Star
+  1082→                      key={i}
+  1083→                      className="w-3.5 h-3.5 fill-[oklch(0.85_0.08_260)]"
+  1084→                      style={{ color: 'oklch(0.85 0.08 260)' }}
+  1085→                    />
+  1086→                  ))}
+  1087→                </div>
+  1088→              </motion.div>
+  1089→            </motion.div>
+  1090→          ))}
+  1091→        </motion.div>
+  1092→      </div>
+  1093→    </section>
+  1094→  )
+  1095→}
+  1096→
+  1097→// ─── FAQ Section ──────────────────────────────────────────────────────
+  1098→
+  1099→function FAQSection() {
+  1100→  return (
+  1101→    <section className="relative py-24 sm:py-32">
+  1102→      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+  1103→        <motion.div
+  1104→          initial="hidden"
+  1105→          whileInView="visible"
+  1106→          viewport={{ once: true, margin: '-100px' }}
+  1107→          variants={staggerContainer}
+  1108→          className="text-center mb-12"
+  1109→        >
+  1110→          <motion.h2 variants={fadeInUp} className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
+  1111→            Questions? Answered.
+  1112→          </motion.h2>
+  1113→          <motion.p variants={fadeInUp} className="text-lg text-muted-foreground">
+  1114→            Everything you need to know about Forge.
+  1115→          </motion.p>
+  1116→        </motion.div>
+  1117→
+  1118→        <motion.div
+  1119→          initial={{ opacity: 0, y: 20 }}
+  1120→          whileInView={{ opacity: 1, y: 0 }}
+  1121→          viewport={{ once: true }}
+  1122→          transition={{ duration: 0.6 }}
+  1123→        >
+  1124→          <Accordion type="single" collapsible className="glass rounded-2xl p-2">
+  1125→            {faqItems.map((item, index) => (
+  1126→              <AccordionItem
+  1127→                key={index}
+  1128→                value={`faq-${index}`}
+  1129→                className="border-[oklch(0.25_0.02_260)] px-4"
+  1130→              >
+  1131→                <AccordionTrigger className="text-base font-medium hover:text-[oklch(0.85_0.08_260)] py-5">
+  1132→                  {item.question}
+  1133→                </AccordionTrigger>
+  1134→                <AccordionContent className="text-muted-foreground leading-relaxed">
+  1135→                  {item.answer}
+  1136→                </AccordionContent>
+  1137→              </AccordionItem>
+  1138→            ))}
+  1139→          </Accordion>
+  1140→        </motion.div>
+  1141→      </div>
+  1142→    </section>
+  1143→  )
+  1144→}
+  1145→
+  1146→// ─── Footer ───────────────────────────────────────────────────────────
+  1147→
+  1148→function Footer() {
+  1149→  const navigate = useAppStore((s) => s.navigate)
+  1150→
+  1151→  const footerLinks = {
+  1152→    Product: [
+  1153→      { label: 'Features', action: () => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }) },
+  1154→      { label: 'Pricing', action: () => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }) },
+  1155→      { label: 'Showcase', action: () => document.getElementById('showcase')?.scrollIntoView({ behavior: 'smooth' }) },
+  1156→      { label: 'Builder', action: () => navigate('builder') },
+  1157→    ],
+  1158→    Resources: [
+  1159→      { label: 'Documentation', action: () => {} },
+  1160→      { label: 'API Reference', action: () => {} },
+  1161→      { label: 'Tutorials', action: () => {} },
+  1162→      { label: 'Blog', action: () => {} },
+  1163→    ],
+  1164→    Company: [
+  1165→      { label: 'About', action: () => {} },
+  1166→      { label: 'Careers', action: () => {} },
+  1167→      { label: 'Contact', action: () => {} },
+  1168→      { label: 'Legal', action: () => {} },
+  1169→    ],
+  1170→  }
+  1171→
+  1172→  const socialLinks = [
+  1173→    { icon: Github, label: 'GitHub' },
+  1174→    { icon: Twitter, label: 'Twitter' },
+  1175→    { icon: Linkedin, label: 'LinkedIn' },
+  1176→    { icon: Youtube, label: 'YouTube' },
+  1177→  ]
+  1178→
+  1179→  return (
+  1180→    <footer className="mt-auto border-t border-[oklch(0.25_0.02_260)]">
+  1181→      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+  1182→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-12">
+  1183→          {/* Brand column */}
+  1184→          <div className="col-span-2 sm:col-span-1">
+  1185→            <div className="flex items-center gap-2 mb-4">
+  1186→              <div className="w-8 h-8 rounded-lg bg-[oklch(0.85_0.08_260)] flex items-center justify-center">
+  1187→                <Sparkles className="w-4 h-4 text-[oklch(0.15_0.01_260)]" />
+  1188→              </div>
+  1189→              <span className="text-lg font-bold tracking-tight">Forge</span>
+  1190→            </div>
+  1191→            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+  1192→              Build websites with AI. Ship in seconds. No lock-in, no compromise.
+  1193→            </p>
+  1194→          </div>
+  1195→
+  1196→          {/* Link columns */}
+  1197→          {Object.entries(footerLinks).map(([category, links]) => (
+  1198→            <div key={category}>
+  1199→              <h4 className="text-sm font-semibold mb-4">{category}</h4>
+  1200→              <ul className="space-y-2.5">
+  1201→                {links.map((link) => (
+  1202→                  <li key={link.label}>
+  1203→                    <button
+  1204→                      onClick={link.action}
+  1205→                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+  1206→                    >
+  1207→                      {link.label}
+  1208→                    </button>
+  1209→                  </li>
+  1210→                ))}
+  1211→              </ul>
+  1212→            </div>
+  1213→          ))}
+  1214→        </div>
+  1215→
+  1216→        {/* Bottom row */}
+  1217→        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-[oklch(0.25_0.02_260)]">
+  1218→          <p className="text-xs text-muted-foreground">
+  1219→            &copy; {new Date().getFullYear()} Forge. All rights reserved.
+  1220→          </p>
+  1221→          <div className="flex items-center gap-3">
+  1222→            {socialLinks.map((social) => (
+  1223→              <button
+  1224→                key={social.label}
+  1225→                className="w-8 h-8 rounded-lg glass flex items-center justify-center hover:scale-110 transition-transform"
+  1226→                aria-label={social.label}
+  1227→              >
+  1228→                <social.icon className="w-4 h-4 text-muted-foreground" />
+  1229→              </button>
+  1230→            ))}
+  1231→          </div>
+  1232→        </div>
+  1233→      </div>
+  1234→    </footer>
+  1235→  )
+  1236→}
+  1237→
+  1238→// ─── Navigation Bar ───────────────────────────────────────────────────
+  1239→
+  1240→function NavBar() {
+  1241→  const [isScrolled, setIsScrolled] = useState(false)
+  1242→  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  1243→  const navigate = useAppStore((s) => s.navigate)
+  1244→
+  1245→  useEffect(() => {
+  1246→    const handleScroll = () => setIsScrolled(window.scrollY > 50)
+  1247→    window.addEventListener('scroll', handleScroll, { passive: true })
+  1248→    return () => window.removeEventListener('scroll', handleScroll)
+  1249→  }, [])
+  1250→
+  1251→  const navLinks = [
+  1252→    { label: 'Features', href: 'features' },
+  1253→    { label: 'Pricing', href: 'pricing' },
+  1254→    { label: 'Showcase', href: 'showcase' },
+  1255→  ]
+  1256→
+  1257→  const scrollToSection = (id: string) => {
+  1258→    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  1259→    setIsMobileMenuOpen(false)
+  1260→  }
+  1261→
+  1262→  return (
+  1263→    <motion.nav
+  1264→      initial={{ y: -20, opacity: 0 }}
+  1265→      animate={{ y: 0, opacity: 1 }}
+  1266→      transition={{ duration: 0.5 }}
+  1267→      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+  1268→        isScrolled ? 'glass-strong shadow-lg' : 'bg-transparent'
+  1269→      }`}
+  1270→    >
+  1271→      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+  1272→        <div className="flex items-center justify-between h-16">
+  1273→          {/* Logo */}
+  1274→          <div className="flex items-center gap-2">
+  1275→            <div className="w-8 h-8 rounded-lg bg-[oklch(0.85_0.08_260)] flex items-center justify-center">
+  1276→              <Sparkles className="w-4 h-4 text-[oklch(0.15_0.01_260)]" />
+  1277→            </div>
+  1278→            <span className="text-lg font-bold tracking-tight">Forge</span>
+  1279→          </div>
+  1280→
+  1281→          {/* Desktop nav links */}
+  1282→          <div className="hidden sm:flex items-center gap-6">
+  1283→            {navLinks.map((link) => (
+  1284→              <button
+  1285→                key={link.label}
+  1286→                onClick={() => scrollToSection(link.href)}
+  1287→                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+  1288→              >
+  1289→                {link.label}
+  1290→              </button>
+  1291→            ))}
+  1292→          </div>
+  1293→
+  1294→          {/* Desktop auth buttons */}
+  1295→          <div className="hidden sm:flex items-center gap-3">
+  1296→            <Button
+  1297→              variant="ghost"
+  1298→              onClick={() => navigate('login')}
+  1299→              className="text-sm"
+  1300→            >
+  1301→              Login
+  1302→            </Button>
+  1303→            <Button
+  1304→              onClick={() => navigate('register')}
+  1305→              className="bg-[oklch(0.85_0.08_260)] text-[oklch(0.15_0.01_260)] hover:bg-[oklch(0.85_0.08_260/90%)] text-sm rounded-xl"
+  1306→            >
+  1307→              Sign Up
+  1308→            </Button>
+  1309→          </div>
+  1310→
+  1311→          {/* Mobile menu toggle */}
+  1312→          <button
+  1313→            className="sm:hidden p-2"
+  1314→            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+  1315→            aria-label="Toggle menu"
+  1316→          >
+  1317→            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+  1318→          </button>
+  1319→        </div>
+  1320→      </div>
+  1321→
+  1322→      {/* Mobile menu */}
+  1323→      <AnimatePresence>
+  1324→        {isMobileMenuOpen && (
+  1325→          <motion.div
+  1326→            initial={{ opacity: 0, height: 0 }}
+  1327→            animate={{ opacity: 1, height: 'auto' }}
+  1328→            exit={{ opacity: 0, height: 0 }}
+  1329→            transition={{ duration: 0.2 }}
+  1330→            className="sm:hidden glass-strong border-t border-[oklch(0.25_0.02_260)]"
+  1331→          >
+  1332→            <div className="px-4 py-4 space-y-3">
+  1333→              {navLinks.map((link) => (
+  1334→                <button
+  1335→                  key={link.label}
+  1336→                  onClick={() => scrollToSection(link.href)}
+  1337→                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+  1338→                >
+  1339→                  {link.label}
+  1340→                </button>
+  1341→              ))}
+  1342→              <div className="flex gap-3 pt-2">
+  1343→                <Button
+  1344→                  variant="outline"
+  1345→                  onClick={() => { navigate('login'); setIsMobileMenuOpen(false) }}
+  1346→                  className="flex-1 text-sm rounded-xl"
+  1347→                >
+  1348→                  Login
+  1349→                </Button>
+  1350→                <Button
+  1351→                  onClick={() => { navigate('register'); setIsMobileMenuOpen(false) }}
+  1352→                  className="flex-1 bg-[oklch(0.85_0.08_260)] text-[oklch(0.15_0.01_260)] hover:bg-[oklch(0.85_0.08_260/90%)] text-sm rounded-xl"
+  1353→                >
+  1354→                  Sign Up
+  1355→                </Button>
+  1356→              </div>
+  1357→            </div>
+  1358→          </motion.div>
+  1359→        )}
+  1360→      </AnimatePresence>
+  1361→    </motion.nav>
+  1362→  )
+  1363→}
+  1364→
+  1365→// ─── Main Landing Page ────────────────────────────────────────────────
+  1366→
+  1367→interface LandingPageProps {
+  1368→  onNavigate?: (view: AppView) => void
+  1369→  onLogin?: () => void
+  1370→}
+  1371→
+  1372→export default function LandingPage({ onNavigate, onLogin }: LandingPageProps) {
+  1373→  return (
+  1374→    <div className="min-h-screen flex flex-col bg-background">
+  1375→      <NavBar />
+  1376→      <main className="flex-1">
+  1377→        <HeroSection />
+  1378→        <FeaturesSection />
+  1379→        <BuilderExplanationSection />
+  1380→        <LiveBuilderPreview />
+  1381→        <ShowcaseSection />
+  1382→        <PricingSection />
+  1383→        <TestimonialsSection />
+  1384→        <FAQSection />
+  1385→      </main>
+  1386→      <Footer />
+  1387→    </div>
+  1388→  )
+  1389→}
+  1390→

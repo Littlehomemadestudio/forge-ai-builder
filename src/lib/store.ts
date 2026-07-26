@@ -174,6 +174,7 @@ interface AppState {
   isGenerating: boolean
   generationProgress: number
   generationStatus: string
+  selectedTemplateHtml: string
   
   // Editor
   editorPanel: EditorPanel
@@ -229,6 +230,7 @@ interface AppState {
   setGenerationProgress: (progress: number) => void
   setGenerationStatus: (status: string) => void
   startGeneration: (prompt: string) => void
+  setSelectedTemplateHtml: (html: string) => void
   
   // Actions - Editor
   setEditorPanel: (panel: EditorPanel) => void
@@ -266,7 +268,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   builderPhase: 'prompt',
   builderPrompt: '',
   builderIndustry: 'portfolio',
-  builderStyle: 'dark',
+  builderStyle: 'light',
   builderMode: 'ai',
   builderAdvancedOptions: {
     complexity: 'standard',
@@ -311,6 +313,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isGenerating: false,
   generationProgress: 0,
   generationStatus: '',
+  selectedTemplateHtml: '',
   
   editorPanel: 'components',
   inspectorTab: 'style',
@@ -325,7 +328,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   editorShowGuides: false,
   editorSnapToGrid: true,
   
-  themeMode: 'dark',
+  themeMode: 'light',
   
   showCommandPalette: false,
   showContextMenu: false,
@@ -382,6 +385,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     generationProgress: 0,
     generationStatus: 'Initializing…'
   }),
+  setSelectedTemplateHtml: (html) => set({ selectedTemplateHtml: html }),
   
   // Editor
   setEditorPanel: (panel) => set({ editorPanel: panel }),
@@ -413,3 +417,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   }),
   setLoading: (loading, message) => set({ isLoading: loading, loadingMessage: message || '' }),
 }))
+
+// ─── Expose store to window for dev/debug access ────────────────────────
+if (typeof window !== 'undefined') {
+  ;(window as any).__FORGE_STORE__ = useAppStore;
+}

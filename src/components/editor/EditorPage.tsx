@@ -28,14 +28,14 @@ import {
   Move, Maximize2, Sparkles, Wand2, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight, Image, Link, Settings2, FileCode,
   Globe, Hash, MousePointer2, DragHandle, BoxSelect, Edit3, Trash,
-  PanelLeft, PanelRight, PanelBottom, Columns2, LayoutDashboard,
+  PanelLeft, PanelRight, PanelBottom, PanelTop, Columns2, LayoutDashboard,
   LayoutGrid, LayoutList, Grid2X2, ZoomIn, ZoomOut, PenTool,
   Strikethrough, List, ListOrdered, Lock, Unlock, Group, Ungroup,
   MoveUp, MoveDown, Paintbrush, FontFamily, LetterSpacing,
   LineHeight, RotateCw, Scale, Sliders, Accessibility,
   FileText, Webhook, BarChart3, GitBranch, Megaphone,
   Table, File, FolderOpen, Star, Heart, Bookmark, Share2,
-  Crop, Pipette, Eraser, Brush
+  Crop, Pipette, Eraser, Brush, Navigation
 } from 'lucide-react'
 
 // ─── iframe Bridge Script (injected into the preview iframe) ──────────────
@@ -63,26 +63,29 @@ function getIframeInjectScript(): string {
   }
 
   function createOverlays() {
+    // Remove any existing forge overlays first (prevent duplicates)
+    document.querySelectorAll('#forge-hover-overlay,#forge-selection-box,#forge-label,#forge-grid,.forge-resize-handle').forEach(el => el.remove());
+
     overlayEl = document.createElement('div');
     overlayEl.id = 'forge-hover-overlay';
-    overlayEl.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;';
+    overlayEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;display:none;';
     document.body.appendChild(overlayEl);
 
     selectionBox = document.createElement('div');
     selectionBox.id = 'forge-selection-box';
-    selectionBox.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;';
+    selectionBox.style.cssText = 'position:absolute;z-index:9999;pointer-events:none;display:none;';
     document.body.appendChild(selectionBox);
 
     labelEl = document.createElement('div');
     labelEl.id = 'forge-label';
-    labelEl.style.cssText = 'position:fixed;z-index:10000;pointer-events:none;font-size:11px;font-family:Inter,system-ui,sans-serif;background:#7c3aed;color:#fff;padding:2px 8px;border-radius:4px;white-space:nowrap;';
+    labelEl.style.cssText = 'position:absolute;z-index:10000;pointer-events:none;font-size:11px;font-family:Inter,system-ui,sans-serif;background:#7c3aed;color:#fff;padding:2px 8px;border-radius:4px;white-space:nowrap;display:none;';
     document.body.appendChild(labelEl);
 
     // Create resize handles
     for (let i = 0; i < 8; i++) {
       const handle = document.createElement('div');
       handle.className = 'forge-resize-handle';
-      handle.style.cssText = 'position:fixed;z-index:10001;width:8px;height:8px;background:#7c3aed;border:1px solid #fff;border-radius:2px;cursor:' + ['nw-resize','n-resize','ne-resize','e-resize','se-resize','s-resize','sw-resize','w-resize'][i] + ';';
+      handle.style.cssText = 'position:absolute;z-index:10001;width:8px;height:8px;background:#7c3aed;border:1px solid #fff;border-radius:2px;cursor:' + ['nw-resize','n-resize','ne-resize','e-resize','se-resize','s-resize','sw-resize','w-resize'][i] + ';';
       handle.style.display = 'none';
       document.body.appendChild(handle);
       resizeHandles.push(handle);
@@ -96,15 +99,18 @@ function getIframeInjectScript(): string {
   }
 
   function updateResizeHandles(rect) {
+    // Use document-relative coordinates (rect is viewport-relative, add scroll offset)
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
     const positions = [
-      { x: rect.left - 4, y: rect.top - 4 },
-      { x: rect.left + rect.width/2 - 4, y: rect.top - 4 },
-      { x: rect.left + rect.width - 4, y: rect.top - 4 },
-      { x: rect.left + rect.width - 4, y: rect.top + rect.height/2 - 4 },
-      { x: rect.left + rect.width - 4, y: rect.top + rect.height - 4 },
-      { x: rect.left + rect.width/2 - 4, y: rect.top + rect.height - 4 },
-      { x: rect.left - 4, y: rect.top + rect.height - 4 },
-      { x: rect.left - 4, y: rect.top + rect.height/2 - 4 },
+      { x: rect.left + scrollX - 4, y: rect.top + scrollY - 4 },
+      { x: rect.left + scrollX + rect.width/2 - 4, y: rect.top + scrollY - 4 },
+      { x: rect.left + scrollX + rect.width - 4, y: rect.top + scrollY - 4 },
+      { x: rect.left + scrollX + rect.width - 4, y: rect.top + scrollY + rect.height/2 - 4 },
+      { x: rect.left + scrollX + rect.width - 4, y: rect.top + scrollY + rect.height - 4 },
+      { x: rect.left + scrollX + rect.width/2 - 4, y: rect.top + scrollY + rect.height - 4 },
+      { x: rect.left + scrollX - 4, y: rect.top + scrollY + rect.height - 4 },
+      { x: rect.left + scrollX - 4, y: rect.top + scrollY + rect.height/2 - 4 },
     ];
     positions.forEach((p, i) => {
       resizeHandles[i].style.left = p.x + 'px';
@@ -117,8 +123,11 @@ function getIframeInjectScript(): string {
     const el = document.querySelector('[data-fid="' + id + '"]');
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    overlayEl.style.top = rect.top + 'px';
-    overlayEl.style.left = rect.left + 'px';
+    // Use document-relative coordinates for position:absolute overlays
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    overlayEl.style.top = (rect.top + scrollY) + 'px';
+    overlayEl.style.left = (rect.left + scrollX) + 'px';
     overlayEl.style.width = rect.width + 'px';
     overlayEl.style.height = rect.height + 'px';
     overlayEl.style.background = 'rgba(124,58,237,0.12)';
@@ -133,12 +142,33 @@ function getIframeInjectScript(): string {
     hoveredId = null;
   }
 
+  // Friendly names for the iframe overlay labels
+  const FRIENDLY_TAG_NAMES = {
+    nav:'Navigation Menu', header:'Header', footer:'Footer', section:'Section',
+    main:'Main Content', article:'Article', aside:'Sidebar',
+    h1:'Main Heading', h2:'Sub Heading', h3:'Small Heading', h4:'Heading 4', h5:'Heading 5', h6:'Heading 6',
+    p:'Paragraph', span:'Text', a:'Link', button:'Button', img:'Image',
+    div:'Container', ul:'Bullet List', ol:'Numbered List', li:'List Item',
+    input:'Input Field', textarea:'Text Box', form:'Form', label:'Label',
+    table:'Table', tr:'Row', td:'Cell', th:'Header Cell',
+    video:'Video', iframe:'Embed', svg:'Graphic',
+    style:'Styles', meta:'Meta', title:'Page Title', script:'Script',
+    html:'Page', head:'Head', body:'Body'
+  };
+
+  function getFriendlyName(tag) {
+    return FRIENDLY_TAG_NAMES[tag] || tag.toUpperCase();
+  }
+
   function showSelection(id) {
     const el = document.querySelector('[data-fid="' + id + '"]');
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    selectionBox.style.top = (rect.top - 2) + 'px';
-    selectionBox.style.left = (rect.left - 2) + 'px';
+    // Use document-relative coordinates for position:absolute overlays
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    selectionBox.style.top = (rect.top + scrollY - 2) + 'px';
+    selectionBox.style.left = (rect.left + scrollX - 2) + 'px';
     selectionBox.style.width = (rect.width + 4) + 'px';
     selectionBox.style.height = (rect.height + 4) + 'px';
     selectionBox.style.border = '2px solid #7c3aed';
@@ -147,10 +177,9 @@ function getIframeInjectScript(): string {
     updateResizeHandles(rect);
 
     const tagName = el.tagName.toLowerCase();
-    const className = el.className ? '.' + el.className.split(' ').slice(0,2).join('.') : '';
-    labelEl.textContent = tagName + className;
-    labelEl.style.top = (rect.top - 24) + 'px';
-    labelEl.style.left = rect.left + 'px';
+    labelEl.textContent = getFriendlyName(tagName);
+    labelEl.style.top = (rect.top + scrollY - 24) + 'px';
+    labelEl.style.left = (rect.left + scrollX) + 'px';
     labelEl.style.display = rect.top > 30 ? 'block' : 'none';
 
     selectedId = id;
@@ -251,12 +280,39 @@ function getIframeInjectScript(): string {
     e.stopPropagation();
     const el = e.target;
     if (el === overlayEl || el === selectionBox || el === labelEl || resizeHandles.includes(el) || el === gridEl) return;
+    hideHover();
+    hideSelection(); // Always clear previous selection before showing new one
     const fid = el.getAttribute('data-fid');
     if (fid) {
       showSelection(fid);
       sendElementInfo(el);
+    } else {
+      window.parent.postMessage({ type: 'element-deselected', data: null }, '*');
     }
   }, true);
+
+  // Overlays now use position:absolute with document-relative coordinates,
+  // so they scroll naturally with the content. No need to update on scroll.
+  // We still handle resize events to reposition overlays.
+  function updateOverlayPositionsOnResize() {
+    if (selectedId) {
+      const el = document.querySelector('[data-fid="' + selectedId + '"]');
+      if (el) {
+        showSelection(selectedId);
+      } else {
+        hideSelection();
+      }
+    }
+    if (hoveredId) {
+      const el = document.querySelector('[data-fid="' + hoveredId + '"]');
+      if (el) {
+        showHover(hoveredId);
+      } else {
+        hideHover();
+      }
+    }
+  }
+  window.addEventListener('resize', updateOverlayPositionsOnResize);
 
   document.addEventListener('dblclick', function(e) {
     e.preventDefault();
@@ -505,6 +561,192 @@ function prepareHTMLForIframe(html: string): string {
   return html + `<script>${script}</script>`
 }
 
+// ─── Human-readable element names (for non-HTML users) ──────────────────────
+const TAG_INFO: Record<string, { name: string; desc: string; icon: string }> = {
+  'nav':     { name: 'Navigation Menu', desc: 'The top menu bar with links', icon: 'Navigation' },
+  'header':  { name: 'Header',          desc: 'Top section of the page', icon: 'PanelTop' },
+  'footer':  { name: 'Footer',          desc: 'Bottom section with links & info', icon: 'PanelBottom' },
+  'section': { name: 'Section',         desc: 'A distinct content area', icon: 'Layout' },
+  'main':    { name: 'Main Content',    desc: 'The main body of the page', icon: 'LayoutDashboard' },
+  'article': { name: 'Article',         desc: 'A self-contained content block', icon: 'FileText' },
+  'aside':   { name: 'Sidebar',         desc: 'Side content area', icon: 'PanelLeft' },
+  'h1':      { name: 'Main Heading',    desc: 'Biggest title — use only once per page!', icon: 'Type' },
+  'h2':      { name: 'Sub Heading',     desc: 'Secondary title', icon: 'Type' },
+  'h3':      { name: 'Small Heading',   desc: 'Third-level title', icon: 'Type' },
+  'h4':      { name: 'Heading 4',       desc: 'Fourth-level title', icon: 'Type' },
+  'h5':      { name: 'Heading 5',       desc: 'Fifth-level title', icon: 'Type' },
+  'h6':      { name: 'Heading 6',       desc: 'Smallest heading', icon: 'Type' },
+  'p':       { name: 'Paragraph',       desc: 'A block of text', icon: 'FileText' },
+  'span':    { name: 'Inline Text',     desc: 'Small text inside other elements', icon: 'Type' },
+  'a':       { name: 'Link',            desc: 'Clickable link to another page', icon: 'Link' },
+  'button':  { name: 'Button',          desc: 'Clickable action button', icon: 'MousePointer2' },
+  'img':     { name: 'Image',           desc: 'A picture or graphic', icon: 'Image' },
+  'div':     { name: 'Container',       desc: 'A box that holds other elements', icon: 'Square' },
+  'ul':      { name: 'Bullet List',     desc: 'List with bullet points', icon: 'List' },
+  'ol':      { name: 'Numbered List',   desc: 'List with numbers (1, 2, 3...)', icon: 'ListOrdered' },
+  'li':      { name: 'List Item',       desc: 'One item in a list', icon: 'List' },
+  'input':   { name: 'Input Field',     desc: 'Where users can type text', icon: 'Edit3' },
+  'textarea':{ name: 'Text Box',       desc: 'Large typing area for messages', icon: 'Edit3' },
+  'form':    { name: 'Form',            desc: 'Collects user input', icon: 'Webhook' },
+  'label':   { name: 'Label',           desc: 'Text label for an input', icon: 'Tag' },
+  'table':   { name: 'Table',           desc: 'Data in rows and columns', icon: 'Table' },
+  'tr':      { name: 'Table Row',       desc: 'One row in a table', icon: 'Columns2' },
+  'td':      { name: 'Table Cell',      desc: 'One cell in a table', icon: 'Square' },
+  'th':      { name: 'Header Cell',     desc: 'A table column title', icon: 'Type' },
+  'video':   { name: 'Video',           desc: 'Embedded video player', icon: 'Play' },
+  'iframe':  { name: 'Embed',           desc: 'Embedded external content', icon: 'Globe' },
+  'svg':     { name: 'Graphic',         desc: 'Vector graphic/illustration', icon: 'Circle' },
+  'style':   { name: 'Styles (hidden)', desc: 'CSS styling rules — usually hidden', icon: 'Palette' },
+  'meta':    { name: 'Meta (hidden)',   desc: 'Page metadata — usually hidden', icon: 'Settings2' },
+  'title':   { name: 'Page Title',      desc: 'The tab title shown in browser', icon: 'Type' },
+  'script':  { name: 'Script (hidden)', desc: 'JavaScript code — usually hidden', icon: 'Code2' },
+}
+
+function getTagDisplayName(tag: string): string {
+  return TAG_INFO[tag]?.name || tag.toUpperCase()
+}
+
+function getTagDescription(tag: string): string {
+  return TAG_INFO[tag]?.desc || ''
+}
+
+function getTagIconName(tag: string): string {
+  return TAG_INFO[tag]?.icon || 'Square'
+}
+
+const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> = {
+  Navigation, PanelTop, PanelBottom, Layout, LayoutDashboard, FileText,
+  PanelLeft, Type, Link, MousePointer2, Image, Square, List, ListOrdered,
+  Edit3, Webhook, Table, Columns2, Globe, Circle, Palette, Settings2, Code2,
+}
+
+// ─── Friendly CSS group labels ────────────────────────────────────────────
+const FRIENDLY_GROUP_NAMES: Record<string, { name: string; desc: string }> = {
+  'Layout':     { name: 'Arrangement & Sizing', desc: 'How this element is positioned and sized on the page' },
+  'Spacing':    { name: 'Inner & Outer Space',  desc: 'Space inside (padding) and outside (margin) this element' },
+  'Typography': { name: 'Text Appearance',      desc: 'Font, size, and style of the text' },
+  'Colors':     { name: 'Colors',               desc: 'Text color and background color' },
+  'Background': { name: 'Background',           desc: 'Background image and effects' },
+  'Border':     { name: 'Borders & Corners',    desc: 'Outline around the element and rounded corners' },
+  'Effects':    { name: 'Effects & Visibility', desc: 'Shadow, transparency, cursor, and more' },
+  'Filters':    { name: 'Visual Filters',       desc: 'Blur, brightness, color effects like Instagram' },
+  'Transforms': { name: 'Shape & Position',     desc: 'Rotate, scale, move, and skew this element' },
+  'Transition': { name: 'Smooth Transitions',   desc: 'Animate changes smoothly over time' },
+  'Animation':  { name: 'Animations',           desc: 'Keyframe animations like bounce, fade, spin' },
+  'Table':      { name: 'Table Settings',       desc: 'How table cells are arranged' },
+  'List':       { name: 'List Style',           desc: 'How list items are displayed' },
+  'SVG':        { name: 'SVG Colors',           desc: 'Fill and stroke colors for vector graphics' },
+}
+
+// ─── Friendly CSS property labels ─────────────────────────────────────────
+const FRIENDLY_PROP_LABELS: Record<string, string> = {
+  'display':          'Arrange As',
+  'position':         'Position Mode',
+  'top':              'Top Offset',
+  'right':            'Right Offset',
+  'bottom':           'Bottom Offset',
+  'left':             'Left Offset',
+  'z-index':          'Layer Order (stacking)',
+  'width':            'Width',
+  'height':           'Height',
+  'min-width':        'Min Width',
+  'min-height':       'Min Height',
+  'max-width':        'Max Width',
+  'max-height':       'Max Height',
+  'overflow':         'Overflow Behavior',
+  'overflow-x':       'Horizontal Overflow',
+  'overflow-y':       'Vertical Overflow',
+  'flex-direction':   'Direction (Row/Column)',
+  'flex-wrap':        'Wrap Items',
+  'justify-content':  'Horizontal Alignment',
+  'align-items':      'Vertical Alignment',
+  'align-self':       'This Item\'s Alignment',
+  'gap':              'Gap Between Items',
+  'row-gap':          'Vertical Gap',
+  'column-gap':       'Horizontal Gap',
+  'order':            'Display Order',
+  'margin-top':       'Space Above',
+  'margin-right':     'Space Right',
+  'margin-bottom':    'Space Below',
+  'margin-left':      'Space Left',
+  'padding-top':      'Inner Space Above',
+  'padding-right':    'Inner Space Right',
+  'padding-bottom':   'Inner Space Below',
+  'padding-left':     'Inner Space Left',
+  'font-family':      'Font Style',
+  'font-size':        'Text Size',
+  'font-weight':      'Text Thickness',
+  'font-style':       'Text Style',
+  'line-height':      'Line Spacing',
+  'letter-spacing':   'Letter Spacing',
+  'word-spacing':     'Word Spacing',
+  'text-align':       'Text Alignment',
+  'text-decoration':  'Text Decoration',
+  'text-transform':   'Text Capitalization',
+  'color':            'Text Color',
+  'background-color': 'Fill Color',
+  'background-image': 'Background Image',
+  'background-size':  'Image Fit',
+  'background-position': 'Image Position',
+  'background-repeat': 'Image Repeat',
+  'border-top-width':    'Top Line Width',
+  'border-right-width':  'Right Line Width',
+  'border-bottom-width': 'Bottom Line Width',
+  'border-left-width':   'Left Line Width',
+  'border-top-style':    'Top Line Style',
+  'border-right-style':  'Right Line Style',
+  'border-bottom-style': 'Bottom Line Style',
+  'border-left-style':   'Left Line Style',
+  'border-top-color':    'Top Line Color',
+  'border-right-color':  'Right Line Color',
+  'border-bottom-color': 'Bottom Line Color',
+  'border-left-color':   'Left Line Color',
+  'border-top-left-radius':     'Top Left Corner Roundness',
+  'border-top-right-radius':    'Top Right Corner Roundness',
+  'border-bottom-right-radius': 'Bottom Right Corner Roundness',
+  'border-bottom-left-radius':  'Bottom Left Corner Roundness',
+  'border':           'Border',
+  'border-radius':    'Rounded Corners',
+  'outline':          'Outline',
+  'outline-width':    'Outline Width',
+  'outline-style':    'Outline Style',
+  'outline-color':    'Outline Color',
+  'box-shadow':       'Shadow',
+  'text-shadow':      'Text Shadow',
+  'opacity':          'Transparency',
+  'cursor':           'Mouse Cursor',
+  'visibility':       'Visibility',
+  'float':            'Float Side',
+  'clear':            'Clear Float',
+  'transform':        'Shape Transform',
+  'transform-origin': 'Transform Origin Point',
+  'filter':           'Visual Filter',
+  'backdrop-filter':  'Background Filter',
+  'transition':       'Smooth Change',
+  'animation':        'Animation',
+  'object-fit':       'Image Fit Mode',
+  'object-position':  'Image Position',
+  'white-space':      'Whitespace Handling',
+  'word-break':       'Word Breaking',
+  'pointer-events':   'Click Interaction',
+  'user-select':      'Text Selection',
+  'mix-blend-mode':   'Color Blend Mode',
+  'list-style-type':  'Bullet Style',
+  'list-style-position': 'Bullet Position',
+  'table-layout':     'Table Sizing',
+  'border-collapse':  'Border Merge Mode',
+  'fill':             'SVG Fill Color',
+  'stroke':           'SVG Stroke Color',
+  'stroke-width':     'SVG Stroke Width',
+  'flex-grow':        'Grow to Fill Space',
+  'flex-shrink':      'Shrink if Needed',
+  'flex-basis':       'Starting Size',
+  'grid-template-columns': 'Column Layout',
+  'grid-template-rows': 'Row Layout',
+  'grid-column':      'Column Position',
+  'grid-row':         'Row Position',
+}
+
 // ─── Element Tree Node ─────────────────────────────────────────────────────
 interface TreeNode {
   id: string
@@ -643,6 +885,13 @@ export default function EditorPage() {
         setEditingContent(data.content || '')
         setEditingAttributes(data.attributes || {})
         setExpandedTreeNodes(prev => new Set([...prev, data.id]))
+        break
+      }
+      case 'element-deselected': {
+        setSelectedElement(null)
+        setSelectedStyles({})
+        setEditingContent('')
+        setEditingAttributes({})
         break
       }
       case 'text-edited': {
@@ -885,15 +1134,19 @@ export default function EditorPage() {
     requestTree()
   }, [codeContent, sendMessage, pushHistory, requestTree])
 
-  // ─── Render CSS Property Editor ────────────────────────────────────────────
+  // ─── Render CSS Property Editor (with friendly labels) ────────────────────
   const renderPropertyEditor = (prop: CSSProperty, styles: Record<string, string>) => {
     const currentValue = styles[prop.name] || prop.default || ''
+    const friendlyLabel = FRIENDLY_PROP_LABELS[prop.name] || prop.label
 
     switch (prop.type) {
       case 'text':
         return (
           <div key={prop.name} className="flex items-center gap-2 mb-1.5">
-            <Label className="text-[10px] text-zinc-400 w-24 shrink-0">{prop.label}</Label>
+            <Tooltip>
+              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+              <TooltipContent side="right" className="text-[11px] max-w-64">CSS property: {prop.name}. {prop.unit ? `Unit: ${prop.unit}` : ''}</TooltipContent>
+            </Tooltip>
             <Input value={currentValue} onChange={e => applyStyle(prop.name, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" placeholder={prop.default} />
             {prop.unit && <span className="text-[10px] text-zinc-500">{prop.unit}</span>}
           </div>
@@ -901,7 +1154,10 @@ export default function EditorPage() {
       case 'number':
         return (
           <div key={prop.name} className="flex items-center gap-2 mb-1.5">
-            <Label className="text-[10px] text-zinc-400 w-24 shrink-0">{prop.label}</Label>
+            <Tooltip>
+              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+            </Tooltip>
             <Input type="number" value={parseFloat(currentValue) || 0} onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || 'px'))} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={prop.min} max={prop.max} step={prop.step} />
             {prop.unit && <span className="text-[10px] text-zinc-500">{prop.unit}</span>}
           </div>
@@ -909,7 +1165,10 @@ export default function EditorPage() {
       case 'select':
         return (
           <div key={prop.name} className="flex items-center gap-2 mb-1.5">
-            <Label className="text-[10px] text-zinc-400 w-24 shrink-0">{prop.label}</Label>
+            <Tooltip>
+              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+            </Tooltip>
             <Select value={currentValue} onValueChange={v => applyStyle(prop.name, v)}>
               <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e] max-h-60">{prop.options?.map(opt => <SelectItem key={opt} value={opt} className="text-[11px] text-white">{opt}</SelectItem>)}</SelectContent>
@@ -919,7 +1178,10 @@ export default function EditorPage() {
       case 'color':
         return (
           <div key={prop.name} className="flex items-center gap-2 mb-1.5">
-            <Label className="text-[10px] text-zinc-400 w-24 shrink-0">{prop.label}</Label>
+            <Tooltip>
+              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+            </Tooltip>
             <div className="flex items-center gap-1 flex-1">
               <input type="color" value={currentValue.startsWith('#') ? currentValue : '#000000'} onChange={e => applyStyle(prop.name, e.target.value)} className="w-6 h-6 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
               <Input value={currentValue} onChange={e => applyStyle(prop.name, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
@@ -930,7 +1192,10 @@ export default function EditorPage() {
         return (
           <div key={prop.name} className="mb-2">
             <div className="flex items-center gap-2">
-              <Label className="text-[10px] text-zinc-400 w-24 shrink-0">{prop.label}</Label>
+              <Tooltip>
+                <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+                <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+              </Tooltip>
               <Input value={parseFloat(currentValue) || parseFloat(prop.default || '0')} onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || ''))} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white w-20" />
               {prop.unit && <span className="text-[10px] text-zinc-500">{prop.unit}</span>}
             </div>
@@ -940,14 +1205,17 @@ export default function EditorPage() {
       case 'toggle':
         return (
           <div key={prop.name} className="flex items-center gap-2 mb-1.5">
-            <Label className="text-[10px] text-zinc-400 w-24 shrink-0">{prop.label}</Label>
+            <Tooltip>
+              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+            </Tooltip>
             <Switch checked={currentValue === 'true' || currentValue === 'visible' || currentValue === 'auto'} onCheckedChange={v => applyStyle(prop.name, v ? (prop.options?.[0] || 'true') : (prop.options?.[1] || 'none'))} />
           </div>
         )
       case 'composite':
         return (
           <div key={prop.name} className="mb-2">
-            <Label className="text-[10px] text-zinc-300 mb-1 block font-semibold">{prop.label}</Label>
+            <Label className="text-[10px] text-zinc-300 mb-1 block font-semibold">{FRIENDLY_PROP_LABELS[prop.name] || prop.label}</Label>
             <div className="pl-2 border-l-2 border-[#7c3aed]/30">
               {prop.subProperties?.map(sub => renderPropertyEditor(sub, styles))}
             </div>
@@ -957,37 +1225,46 @@ export default function EditorPage() {
     }
   }
 
-  // ─── Render Element Tree ───────────────────────────────────────────────────
+  // ─── Render Element Tree (user-friendly with human-readable names) ──────────
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
     const isExpanded = expandedTreeNodes.has(node.id)
     const isSelected = selectedElement?.id === node.id
     const hasChildren = node.children && node.children.length > 0
+    const displayName = getTagDisplayName(node.tag)
+    const tagDesc = getTagDescription(node.tag)
+    const iconName = getTagIconName(node.tag)
+    const IconComponent = ICON_MAP[iconName]
 
     return (
       <div key={node.id}>
-        <div className={`flex items-center gap-1 px-1 py-0.5 cursor-pointer rounded text-[11px] transition-colors group ${isSelected ? 'bg-[#7c3aed]/20 text-[#7c3aed]' : 'text-zinc-400 hover:bg-[#1a1a2e] hover:text-white'}`}
-          style={{ paddingLeft: `${depth * 14 + 6}px` }}
-          onClick={() => { sendMessage('select-element', { elementId: node.id }); setExpandedTreeNodes(prev => new Set([...prev, node.id])) }}
-          onMouseEnter={() => sendMessage('highlight-element', { elementId: node.id })}
-          onMouseLeave={() => sendMessage('highlight-element', { elementId: '' })}
-        >
-          {hasChildren ? (
-            <button onClick={(e) => { e.stopPropagation(); setExpandedTreeNodes(prev => { const n = new Set(prev); if (isExpanded) n.delete(node.id); else n.add(node.id); return n }) }}>
-              <ChevronRight size={10} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-            </button>
-          ) : <span className="w-[10px]" />}
-          <span className="text-[#7c3aed] font-mono text-[10px]">{node.tag}</span>
-          {node.className && <span className="text-zinc-500 truncate max-w-16 text-[10px]">{node.className.split(' ')[0]}</span>}
-          {node.textContent && <span className="text-zinc-600 truncate max-w-24 ml-1 text-[10px]">"{node.textContent.substring(0, 15)}"</span>}
-          {isSelected && (
-            <div className="flex gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={(e) => { e.stopPropagation(); moveElement('up') }} className="text-zinc-400 hover:text-white p-0.5"><MoveUp size={10} /></button>
-              <button onClick={(e) => { e.stopPropagation(); moveElement('down') }} className="text-zinc-400 hover:text-white p-0.5"><MoveDown size={10} /></button>
-              <button onClick={(e) => { e.stopPropagation(); duplicateElement() }} className="text-zinc-400 hover:text-white p-0.5"><Copy size={10} /></button>
-              <button onClick={(e) => { e.stopPropagation(); removeElement() }} className="text-red-400 hover:text-red-300 p-0.5"><Trash2 size={10} /></button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={`flex items-center gap-1.5 px-1 py-0.5 cursor-pointer rounded text-[11px] transition-colors group ${isSelected ? 'bg-[#7c3aed]/20 text-[#7c3aed]' : 'text-zinc-400 hover:bg-[#1a1a2e] hover:text-white'}`}
+              style={{ paddingLeft: `${depth * 14 + 6}px` }}
+              onClick={() => { sendMessage('select-element', { elementId: node.id }); setExpandedTreeNodes(prev => new Set([...prev, node.id])) }}
+              onMouseEnter={() => sendMessage('highlight-element', { elementId: node.id })}
+              onMouseLeave={() => sendMessage('highlight-element', { elementId: '' })}
+            >
+              {hasChildren ? (
+                <button onClick={(e) => { e.stopPropagation(); setExpandedTreeNodes(prev => { const n = new Set(prev); if (isExpanded) n.delete(node.id); else n.add(node.id); return n }) }}>
+                  <ChevronRight size={10} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                </button>
+              ) : <span className="w-[10px]" />}
+              {IconComponent && <IconComponent size={10} className={isSelected ? 'text-[#7c3aed]' : 'text-zinc-500'} />}
+              <span className={`font-medium ${isSelected ? 'text-[#7c3aed]' : 'text-zinc-200'}`}>{displayName}</span>
+              {node.textContent && node.children.length === 0 && <span className="text-zinc-600 truncate max-w-24 ml-1 text-[10px]">"{node.textContent.substring(0, 15)}"</span>}
+              {isSelected && (
+                <div className="flex gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); moveElement('up') }} className="text-zinc-400 hover:text-white p-0.5"><MoveUp size={10} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); moveElement('down') }} className="text-zinc-400 hover:text-white p-0.5"><MoveDown size={10} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); duplicateElement() }} className="text-zinc-400 hover:text-white p-0.5"><Copy size={10} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); removeElement() }} className="text-red-400 hover:text-red-300 p-0.5"><Trash2 size={10} /></button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </TooltipTrigger>
+          {tagDesc && <TooltipContent side="right" className="text-[11px] max-w-48"><span className="text-zinc-300">{displayName}</span> — <span className="text-zinc-500">{tagDesc}</span></TooltipContent>}
+        </Tooltip>
         <AnimatePresence>
           {isExpanded && hasChildren && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
@@ -1037,7 +1314,7 @@ export default function EditorPage() {
           <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-orange-400">{mB}</span>
           <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-orange-400">{mL}</span>
           <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-orange-400">{mR}</span>
-          <span className="absolute top-1 left-2 text-[8px] text-orange-400/60">margin</span>
+          <span className="absolute top-1 left-2 text-[8px] text-orange-400/60">Outer Space</span>
         </div>
         {/* Border - yellow */}
         <div className="absolute bg-yellow-500/15 border border-yellow-500/30 rounded"
@@ -1046,7 +1323,7 @@ export default function EditorPage() {
           <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-yellow-400">{bB}</span>
           <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-yellow-400">{bL}</span>
           <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-yellow-400">{bR}</span>
-          <span className="absolute top-1 left-2 text-[8px] text-yellow-400/60">border</span>
+          <span className="absolute top-1 left-2 text-[8px] text-yellow-400/60">Border Line</span>
         </div>
         {/* Padding - green */}
         <div className="absolute bg-emerald-500/15 border border-emerald-500/30 rounded"
@@ -1055,7 +1332,7 @@ export default function EditorPage() {
           <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-emerald-400">{pB}</span>
           <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-emerald-400">{pL}</span>
           <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-emerald-400">{pR}</span>
-          <span className="absolute top-1 left-2 text-[8px] text-emerald-400/60">padding</span>
+          <span className="absolute top-1 left-2 text-[8px] text-emerald-400/60">Inner Space</span>
         </div>
         {/* Content - blue */}
         <div className="absolute bg-[#7c3aed]/20 border border-[#7c3aed]/30 rounded flex items-center justify-center"
@@ -1175,15 +1452,16 @@ export default function EditorPage() {
         <div className="w-[260px] border-r border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
           <Tabs value={leftPanelTab} onValueChange={setLeftPanelTab} className="flex flex-col h-full">
             <TabsList className="w-full justify-start bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-8 p-0">
-              <TabsTrigger value="layers" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Layers size={12} className="mr-0.5" />Layers</TabsTrigger>
-              <TabsTrigger value="components" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Grid3X3 size={12} className="mr-0.5" />Add</TabsTrigger>
+              <TabsTrigger value="layers" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Layers size={12} className="mr-0.5" />Structure</TabsTrigger>
+              <TabsTrigger value="components" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Grid3X3 size={12} className="mr-0.5" />Add Elements</TabsTrigger>
               <TabsTrigger value="pages" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><File size={12} className="mr-0.5" />Pages</TabsTrigger>
-              <TabsTrigger value="tokens" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Paintbrush size={12} className="mr-0.5" />Theme</TabsTrigger>
+              <TabsTrigger value="tokens" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Paintbrush size={12} className="mr-0.5" />Designs</TabsTrigger>
             </TabsList>
 
             {/* Layers tab */}
             <TabsContent value="layers" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[10px] text-zinc-500 mb-1 uppercase tracking-wider font-semibold">Page Structure</div>
+              <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">Page Structure</div>
+              <div className="text-[9px] text-zinc-500 mb-2">This shows all the sections and parts that make up your page. Click anything here or in the preview to start editing it.</div>
               {elementTree ? renderTreeNode(elementTree, 0) : (
                 <div className="text-[11px] text-zinc-500 text-center py-8">Click elements in preview</div>
               )}
@@ -1191,7 +1469,8 @@ export default function EditorPage() {
 
             {/* Components tab */}
             <TabsContent value="components" className="flex-1 overflow-y-auto mt-0 p-2">
-              <Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] mb-2" />
+              <div className="text-[9px] text-zinc-500 mb-2">Pick a building block below to add it to your page. It will be placed inside the currently selected section.</div>
+              <Input placeholder="Search for elements..." value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] mb-2" />
               {filteredCategories.map(cat => (
                 <div key={cat.id} className="mb-2">
                   <Collapsible>
@@ -1215,7 +1494,8 @@ export default function EditorPage() {
 
             {/* Pages tab */}
             <TabsContent value="pages" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[10px] text-zinc-500 mb-1 uppercase tracking-wider font-semibold">Pages</div>
+              <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">Pages</div>
+              <div className="text-[9px] text-zinc-500 mb-2">Switch between different pages of your website. Each page has its own layout and content.</div>
               {generatedPages.length > 0 ? generatedPages.map(p => (
                 <button key={p.id} onClick={() => switchPage(p.id)} className={`flex items-center gap-2 w-full p-2 rounded text-[11px] mb-1 transition-colors ${activePageIdRef.current === p.id ? 'bg-[#7c3aed]/10 text-white border border-[#7c3aed]/20' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white border border-[#2a2a3e]'}`}>
                   <File size={12} />
@@ -1232,10 +1512,11 @@ export default function EditorPage() {
 
             {/* Design Tokens tab */}
             <TabsContent value="tokens" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider font-semibold">Design Tokens</div>
+              <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">Overall Look & Feel</div>
+              <div className="text-[9px] text-zinc-500 mb-2">Choose a preset theme or customize colors, fonts, and spacing for your entire site.</div>
               {/* Theme presets */}
               <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">Theme Presets</Label>
+                <Label className="text-[10px] text-zinc-400 mb-1 block">Color Themes (pick one to start)</Label>
                 <div className="grid grid-cols-3 gap-1">
                   {THEME_PRESETS.map(preset => (
                     <button key={preset.id} onClick={() => {
@@ -1254,14 +1535,14 @@ export default function EditorPage() {
               </div>
               {/* Colors */}
               <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">Colors</Label>
+                <Label className="text-[10px] text-zinc-400 mb-1 block">Custom Colors</Label>
                 {[
-                  { key:'accent', label:'Accent' },
-                  { key:'bg', label:'Background' },
-                  { key:'surface', label:'Surface' },
-                  { key:'text', label:'Text' },
-                  { key:'muted', label:'Muted' },
-                  { key:'border', label:'Border' },
+                  { key:'accent', label:'Main Brand Color' },
+                  { key:'bg', label:'Page Background' },
+                  { key:'surface', label:'Card/Box Background' },
+                  { key:'text', label:'Text Color' },
+                  { key:'muted', label:'Subtle Text Color' },
+                  { key:'border', label:'Line/Border Color' },
                 ].map(({ key, label }) => (
                   <div key={key} className="flex items-center gap-2 mb-1">
                     <Label className="text-[10px] text-zinc-400 w-16">{label}</Label>
@@ -1272,7 +1553,7 @@ export default function EditorPage() {
               </div>
               {/* Font */}
               <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">Font Family</Label>
+                <Label className="text-[10px] text-zinc-400 mb-1 block">Text Font (applies everywhere)</Label>
                 <Select value={designTokens.fontFamily} onValueChange={v => setDesignTokens(prev => ({ ...prev, fontFamily: v }))}>
                   <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
@@ -1282,17 +1563,17 @@ export default function EditorPage() {
               </div>
               {/* Scale sliders */}
               <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">Border Radius Scale</Label>
+                <Label className="text-[10px] text-zinc-400 mb-1 block">Corner Roundness</Label>
                 <Slider value={[designTokens.borderRadius]} onValueChange={v => setDesignTokens(prev => ({ ...prev, borderRadius: v[0] }))} min={0} max={24} step={1} className="mb-1" />
                 <span className="text-[10px] text-zinc-500">{designTokens.borderRadius}px</span>
               </div>
               <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">Spacing Scale</Label>
+                <Label className="text-[10px] text-zinc-400 mb-1 block">Space Between Items</Label>
                 <Slider value={[designTokens.spacingScale * 100]} onValueChange={v => setDesignTokens(prev => ({ ...prev, spacingScale: v[0] / 100 }))} min={50} max={200} step={10} className="mb-1" />
                 <span className="text-[10px] text-zinc-500">{Math.round(designTokens.spacingScale * 100)}%</span>
               </div>
               <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">Shadow Scale</Label>
+                <Label className="text-[10px] text-zinc-400 mb-1 block">Shadow Strength</Label>
                 <Slider value={[designTokens.shadowScale * 100]} onValueChange={v => setDesignTokens(prev => ({ ...prev, shadowScale: v[0] / 100 }))} min={0} max={200} step={10} className="mb-1" />
                 <span className="text-[10px] text-zinc-500">{Math.round(designTokens.shadowScale * 100)}%</span>
               </div>
@@ -1310,7 +1591,7 @@ export default function EditorPage() {
                   <span style={{ color: designTokens.text, fontSize: '9px' }}>Surface</span>
                 </div>
               </div>
-              <Button onClick={applyTheme} className="w-full h-7 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]">Apply Theme Globally</Button>
+              <Button onClick={applyTheme} className="w-full h-7 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]">Apply Theme to All Pages</Button>
             </TabsContent>
           </Tabs>
         </div>
@@ -1329,7 +1610,7 @@ export default function EditorPage() {
             {selectedElement && !showCodePanel && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
                 className="flex items-center gap-1 justify-center p-1 border-t border-[#1a1a2e] bg-[#0a0a0f]">
-                <Badge className="bg-[#7c3aed]/20 text-[#7c3aed] border-[#7c3aed]/30 text-[10px]">{selectedElement.tag}</Badge>
+                <Badge className="bg-[#7c3aed]/20 text-[#7c3aed] border-[#7c3aed]/30 text-[10px]">{getTagDisplayName(selectedElement.tag)}</Badge>
                 <span className="text-[10px] text-zinc-500">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}</span>
                 <Separator orientation="vertical" className="h-4 bg-[#2a2a3e]" />
                 <Tooltip><TooltipTrigger asChild><button onClick={() => moveElement('up')} className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"><MoveUp size={12} /></button></TooltipTrigger><TooltipContent>Move Up</TooltipContent></Tooltip>
@@ -1346,7 +1627,7 @@ export default function EditorPage() {
                   <Separator orientation="vertical" className="h-4 bg-[#2a2a3e]" />
                 )}
                 {selectedElement.tag === 'img' && (
-                  <Tooltip><TooltipTrigger asChild><button className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white"><Image size={12} /></button></TooltipTrigger><TooltipContent>Change Image</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><button className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white" aria-label="Change image"><Image size={12} /></button></TooltipTrigger><TooltipContent>Change Image</TooltipContent></Tooltip>
                 )}
               </motion.div>
             )}
@@ -1373,110 +1654,193 @@ export default function EditorPage() {
         {/* ── Right Inspector Panel ───────────────────────────────────── */}
         <div className="w-[280px] border-l border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
           {!selectedElement ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-              <MousePointer2 size={28} className="text-zinc-500 mb-2" />
-              <p className="text-xs text-zinc-400 font-medium">Select an element</p>
-              <p className="text-[10px] text-zinc-500 mt-1">Click any element to edit properties</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+              <div className="w-12 h-12 rounded-full bg-[#7c3aed]/10 flex items-center justify-center mb-3">
+                <MousePointer2 size={24} className="text-[#7c3aed]" />
+              </div>
+              <p className="text-sm text-zinc-300 font-medium mb-1">Pick a section to customize</p>
+              <p className="text-[11px] text-zinc-500 mb-4">Click on any text, picture, button, or section in the preview area, and its settings will appear here.</p>
+              <div className="space-y-2 w-full">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <MousePointer2 size={14} className="text-[#7c3aed]" />
+                  <span className="text-[11px] text-zinc-300">Click anything in the preview to select it</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <Edit3 size={14} className="text-emerald-400" />
+                  <span className="text-[11px] text-zinc-300">Double-click text to type new words</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <Palette size={14} className="text-pink-400" />
+                  <span className="text-[11px] text-zinc-300">Use this panel to change how it looks</span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col h-full">
-              {/* Element header */}
+              {/* Element header — friendly name */}
               <div className="px-2 py-1.5 border-b border-[#1a1a2e] bg-[#1a1a2e]/50 shrink-0">
-                <div className="flex items-center gap-1">
-                  <Badge className="bg-[#7c3aed]/20 text-[#7c3aed] border-[#7c3aed]/30 text-[10px]">{selectedElement.tag}</Badge>
-                  <span className="text-[10px] text-zinc-400 truncate">{selectedElement.className || selectedElement.id}</span>
+                <div className="flex items-center gap-1.5">
+                  {(() => {
+                    const iconName = getTagIconName(selectedElement.tag)
+                    const IC = ICON_MAP[iconName]
+                    return IC ? <IC size={14} className="text-[#7c3aed]" /> : <Square size={14} className="text-[#7c3aed]" />
+                  })()}
+                  <span className="text-[11px] text-white font-semibold">{getTagDisplayName(selectedElement.tag)}</span>
+                  <span className="text-[9px] text-zinc-500">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px</span>
                   <div className="flex gap-0.5 ml-auto">
-                    <button onClick={removeElement} className="p-0.5 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400"><Trash2 size={12} /></button>
-                    <button onClick={duplicateElement} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white"><Copy size={12} /></button>
+                    <Tooltip><TooltipTrigger asChild><button onClick={duplicateElement} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white"><Copy size={12} /></button></TooltipTrigger><TooltipContent>Copy this section</TooltipContent></Tooltip>
+                    <Tooltip><TooltipTrigger asChild><button onClick={removeElement} className="p-0.5 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400"><Trash2 size={12} /></button></TooltipTrigger><TooltipContent>Delete this section</TooltipContent></Tooltip>
                   </div>
                 </div>
-                <div className="text-[9px] text-zinc-600 mt-0.5">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px</div>
+                {getTagDescription(selectedElement.tag) && (
+                  <div className="text-[9px] text-zinc-500 mt-0.5">{getTagDescription(selectedElement.tag)}</div>
+                )}
               </div>
 
-              {/* Inspector tabs */}
+              {/* Inspector tabs — friendlier labels */}
               <Tabs value={inspectorTab} onValueChange={setInspectorTab} className="flex flex-col flex-1 overflow-hidden">
                 <TabsList className="w-full bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-7 p-0 shrink-0">
-                  <TabsTrigger value="content" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Edit3 size={10} className="mr-0.5" />Content</TabsTrigger>
-                  <TabsTrigger value="style" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Palette size={10} className="mr-0.5" />Style</TabsTrigger>
-                  <TabsTrigger value="layout" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Layout size={10} className="mr-0.5" />Layout</TabsTrigger>
-                  <TabsTrigger value="animation" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Sparkles size={10} className="mr-0.5" />Animate</TabsTrigger>
-                  <TabsTrigger value="seo" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Globe size={10} className="mr-0.5" />SEO</TabsTrigger>
+                  <TabsTrigger value="content" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Edit3 size={10} className="mr-0.5" />Text & Images</TabsTrigger>
+                  <TabsTrigger value="style" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Palette size={10} className="mr-0.5" />Appearance</TabsTrigger>
+                  <TabsTrigger value="layout" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Layout size={10} className="mr-0.5" />Position & Size</TabsTrigger>
+                  <TabsTrigger value="animation" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Sparkles size={10} className="mr-0.5" />Motion Effects</TabsTrigger>
+                  <TabsTrigger value="seo" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Globe size={10} className="mr-0.5" />Search Settings</TabsTrigger>
                 </TabsList>
 
-                {/* Content tab */}
+                {/* Content tab — friendly editing */}
                 <TabsContent value="content" className="flex-1 overflow-y-auto mt-0 p-2">
-                  <div className="mb-2">
-                    <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">Text Content</Label>
-                    <textarea value={editingContent} onChange={e => setEditingContent(e.target.value)} onBlur={() => applyContent(editingContent)} className="w-full h-24 bg-[#0d0d15] border border-[#2a2a3e] rounded text-[11px] text-white p-2 resize-y font-mono" placeholder="Edit content..." />
+                  {/* Quick tip based on element type */}
+                  <div className="mb-3 p-2 rounded-lg bg-[#7c3aed]/5 border border-[#7c3aed]/20">
+                    <div className="text-[10px] text-[#7c3aed] font-medium mb-0.5">💡 Tip: {getTagDescription(selectedElement.tag) || 'Change what this part says and how it behaves'}</div>
                   </div>
-                  {/* Tag-specific attribute editors */}
+                  {/* Main content editor */}
+                  <div className="mb-2">
+                    <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">📝 The text inside this part</Label>
+                    <div className="text-[9px] text-zinc-500 mb-0.5">Edit the words or content that appear in this section.</div>
+                    <textarea value={editingContent} onChange={e => setEditingContent(e.target.value)} onBlur={() => applyContent(editingContent)} className="w-full h-24 bg-[#0d0d15] border border-[#2a2a3e] rounded text-[11px] text-white p-2 resize-y" placeholder="Type new text here..." />
+                  </div>
+                  {/* Tag-specific attribute editors with friendly labels */}
                   {selectedElement.tag === 'img' && (
-                    <div className="mb-2">
-                      <Label className="text-[10px] text-zinc-400">Image Source</Label>
-                      <Input value={editingAttributes.src || ''} onChange={e => applyAttribute('src', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">Alt Text</Label>
-                      <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🖼️ Image Settings</Label>
+                      <Label className="text-[10px] text-zinc-400 mt-1">Where the picture comes from (URL)</Label>
+                      <Input value={editingAttributes.src || ''} onChange={e => applyAttribute('src', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="https://example.com/photo.jpg" />
+                      <Label className="text-[10px] text-zinc-400 mt-1">Description (for screen readers & SEO)</Label>
+                      <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="A photo of..." />
                     </div>
                   )}
                   {selectedElement.tag === 'a' && (
-                    <div className="mb-2">
-                      <Label className="text-[10px] text-zinc-400">Link URL</Label>
-                      <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">Target</Label>
+                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🔗 Link Settings</Label>
+                      <Label className="text-[10px] text-zinc-400 mt-1">Where does it go? (URL)</Label>
+                      <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="https://example.com" />
+                      <Label className="text-[10px] text-zinc-400 mt-1">Opens in</Label>
                       <Select value={editingAttributes.target || '_self'} onValueChange={v => applyAttribute('target', v)}>
                         <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="_self" className="text-[11px]">Same Tab</SelectItem><SelectItem value="_blank" className="text-[11px]">New Tab</SelectItem></SelectContent>
+                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="_self" className="text-[11px]">Same Window</SelectItem><SelectItem value="_blank" className="text-[11px]">New Window</SelectItem></SelectContent>
                       </Select>
                     </div>
                   )}
                   {(selectedElement.tag === 'input' || selectedElement.tag === 'textarea') && (
-                    <div className="mb-2">
-                      <Label className="text-[10px] text-zinc-400">Type</Label>
+                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">✏️ Input Field Settings</Label>
+                      <Label className="text-[10px] text-zinc-400 mt-1">What kind of input?</Label>
                       <Select value={editingAttributes.type || 'text'} onValueChange={v => applyAttribute('type', v)}>
                         <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">{['text','email','password','number','tel','url','search','date','submit','button'].map(t => <SelectItem key={t} value={t} className="text-[11px]">{t}</SelectItem>)}</SelectContent>
+                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">{[{ v:'text', l:'Plain Text' },{ v:'email', l:'Email Address' },{ v:'password', l:'Password (hidden)' },{ v:'number', l:'Number' },{ v:'tel', l:'Phone Number' },{ v:'url', l:'Website URL' },{ v:'search', l:'Search Box' },{ v:'date', l:'Date Picker' },{ v:'submit', l:'Submit Button' },{ v:'button', l:'Button' }].map(t => <SelectItem key={t.v} value={t.v} className="text-[11px]">{t.l}</SelectItem>)}</SelectContent>
                       </Select>
-                      <Label className="text-[10px] text-zinc-400 mt-1">Placeholder</Label>
-                      <Input value={editingAttributes.placeholder || ''} onChange={e => applyAttribute('placeholder', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                      <Label className="text-[10px] text-zinc-400 mt-1">Placeholder text (hint shown when empty)</Label>
+                      <Input value={editingAttributes.placeholder || ''} onChange={e => applyAttribute('placeholder', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="Enter your..." />
                     </div>
                   )}
                   {selectedElement.tag === 'button' && (
-                    <div className="mb-2">
-                      <Label className="text-[10px] text-zinc-400">Button Type</Label>
+                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🔘 Button Settings</Label>
+                      <Label className="text-[10px] text-zinc-400 mt-1">What happens when clicked?</Label>
                       <Select value={editingAttributes.type || 'button'} onValueChange={v => applyAttribute('type', v)}>
                         <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="button" className="text-[11px]">Button</SelectItem><SelectItem value="submit" className="text-[11px]">Submit</SelectItem></SelectContent>
+                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="button" className="text-[11px]">Just a button (custom action)</SelectItem><SelectItem value="submit" className="text-[11px]">Submit a form</SelectItem></SelectContent>
                       </Select>
                     </div>
                   )}
-                  {/* All attributes */}
-                  <div className="mb-2">
-                    <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">All Attributes</Label>
-                    {Object.entries(editingAttributes).map(([key, val]) => (
-                      <div key={key} className="flex items-center gap-1 mb-1">
-                        <Label className="text-[10px] text-zinc-400 w-16">{key}</Label>
-                        <Input value={val} onChange={e => applyAttribute(key, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
-                      </div>
-                    ))}
-                  </div>
+                  {/* All attributes — collapsible for advanced users */}
+                  {Object.keys(editingAttributes).length > 0 && (
+                    <Collapsible className="mb-2">
+                      <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-1 w-full hover:text-zinc-300">
+                        <ChevronRight size={10} className="transition-transform" />Advanced: All Attributes
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="p-2 rounded-lg bg-[#0d0d15] border border-[#2a2a3e]">
+                          {Object.entries(editingAttributes).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-1 mb-1">
+                              <Label className="text-[10px] text-zinc-400 w-16">{key}</Label>
+                              <Input value={val} onChange={e => applyAttribute(key, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
                 </TabsContent>
 
-                {/* Style tab */}
+                {/* Style tab — with friendly group names */}
                 <TabsContent value="style" className="flex-1 overflow-y-auto mt-0">
-                  {/* Box model diagram */}
+                  {/* Quick edit section — most common changes */}
                   <div className="p-2 border-b border-[#1a1a2e]">
+                    <Label className="text-[10px] text-zinc-300 font-semibold mb-1.5 block">⚡ Quick Changes</Label>
+                    <div className="text-[9px] text-zinc-500 mb-1">Change the most common settings in one place. Scroll down for more options.</div>
+                    <div className="grid grid-cols-2 gap-1.5 mb-1">
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-zinc-400 w-12">Color</Label>
+                        <input type="color" value={selectedStyles['color']?.startsWith('#') ? selectedStyles['color'] : '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
+                        <Input value={selectedStyles['color'] || '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-zinc-400 w-12">Fill</Label>
+                        <input type="color" value={selectedStyles['background-color']?.startsWith('#') ? selectedStyles['background-color'] : '#000000'} onChange={e => applyStyle('background-color', e.target.value)} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
+                        <Input value={selectedStyles['background-color'] || 'transparent'} onChange={e => applyStyle('background-color', e.target.value)} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-zinc-400 w-12">Size</Label>
+                        <Input type="number" value={parseFloat(selectedStyles['font-size']) || 16} onChange={e => applyStyle('font-size', e.target.value + 'px')} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={8} max={120} />
+                        <span className="text-[9px] text-zinc-500">px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-zinc-400 w-12">Thick</Label>
+                        <Select value={selectedStyles['font-weight'] || '400'} onValueChange={v => applyStyle('font-weight', v)}>
+                          <SelectTrigger className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+                            {[{ v:'300', l:'Light' },{ v:'400', l:'Normal' },{ v:'500', l:'Medium' },{ v:'600', l:'Semi Bold' },{ v:'700', l:'Bold' },{ v:'800', l:'Extra Bold' },{ v:'900', l:'Black' }].map(w => <SelectItem key={w.v} value={w.v} className="text-[11px]">{w.l}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-1">
+                      <Label className="text-[10px] text-zinc-400 w-12">Round</Label>
+                      <Input type="number" value={parseFloat(selectedStyles['border-top-left-radius']) || 0} onChange={e => { const v = e.target.value + 'px'; applyStyle('border-top-left-radius', v); applyStyle('border-top-right-radius', v); applyStyle('border-bottom-right-radius', v); applyStyle('border-bottom-left-radius', v) }} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={0} max={200} />
+                      <span className="text-[9px] text-zinc-500">px</span>
+                    </div>
+                    {/* Box model diagram */}
                     <BoxModelDiagram />
                   </div>
                   <ScrollArea className="flex-1">
                     <div className="p-2">
                       {CSS_PROPERTY_GROUPS.filter(g => ['Colors','Typography','Spacing','Background','Border','Effects','Filters','SVG'].includes(g.name)).map(group => {
                         const isCollapsed = collapsedGroups.has(group.name)
+                        const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
                         return (
                           <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                              {group.name}
-                            </CollapsibleTrigger>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                                  <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                                  {friendlyInfo?.name || group.name}
+                                </CollapsibleTrigger>
+                              </TooltipTrigger>
+                              {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                            </Tooltip>
                             <CollapsibleContent>
                               <div className="space-y-0.5 pl-1">
                                 {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
@@ -1489,18 +1853,28 @@ export default function EditorPage() {
                   </ScrollArea>
                 </TabsContent>
 
-                {/* Layout tab */}
+                {/* Layout tab — friendly name "Position & Size" */}
                 <TabsContent value="layout" className="flex-1 overflow-y-auto mt-0">
+                  <div className="p-2">
+                    <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">How this part is positioned</Label>
+                    <div className="text-[9px] text-zinc-500 mb-2">Control where this section sits on the page and how much space it takes up.</div>
+                  </div>
                   <ScrollArea className="flex-1">
                     <div className="p-2">
                       {CSS_PROPERTY_GROUPS.filter(g => ['Layout','Table','List'].includes(g.name)).map(group => {
                         const isCollapsed = collapsedGroups.has(group.name)
+                        const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
                         return (
                           <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                              {group.name}
-                            </CollapsibleTrigger>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                                  <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                                  {friendlyInfo?.name || group.name}
+                                </CollapsibleTrigger>
+                              </TooltipTrigger>
+                              {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                            </Tooltip>
                             <CollapsibleContent>
                               <div className="space-y-0.5 pl-1">
                                 {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
@@ -1511,7 +1885,8 @@ export default function EditorPage() {
                       })}
                       {/* Responsive section */}
                       <div className="mt-3 p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
-                        <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">Responsive Preview</Label>
+                        <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">Screen Sizes</Label>
+                        <div className="text-[9px] text-zinc-500 mb-1">Preview how this section looks on different screen sizes.</div>
                         <div className="flex gap-1">
                           {DEVICE_CONFIGS.slice(0, 3).map(d => (
                             <button key={d.name} onClick={() => setDevice(d.name)} className={`flex-1 py-1 rounded text-[10px] transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white'}`}>
@@ -1524,12 +1899,13 @@ export default function EditorPage() {
                   </ScrollArea>
                 </TabsContent>
 
-                {/* Animation tab */}
+                {/* Animation tab — with friendly names */}
                 <TabsContent value="animation" className="flex-1 overflow-y-auto mt-0">
                   <ScrollArea className="flex-1">
                     <div className="p-2">
                       {/* Animation presets grid */}
-                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">Animation Presets</Label>
+                      <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">✨ Add a Motion Effect</Label>
+                      <div className="text-[9px] text-zinc-500 mb-2">Click a preset to make this part animate — like fading in, bouncing, or floating.</div>
                       <div className="grid grid-cols-3 gap-1 mb-3">
                         {ANIMATION_PRESETS.map(preset => (
                           <button key={preset.id} onClick={() => applyAnimationPreset(preset)} className="flex flex-col items-center p-1.5 rounded bg-[#0d0d15] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-[10px] group">
@@ -1541,12 +1917,18 @@ export default function EditorPage() {
                       {/* Animation CSS properties */}
                       {CSS_PROPERTY_GROUPS.filter(g => ['Transforms','Transition','Animation'].includes(g.name)).map(group => {
                         const isCollapsed = collapsedGroups.has(group.name)
+                        const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
                         return (
                           <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                              {group.name}
-                            </CollapsibleTrigger>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                                  <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                                  {friendlyInfo?.name || group.name}
+                                </CollapsibleTrigger>
+                              </TooltipTrigger>
+                              {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                            </Tooltip>
                             <CollapsibleContent>
                               <div className="space-y-0.5 pl-1">
                                 {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
@@ -1559,9 +1941,10 @@ export default function EditorPage() {
                   </ScrollArea>
                 </TabsContent>
 
-                {/* SEO tab */}
+                {/* Info tab (Search Settings & Details) */}
                 <TabsContent value="seo" className="flex-1 overflow-y-auto mt-0 p-2">
-                  <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">SEO & Meta</Label>
+                  <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">ℹ️ Search & Accessibility Info</Label>
+                  <div className="text-[9px] text-zinc-500 mb-2">This helps search engines find your page and makes it accessible to everyone.</div>
                   {/* Show meta tag editing */}
                   {selectedElement.tag === 'title' && (
                     <div className="mb-2">
@@ -1579,7 +1962,7 @@ export default function EditorPage() {
                   )}
                   {selectedElement.tag === 'h1' || selectedElement.tag === 'h2' || selectedElement.tag === 'h3' ? (
                     <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
-                      <div className="text-[10px] text-zinc-400 mb-1">Heading SEO Weight</div>
+                      <div className="text-[10px] text-zinc-400 mb-1">This is a heading — important for search engines</div>
                       <div className="flex items-center gap-2">
                         <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">H{selectedElement.tag[1]}</Badge>
                         <span className="text-[10px] text-zinc-500">High SEO importance</span>
@@ -1589,30 +1972,31 @@ export default function EditorPage() {
                   {/* Alt text for images */}
                   {selectedElement.tag === 'img' && (
                     <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
-                      <div className="text-[10px] text-zinc-400 mb-1">Image SEO</div>
-                      <Label className="text-[10px] text-zinc-400">Alt Text (Accessibility)</Label>
+                      <div className="text-[10px] text-zinc-400 mb-1">Image description (helps search & accessibility)</div>
+                      <Label className="text-[10px] text-zinc-400">Description for screen readers & search engines</Label>
                       <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
                       <div className="mt-1">
                         <Switch checked={editingAttributes.alt?.length > 0} onCheckedChange={v => { if (!v) applyAttribute('alt', '') }} />
-                        <span className="text-[10px] text-zinc-500 ml-1">Has alt text</span>
+                        <span className="text-[10px] text-zinc-500 ml-1">Has a description</span>
                       </div>
                     </div>
                   )}
                   {/* Link SEO */}
                   {selectedElement.tag === 'a' && (
                     <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
-                      <div className="text-[10px] text-zinc-400 mb-1">Link SEO</div>
-                      <Label className="text-[10px] text-zinc-400">URL</Label>
+                      <div className="text-[10px] text-zinc-400 mb-1">Link destination (search engines use this)</div>
+                      <Label className="text-[10px] text-zinc-400">Destination URL</Label>
                       <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">Rel Attribute</Label>
+                      <Label className="text-[10px] text-zinc-400 mt-1">Link relationship (for security: "noopener noreferrer")</Label>
                       <Input value={editingAttributes.rel || ''} onChange={e => applyAttribute('rel', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="noopener noreferrer" />
                     </div>
                   )}
                   {/* General SEO info */}
                   <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
-                    <div className="text-[10px] text-zinc-400 mb-1">Element Info</div>
+                    <div className="text-[10px] text-zinc-400 mb-1">About this element</div>
                     <div className="space-y-0.5 text-[10px]">
-                      <div className="flex justify-between"><span className="text-zinc-500">Tag</span><span className="text-zinc-300">{selectedElement.tag}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">Type</span><span className="text-zinc-300">{getTagDisplayName(selectedElement.tag)}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">HTML tag</span><span className="text-zinc-300 font-mono">{selectedElement.tag}</span></div>
                       <div className="flex justify-between"><span className="text-zinc-500">Classes</span><span className="text-zinc-300 truncate max-w-32">{selectedElement.className || 'None'}</span></div>
                       <div className="flex justify-between"><span className="text-zinc-500">Children</span><span className="text-zinc-300">{selectedElement.childIds.length}</span></div>
                       <div className="flex justify-between"><span className="text-zinc-500">Parent</span><span className="text-zinc-300">{selectedElement.parentId || 'body'}</span></div>

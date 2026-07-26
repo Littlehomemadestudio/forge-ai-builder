@@ -1,0 +1,402 @@
+  1000→  1000→      case 'css': exportCSS(); break
+  1001→  1001→      default: exportHTML()
+  1002→  1002→    }
+  1003→  1003→    setShowExportDialog(false)
+  1004→  1004→  }, [exportFormat, exportHTML, exportReact, exportCSS])
+  1005→  1005→
+  1006→  1006→  // ─── Apply theme globally ──────────────────────────────────────────────────
+  1007→  1007→  const applyTheme = useCallback(() => {
+  1008→  1008→    sendMessage('apply-theme', {
+  1009→  1009→      colors: { accent: designTokens.accent, bg: designTokens.bg, surface: designTokens.surface, text: designTokens.text, muted: designTokens.muted, border: designTokens.border },
+  1010→  1010→      fontFamily: designTokens.fontFamily
+  1011→  1011→    })
+  1012→  1012→    pushHistory('Apply theme')
+  1013→  1013→  }, [sendMessage, pushHistory, designTokens])
+  1014→  1014→
+  1015→  1015→  // ─── Apply animation preset ────────────────────────────────────────────────
+  1016→  1016→  const applyAnimationPreset = useCallback((preset: typeof ANIMATION_PRESETS[number]) => {
+  1017→  1017→    if (!selectedElement) return
+  1018→  1018→    // Add keyframes to iframe's style and apply animation
+  1019→  1019→    const doc = iframeRef.current?.contentDocument
+  1020→  1020→    if (!doc) return
+  1021→  1021→    const styleEl = doc.querySelector('style')
+  1022→  1022→    if (styleEl && !styleEl.textContent?.includes(preset.keyframes)) {
+  1023→  1023→      styleEl.textContent += '\n' + preset.keyframes
+  1024→  1024→    }
+  1025→  1025→    sendMessage('apply-style', { elementId: selectedElement.id, property: 'animation', value: preset.css })
+  1026→  1026→    pushHistory(`Apply ${preset.name}`)
+  1027→  1027→  }, [selectedElement, sendMessage, pushHistory])
+  1028→  1028→
+  1029→  1029→  // ─── Toggle grid ────────────────────────────────────────────────────────────
+  1030→  1030→  const toggleGrid = useCallback(() => {
+  1031→  1031→    const newShow = !showGrid
+  1032→  1032→    setShowGrid(newShow)
+  1033→  1033→    sendMessage('toggle-grid', { show: newShow })
+  1034→  1034→  }, [showGrid, sendMessage])
+  1035→  1035→
+  1036→  1036→  // ─── Navigate ──────────────────────────────────────────────────────────────
+  1037→  1037→  const navigate = useAppStore(s => s.navigate)
+  1038→  1038→
+  1039→  1039→  const iframeSrcDoc = prepareHTMLForIframe(websiteHTML)
+  1040→  1040→
+  1041→  1041→  // ─── Code panel sync ───────────────────────────────────────────────────────
+  1042→  1042→  useEffect(() => {
+  1043→  1043→    if (showCodePanel) {
+  1044→  1044→      const doc = iframeRef.current?.contentDocument
+  1045→  1045→      if (doc) { setCodeContent(doc.documentElement.outerHTML) }
+  1046→  1046→    }
+  1047→  1047→  }, [showCodePanel])
+  1048→  1048→
+  1049→  1049→  const applyCodeChanges = useCallback(() => {
+  1050→  1050→    sendMessage('update-html', { html: codeContent })
+  1051→  1051→    setWebsiteHTML(codeContent)
+  1052→  1052→    pushHistory('Edit code')
+  1053→  1053→    requestTree()
+  1054→  1054→  }, [codeContent, sendMessage, pushHistory, requestTree])
+  1055→  1055→
+  1056→  1056→  // ─── Render CSS Property Editor (with friendly labels) ────────────────────
+  1057→  1057→  const renderPropertyEditor = (prop: CSSProperty, styles: Record<string, string>) => {
+  1058→  1058→    const currentValue = styles[prop.name] || prop.default || ''
+  1059→  1059→    const friendlyLabel = FRIENDLY_PROP_LABELS[prop.name] || prop.label
+  1060→  1060→
+  1061→  1061→    switch (prop.type) {
+  1062→  1062→      case 'text':
+  1063→  1063→        return (
+  1064→  1064→          <div key={prop.name} className="flex items-center gap-2 mb-1.5">
+  1065→  1065→            <Tooltip>
+  1066→  1066→              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+  1067→  1067→              <TooltipContent side="right" className="text-[11px] max-w-64">CSS property: {prop.name}. {prop.unit ? `Unit: ${prop.unit}` : ''}</TooltipContent>
+  1068→  1068→            </Tooltip>
+  1069→  1069→            <Input value={currentValue} onChange={e => applyStyle(prop.name, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" placeholder={prop.default} />
+  1070→  1070→            {prop.unit && <span className="text-[10px] text-zinc-500">{prop.unit}</span>}
+  1071→  1071→          </div>
+  1072→  1072→        )
+  1073→  1073→      case 'number':
+  1074→  1074→        return (
+  1075→  1075→          <div key={prop.name} className="flex items-center gap-2 mb-1.5">
+  1076→  1076→            <Tooltip>
+  1077→  1077→              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+  1078→  1078→              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+  1079→  1079→            </Tooltip>
+  1080→  1080→            <Input type="number" value={parseFloat(currentValue) || 0} onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || 'px'))} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={prop.min} max={prop.max} step={prop.step} />
+  1081→  1081→            {prop.unit && <span className="text-[10px] text-zinc-500">{prop.unit}</span>}
+  1082→  1082→          </div>
+  1083→  1083→        )
+  1084→  1084→      case 'select':
+  1085→  1085→        return (
+  1086→  1086→          <div key={prop.name} className="flex items-center gap-2 mb-1.5">
+  1087→  1087→            <Tooltip>
+  1088→  1088→              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+  1089→  1089→              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+  1090→  1090→            </Tooltip>
+  1091→  1091→            <Select value={currentValue} onValueChange={v => applyStyle(prop.name, v)}>
+  1092→  1092→              <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1"><SelectValue /></SelectTrigger>
+  1093→  1093→              <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e] max-h-60">{prop.options?.map(opt => <SelectItem key={opt} value={opt} className="text-[11px] text-white">{opt}</SelectItem>)}</SelectContent>
+  1094→  1094→            </Select>
+  1095→  1095→          </div>
+  1096→  1096→        )
+  1097→  1097→      case 'color':
+  1098→  1098→        return (
+  1099→  1099→          <div key={prop.name} className="flex items-center gap-2 mb-1.5">
+  1100→  1100→            <Tooltip>
+  1101→  1101→              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+  1102→  1102→              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+  1103→  1103→            </Tooltip>
+  1104→  1104→            <div className="flex items-center gap-1 flex-1">
+  1105→  1105→              <input type="color" value={currentValue.startsWith('#') ? currentValue : '#000000'} onChange={e => applyStyle(prop.name, e.target.value)} className="w-6 h-6 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
+  1106→  1106→              <Input value={currentValue} onChange={e => applyStyle(prop.name, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+  1107→  1107→            </div>
+  1108→  1108→          </div>
+  1109→  1109→        )
+  1110→  1110→      case 'slider':
+  1111→  1111→        return (
+  1112→  1112→          <div key={prop.name} className="mb-2">
+  1113→  1113→            <div className="flex items-center gap-2">
+  1114→  1114→              <Tooltip>
+  1115→  1115→                <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+  1116→  1116→                <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+  1117→  1117→              </Tooltip>
+  1118→  1118→              <Input value={parseFloat(currentValue) || parseFloat(prop.default || '0')} onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || ''))} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white w-20" />
+  1119→  1119→              {prop.unit && <span className="text-[10px] text-zinc-500">{prop.unit}</span>}
+  1120→  1120→            </div>
+  1121→  1121→            <Slider value={[parseFloat(currentValue) || parseFloat(prop.default || '0')]} onValueChange={v => applyStyle(prop.name, v[0] + (prop.unit || ''))} min={prop.min || 0} max={prop.max || 100} step={prop.step || 1} className="mt-1" />
+  1122→  1122→          </div>
+  1123→  1123→        )
+  1124→  1124→      case 'toggle':
+  1125→  1125→        return (
+  1126→  1126→          <div key={prop.name} className="flex items-center gap-2 mb-1.5">
+  1127→  1127→            <Tooltip>
+  1128→  1128→              <TooltipTrigger asChild><Label className="text-[10px] text-zinc-400 w-24 shrink-0 cursor-help">{friendlyLabel}</Label></TooltipTrigger>
+  1129→  1129→              <TooltipContent side="right" className="text-[11px] max-w-64">CSS: {prop.name}</TooltipContent>
+  1130→  1130→            </Tooltip>
+  1131→  1131→            <Switch checked={currentValue === 'true' || currentValue === 'visible' || currentValue === 'auto'} onCheckedChange={v => applyStyle(prop.name, v ? (prop.options?.[0] || 'true') : (prop.options?.[1] || 'none'))} />
+  1132→  1132→          </div>
+  1133→  1133→        )
+  1134→  1134→      case 'composite':
+  1135→  1135→        return (
+  1136→  1136→          <div key={prop.name} className="mb-2">
+  1137→  1137→            <Label className="text-[10px] text-zinc-300 mb-1 block font-semibold">{FRIENDLY_PROP_LABELS[prop.name] || prop.label}</Label>
+  1138→  1138→            <div className="pl-2 border-l-2 border-[#7c3aed]/30">
+  1139→  1139→              {prop.subProperties?.map(sub => renderPropertyEditor(sub, styles))}
+  1140→  1140→            </div>
+  1141→  1141→          </div>
+  1142→  1142→        )
+  1143→  1143→      default: return null
+  1144→  1144→    }
+  1145→  1145→  }
+  1146→  1146→
+  1147→  1147→  // ─── Render Element Tree (user-friendly with human-readable names) ──────────
+  1148→  1148→  const renderTreeNode = (node: TreeNode, depth: number = 0) => {
+  1149→  1149→    const isExpanded = expandedTreeNodes.has(node.id)
+  1150→  1150→    const isSelected = selectedElement?.id === node.id
+  1151→  1151→    const hasChildren = node.children && node.children.length > 0
+  1152→  1152→    const displayName = getTagDisplayName(node.tag)
+  1153→  1153→    const tagDesc = getTagDescription(node.tag)
+  1154→  1154→    const iconName = getTagIconName(node.tag)
+  1155→  1155→    const IconComponent = ICON_MAP[iconName]
+  1156→  1156→
+  1157→  1157→    return (
+  1158→  1158→      <div key={node.id}>
+  1159→  1159→        <Tooltip>
+  1160→  1160→          <TooltipTrigger asChild>
+  1161→  1161→            <div className={`flex items-center gap-1.5 px-1 py-0.5 cursor-pointer rounded text-[11px] transition-colors group ${isSelected ? 'bg-[#7c3aed]/20 text-[#7c3aed]' : 'text-zinc-400 hover:bg-[#1a1a2e] hover:text-white'}`}
+  1162→  1162→              style={{ paddingLeft: `${depth * 14 + 6}px` }}
+  1163→  1163→              onClick={() => { sendMessage('select-element', { elementId: node.id }); setExpandedTreeNodes(prev => new Set([...prev, node.id])) }}
+  1164→  1164→              onMouseEnter={() => sendMessage('highlight-element', { elementId: node.id })}
+  1165→  1165→              onMouseLeave={() => sendMessage('highlight-element', { elementId: '' })}
+  1166→  1166→            >
+  1167→  1167→              {hasChildren ? (
+  1168→  1168→                <button onClick={(e) => { e.stopPropagation(); setExpandedTreeNodes(prev => { const n = new Set(prev); if (isExpanded) n.delete(node.id); else n.add(node.id); return n }) }}>
+  1169→  1169→                  <ChevronRight size={10} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+  1170→  1170→                </button>
+  1171→  1171→              ) : <span className="w-[10px]" />}
+  1172→  1172→              {IconComponent && <IconComponent size={10} className={isSelected ? 'text-[#7c3aed]' : 'text-zinc-500'} />}
+  1173→  1173→              <span className={`font-medium ${isSelected ? 'text-[#7c3aed]' : 'text-zinc-200'}`}>{displayName}</span>
+  1174→  1174→              {node.textContent && node.children.length === 0 && <span className="text-zinc-600 truncate max-w-24 ml-1 text-[10px]">"{node.textContent.substring(0, 15)}"</span>}
+  1175→  1175→              {isSelected && (
+  1176→  1176→                <div className="flex gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+  1177→  1177→                  <button onClick={(e) => { e.stopPropagation(); moveElement('up') }} className="text-zinc-400 hover:text-white p-0.5"><MoveUp size={10} /></button>
+  1178→  1178→                  <button onClick={(e) => { e.stopPropagation(); moveElement('down') }} className="text-zinc-400 hover:text-white p-0.5"><MoveDown size={10} /></button>
+  1179→  1179→                  <button onClick={(e) => { e.stopPropagation(); duplicateElement() }} className="text-zinc-400 hover:text-white p-0.5"><Copy size={10} /></button>
+  1180→  1180→                  <button onClick={(e) => { e.stopPropagation(); removeElement() }} className="text-red-400 hover:text-red-300 p-0.5"><Trash2 size={10} /></button>
+  1181→  1181→                </div>
+  1182→  1182→              )}
+  1183→  1183→            </div>
+  1184→  1184→          </TooltipTrigger>
+  1185→  1185→          {tagDesc && <TooltipContent side="right" className="text-[11px] max-w-48"><span className="text-zinc-300">{displayName}</span> — <span className="text-zinc-500">{tagDesc}</span></TooltipContent>}
+  1186→  1186→        </Tooltip>
+  1187→  1187→        <AnimatePresence>
+  1188→  1188→          {isExpanded && hasChildren && (
+  1189→  1189→            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+  1190→  1190→              {node.children.map(child => renderTreeNode(child, depth + 1))}
+  1191→  1191→            </motion.div>
+  1192→  1192→          )}
+  1193→  1193→        </AnimatePresence>
+  1194→  1194→      </div>
+  1195→  1195→    )
+  1196→  1196→  }
+  1197→  1197→
+  1198→  1198→  // ─── Component categories ──────────────────────────────────────────────────
+  1199→  1199→  const filteredCategories = EDITOR_COMPONENT_CATEGORIES.filter(cat =>
+  1200→  1200→    !searchQuery || cat.name.toLowerCase().includes(searchQuery) || cat.components.some(c => c.name.toLowerCase().includes(searchQuery) || c.description.toLowerCase().includes(searchQuery))
+  1201→  1201→  )
+  1202→  1202→
+  1203→  1203→  const deviceIcons: Record<string, React.ReactNode> = {
+  1204→  1204→    desktop: <Monitor size={14} />,
+  1205→  1205→    laptop: <Monitor size={12} />,
+  1206→  1206→    tablet: <Tablet size={14} />,
+  1207→  1207→    mobile: <Smartphone size={14} />,
+  1208→  1208→    'mobile-landscape': <Smartphone size={12} className="rotate-90" />,
+  1209→  1209→  }
+  1210→  1210→
+  1211→  1211→  // ─── Box Model Diagram ────────────────────────────────────────────────────
+  1212→  1212→  const BoxModelDiagram = () => {
+  1213→  1213→    if (!selectedStyles) return null
+  1214→  1214→    const mT = parseInt(selectedStyles['margin-top'] || '0')
+  1215→  1215→    const mR = parseInt(selectedStyles['margin-right'] || '0')
+  1216→  1216→    const mB = parseInt(selectedStyles['margin-bottom'] || '0')
+  1217→  1217→    const mL = parseInt(selectedStyles['margin-left'] || '0')
+  1218→  1218→    const pT = parseInt(selectedStyles['padding-top'] || '0')
+  1219→  1219→    const pR = parseInt(selectedStyles['padding-right'] || '0')
+  1220→  1220→    const pB = parseInt(selectedStyles['padding-bottom'] || '0')
+  1221→  1221→    const pL = parseInt(selectedStyles['padding-left'] || '0')
+  1222→  1222→    const bT = parseInt(selectedStyles['border-top-width'] || '0')
+  1223→  1223→    const bR = parseInt(selectedStyles['border-right-width'] || '0')
+  1224→  1224→    const bB = parseInt(selectedStyles['border-bottom-width'] || '0')
+  1225→  1225→    const bL = parseInt(selectedStyles['border-left-width'] || '0')
+  1226→  1226→
+  1227→  1227→    return (
+  1228→  1228→      <div className="relative w-full aspect-square max-w-[180px] mx-auto my-2">
+  1229→  1229→        {/* Margin - orange */}
+  1230→  1230→        <div className="absolute inset-0 bg-orange-500/15 border border-orange-500/30 rounded cursor-pointer"
+  1231→  1231→          onClick={() => setInspectorTab('style')}>
+  1232→  1232→          <span className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-orange-400">{mT}</span>
+  1233→  1233→          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-orange-400">{mB}</span>
+  1234→  1234→          <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-orange-400">{mL}</span>
+  1235→  1235→          <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-orange-400">{mR}</span>
+  1236→  1236→          <span className="absolute top-1 left-2 text-[8px] text-orange-400/60">margin</span>
+  1237→  1237→        </div>
+  1238→  1238→        {/* Border - yellow */}
+  1239→  1239→        <div className="absolute bg-yellow-500/15 border border-yellow-500/30 rounded"
+  1240→  1240→          style={{ top: `${Math.max(12, mT/3)}px`, left: `${Math.max(12, mL/3)}px`, right: `${Math.max(12, mR/3)}px`, bottom: `${Math.max(12, mB/3)}px` }}>
+  1241→  1241→          <span className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-yellow-400">{bT}</span>
+  1242→  1242→          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-yellow-400">{bB}</span>
+  1243→  1243→          <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-yellow-400">{bL}</span>
+  1244→  1244→          <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-yellow-400">{bR}</span>
+  1245→  1245→          <span className="absolute top-1 left-2 text-[8px] text-yellow-400/60">border</span>
+  1246→  1246→        </div>
+  1247→  1247→        {/* Padding - green */}
+  1248→  1248→        <div className="absolute bg-emerald-500/15 border border-emerald-500/30 rounded"
+  1249→  1249→          style={{ top: `${Math.max(20, (mT+bT)/3)}px`, left: `${Math.max(20, (mL+bL)/3)}px`, right: `${Math.max(20, (mR+bR)/3)}px`, bottom: `${Math.max(20, (mB+bB)/3)}px` }}>
+  1250→  1250→          <span className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-emerald-400">{pT}</span>
+  1251→  1251→          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-emerald-400">{pB}</span>
+  1252→  1252→          <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-emerald-400">{pL}</span>
+  1253→  1253→          <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-emerald-400">{pR}</span>
+  1254→  1254→          <span className="absolute top-1 left-2 text-[8px] text-emerald-400/60">padding</span>
+  1255→  1255→        </div>
+  1256→  1256→        {/* Content - blue */}
+  1257→  1257→        <div className="absolute bg-[#7c3aed]/20 border border-[#7c3aed]/30 rounded flex items-center justify-center"
+  1258→  1258→          style={{ top: `${Math.max(28, (mT+bT+pT)/3)}px`, left: `${Math.max(28, (mL+bL+pL)/3)}px`, right: `${Math.max(28, (mR+bR+pR)/3)}px`, bottom: `${Math.max(28, (mB+bB+pB)/3)}px` }}>
+  1259→  1259→          <span className="text-[9px] text-[#7c3aed]">{Math.round(selectedElement?.rect.width || 0)}×{Math.round(selectedElement?.rect.height || 0)}</span>
+  1260→  1260→        </div>
+  1261→  1261→      </div>
+  1262→  1262→    )
+  1263→  1263→  }
+  1264→  1264→
+  1265→  1265→  // ─── Main Render ───────────────────────────────────────────────────────────
+  1266→  1266→  return (
+  1267→  1267→    <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
+  1268→  1268→      {/* ── Top Toolbar ──────────────────────────────────────────────── */}
+  1269→  1269→      <div className="h-11 flex items-center justify-between px-3 border-b border-[#1a1a2e] bg-[#0a0a0f] shrink-0">
+  1270→  1270→        {/* Left section */}
+  1271→  1271→        <div className="flex items-center gap-2">
+  1272→  1272→          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors"><ArrowLeft size={16} /></button>
+  1273→  1273→          <span className="font-bold text-[#7c3aed] text-sm">Forge</span>
+  1274→  1274→          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e]" />
+  1275→  1275→          <span className="text-xs text-zinc-400 truncate max-w-28">{generatedSiteName || 'Untitled'}</span>
+  1276→  1276→          {generatedPages.length > 0 && (
+  1277→  1277→            <Select value={activePageIdRef.current} onValueChange={switchPage}>
+  1278→  1278→              <SelectTrigger className="h-6 w-32 text-[11px] border-[#2a2a3e] bg-[#1a1a2e] text-white"><SelectValue /></SelectTrigger>
+  1279→  1279→              <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+  1280→  1280→                {generatedPages.map(p => <SelectItem key={p.id} value={p.id} className="text-[11px] text-white">{p.name}</SelectItem>)}
+  1281→  1281→              </SelectContent>
+  1282→  1282→            </Select>
+  1283→  1283→          )}
+  1284→  1284→        </div>
+  1285→  1285→
+  1286→  1286→        {/* Center section - Canvas mode + formatting */}
+  1287→  1287→        <div className="flex items-center gap-1">
+  1288→  1288→          {/* Canvas mode */}
+  1289→  1289→          <div className="flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
+  1290→  1290→            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('select')} className={`p-1 rounded transition-colors ${canvasMode === 'select' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={14} /></button></TooltipTrigger><TooltipContent>Select</TooltipContent></Tooltip>
+  1291→  1291→            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('text')} className={`p-1 rounded transition-colors ${canvasMode === 'text' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><Type size={14} /></button></TooltipTrigger><TooltipContent>Text</TooltipContent></Tooltip>
+  1292→  1292→            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('move')} className={`p-1 rounded transition-colors ${canvasMode === 'move' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><Move size={14} /></button></TooltipTrigger><TooltipContent>Move</TooltipContent></Tooltip>
+  1293→  1293→          </div>
+  1294→  1294→          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-1" />
+  1295→  1295→          {/* Quick formatting */}
+  1296→  1296→          {selectedElement && (
+  1297→  1297→            <div className="flex items-center gap-0.5">
+  1298→  1298→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('font-weight', selectedStyles['font-weight'] === '700' ? '400' : '700')} className={`p-1 rounded transition-colors ${selectedStyles['font-weight'] === '700' || selectedStyles['font-weight'] === 'bold' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Bold size={13} /></button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+  1299→  1299→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('font-style', selectedStyles['font-style'] === 'italic' ? 'normal' : 'italic')} className={`p-1 rounded transition-colors ${selectedStyles['font-style'] === 'italic' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Italic size={13} /></button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+  1300→  1300→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-decoration', selectedStyles['text-decoration']?.includes('underline') ? 'none' : 'underline')} className={`p-1 rounded transition-colors ${selectedStyles['text-decoration']?.includes('underline') ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Underline size={13} /></button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+  1301→  1301→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-decoration', selectedStyles['text-decoration']?.includes('line-through') ? 'none' : 'line-through')} className={`p-1 rounded transition-colors ${selectedStyles['text-decoration']?.includes('line-through') ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Strikethrough size={13} /></button></TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
+  1302→  1302→              <Separator orientation="vertical" className="h-4 bg-[#2a2a3e] mx-0.5" />
+  1303→  1303→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'left')} className={`p-1 rounded transition-colors ${selectedStyles['text-align'] === 'left' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignLeft size={13} /></button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+  1304→  1304→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'center')} className={`p-1 rounded transition-colors ${selectedStyles['text-align'] === 'center' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignCenter size={13} /></button></TooltipTrigger><TooltipContent>Align Center</TooltipContent></Tooltip>
+  1305→  1305→              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'right')} className={`p-1 rounded transition-colors ${selectedStyles['text-align'] === 'right' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignRight size={13} /></button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+  1306→  1306→              <Separator orientation="vertical" className="h-4 bg-[#2a2a3e] mx-0.5" />
+  1307→  1307→              {/* Quick color */}
+  1308→  1308→              <div className="flex items-center gap-0.5">
+  1309→  1309→                {[{ c:'#ffffff', l:'White' },{ c:'#7c3aed', l:'Purple' },{ c:'#2dd4bf', l:'Teal' },{ c:'#f472b6', l:'Pink' },{ c:'#fb923c', l:'Orange' },{ c:'#000000', l:'Black' }].map(({ c, l }) => (
+  1310→  1310→                  <Tooltip key={c}><TooltipTrigger asChild><button onClick={() => applyStyle('color', c)} className="w-4 h-4 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors" style={{ background: c }} /></TooltipTrigger><TooltipContent>{l}</TooltipContent></Tooltip>
+  1311→  1311→                ))}
+  1312→  1312→                <input type="color" value={selectedStyles['color']?.startsWith('#') ? selectedStyles['color'] : '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="w-4 h-4 rounded cursor-pointer bg-transparent border-0" title="Custom color" />
+  1313→  1313→              </div>
+  1314→  1314→            </div>
+  1315→  1315→          )}
+  1316→  1316→        </div>
+  1317→  1317→
+  1318→  1318→        {/* Right section */}
+  1319→  1319→        <div className="flex items-center gap-1">
+  1320→  1320→          <Tooltip><TooltipTrigger asChild><button onClick={undo} disabled={historyIndex <= 0} className="p-1 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Undo2 size={14} /></button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+  1321→  1321→          <Tooltip><TooltipTrigger asChild><button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-1 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Redo2 size={14} /></button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+  1322→  1322→          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-0.5" />
+  1323→  1323→          {/* Device selector */}
+  1324→  1324→          <div className="flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
+  1325→  1325→            {DEVICE_CONFIGS.map(d => (
+  1326→  1326→              <button key={d.name} onClick={() => setDevice(d.name)} className={`p-1 rounded transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}>{deviceIcons[d.name]}</button>
+  1327→  1327→            ))}
+  1328→  1328→          </div>
+  1329→  1329→          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-0.5" />
+  1330→  1330→          {/* Zoom */}
+  1331→  1331→          <span className="text-[10px] text-zinc-500 w-7">{zoom}%</span>
+  1332→  1332→          <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><ZoomIn size={12} /></button>
+  1333→  1333→          <button onClick={() => setZoom(z => Math.max(30, z - 10))} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><ZoomOut size={12} /></button>
+  1334→  1334→          <button onClick={toggleGrid} className={`p-0.5 rounded transition-colors ${showGrid ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white hover:bg-[#1a1a2e]'}`}><Grid2X2 size={12} /></button>
+  1335→  1335→          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-0.5" />
+  1336→  1336→          <button onClick={() => setShowCodePanel(!showCodePanel)} className={`p-1 rounded transition-colors ${showCodePanel ? 'bg-[#7c3aed] text-white' : 'hover:bg-[#1a1a2e] text-zinc-400'}`}><Code2 size={14} /></button>
+  1337→  1337→          <button onClick={save} className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400"><Save size={14} /></button>
+  1338→  1338→          <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+  1339→  1339→            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-6 text-[11px] border-[#2a2a3e] bg-[#1a1a2e] text-white hover:bg-[#2a2a3e]"><Download size={12} className="mr-1" />Export</Button></DialogTrigger>
+  1340→  1340→            <DialogContent className="bg-[#1a1a2e] border-[#2a2a3e] text-white">
+  1341→  1341→              <DialogHeader><DialogTitle className="text-white">Export Website</DialogTitle></DialogHeader>
+  1342→  1342→              <div className="grid grid-cols-2 gap-2 mt-2">
+  1343→  1343→                {[
+  1344→  1344→                  { id:'html', label:'HTML', desc:'Complete standalone HTML page', icon: File },
+  1345→  1345→                  { id:'react', label:'React / TSX', desc:'React component with styles', icon: Code2 },
+  1346→  1346→                  { id:'nextjs', label:'Next.js', desc:'Next.js page component', icon: Globe },
+  1347→  1347→                  { id:'vue', label:'Vue', desc:'Vue single-file component', icon: FileCode },
+  1348→  1348→                  { id:'css', label:'CSS Only', desc:'Extract all styles', icon: Palette },
+  1349→  1349→                  { id:'zip', label:'ZIP Bundle', desc:'All pages + assets', icon: FolderOpen },
+  1350→  1350→                ].map(f => {
+  1351→  1351→                  const Icon = f.icon
+  1352→  1352→                  return (
+  1353→  1353→                    <button key={f.id} onClick={() => setExportFormat(f.id)} className={`flex flex-col items-center p-3 rounded-lg border transition-colors ${exportFormat === f.id ? 'border-[#7c3aed] bg-[#7c3aed]/10' : 'border-[#2a2a3e] bg-[#0d0d15] hover:border-[#7c3aed]/50'}`}>
+  1354→  1354→                      <Icon size={20} className={exportFormat === f.id ? 'text-[#7c3aed]' : 'text-zinc-400'} />
+  1355→  1355→                      <span className="text-xs font-medium mt-1">{f.label}</span>
+  1356→  1356→                      <span className="text-[10px] text-zinc-500">{f.desc}</span>
+  1357→  1357→                    </button>
+  1358→  1358→                  )
+  1359→  1359→                })}
+  1360→  1360→              </div>
+  1361→  1361→              <Button onClick={handleExport} className="w-full mt-3 bg-[#7c3aed] hover:bg-[#6d28d9]">Download {exportFormat.toUpperCase()}</Button>
+  1362→  1362→            </DialogContent>
+  1363→  1363→          </Dialog>
+  1364→  1364→          <Button size="sm" onClick={() => toast({ title: 'Deployment started' })} className="h-6 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]"><Rocket size={12} className="mr-1" />Deploy</Button>
+  1365→  1365→        </div>
+  1366→  1366→      </div>
+  1367→  1367→
+  1368→  1368→      {/* ── Main Content ─────────────────────────────────────────────── */}
+  1369→  1369→      <div className="flex-1 flex overflow-hidden">
+  1370→  1370→        {/* ── Left Panel ──────────────────────────────────────────────── */}
+  1371→  1371→        <div className="w-[260px] border-r border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
+  1372→  1372→          <Tabs value={leftPanelTab} onValueChange={setLeftPanelTab} className="flex flex-col h-full">
+  1373→  1373→            <TabsList className="w-full justify-start bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-8 p-0">
+  1374→  1374→              <TabsTrigger value="layers" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Layers size={12} className="mr-0.5" />Layers</TabsTrigger>
+  1375→  1375→              <TabsTrigger value="components" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Grid3X3 size={12} className="mr-0.5" />Add</TabsTrigger>
+  1376→  1376→              <TabsTrigger value="pages" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><File size={12} className="mr-0.5" />Pages</TabsTrigger>
+  1377→  1377→              <TabsTrigger value="tokens" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Paintbrush size={12} className="mr-0.5" />Theme</TabsTrigger>
+  1378→  1378→            </TabsList>
+  1379→  1379→
+  1380→  1380→            {/* Layers tab */}
+  1381→  1381→            <TabsContent value="layers" className="flex-1 overflow-y-auto mt-0 p-2">
+  1382→  1382→              <div className="text-[10px] text-zinc-500 mb-1 uppercase tracking-wider font-semibold">Page Structure</div>
+  1383→  1383→              <div className="text-[9px] text-zinc-500 mb-2">Click on any element in this list or in the preview to edit it.</div>
+  1384→  1384→              {elementTree ? renderTreeNode(elementTree, 0) : (
+  1385→  1385→                <div className="text-[11px] text-zinc-500 text-center py-8">Click elements in preview</div>
+  1386→  1386→              )}
+  1387→  1387→            </TabsContent>
+  1388→  1388→
+  1389→  1389→            {/* Components tab */}
+  1390→  1390→            <TabsContent value="components" className="flex-1 overflow-y-auto mt-0 p-2">
+  1391→  1391→              <Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] mb-2" />
+  1392→  1392→              {filteredCategories.map(cat => (
+  1393→  1393→                <div key={cat.id} className="mb-2">
+  1394→  1394→                  <Collapsible>
+  1395→  1395→                    <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-1 w-full hover:text-zinc-300">
+  1396→  1396→                      <ChevronRight size={10} className="transition-transform" />{cat.name}
+  1397→  1397→                    </CollapsibleTrigger>
+  1398→  1398→                    <CollapsibleContent>
+  1399→  1399→                      <div className="grid grid-cols-2 gap-1">
+
+[showing lines 1000-1399 of 1922; use offset=1400 with limit to continue reading]
