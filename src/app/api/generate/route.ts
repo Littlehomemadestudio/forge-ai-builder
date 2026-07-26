@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { db } from '@/lib/db';
+import {
+  detectIndustry as detectIndustryV2,
+  getIndustryById as getIndustryByIdV2,
+  ALL_INDUSTRIES,
+} from '@/lib/industry';
+import { getAllCuratedImages } from '@/lib/industry/curated-library';
+import type { ImageCategory } from '@/lib/industry/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -45,6 +52,11 @@ interface GenJob {
   startedAt: number;
   updatedAt: number;
   heartbeats: number;
+  // Phase 4: industry auto-detection metadata
+  industryV2?: string;
+  industryV2SubIndustry?: string;
+  industryV2Confidence?: number;
+  matchedKeywords?: string[];
   result?: {
     page: { id: string; name: string; route: string; html: string; css: string; js: string };
     siteName: string;
@@ -1155,8 +1167,50 @@ ECOMMERCE SERVICES/SHOP PAGE — REQUIRED SECTIONS:
 6. "Compare products" feature (optional)`;
   }
 
-  // ── Sub-industry context ──
-  const subIndustrySection = subIndustryCues ? `
+  // ── Sub-industry context (from new comprehensive library) ──
+  // Try the new V2 industry detector first; fall back to old SUB_INDUSTRY_CUES
+  const v2Detection = detectIndustryV2(req.prompt);
+  const v2IndustryMeta = v2Detection.industry;
+  const v2SubIndustry = v2Detection.detectedSubIndustry;
+
+  let subIndustrySection = '';
+  if (v2IndustryMeta && v2IndustryMeta.id !== 'generic-business') {
+    // Build categorized image URL list (hero/product/lifestyle/team/workspace/detail)
+    const allCategorized = getAllCuratedImages(v2IndustryMeta.id, 4);
+    const imgLines: string[] = [];
+    for (const cat of ['hero', 'product', 'lifestyle', 'team', 'workspace', 'detail'] as ImageCategory[]) {
+      const urls = allCategorized[cat] || [];
+      if (urls.length > 0) {
+        imgLines.push(`  ${cat.toUpperCase()} (use for ${cat} sections):`);
+        urls.forEach(u => imgLines.push(`    ${u}`));
+      }
+    }
+
+    const subLabel = v2SubIndustry
+      ? v2IndustryMeta.subIndustries.find(s => s.id === v2SubIndustry)?.nameEn
+      : undefined;
+
+    subIndustrySection = `
+INDUSTRY CONTEXT (auto-detected): ${v2IndustryMeta.nameEn}${subLabel ? ` · ${subLabel}` : ''}
+- Persian name: ${v2IndustryMeta.nameFa}
+- Industry group: ${v2IndustryMeta.group}
+- Suggested font pairing: ${v2IndustryMeta.fontPairing}
+${v2IndustryMeta.patternHint ? `- Decorative pattern: ${v2IndustryMeta.patternHint}` : ''}
+- Suggested sections for this industry: ${v2IndustryMeta.suggestedSections.join(', ')}
+- Sample products/services (use as content inspiration): ${v2IndustryMeta.sampleProducts.join(', ')}
+- Suggested color palette (light): bg=${v2IndustryMeta.palette.light.bg}, accent=${v2IndustryMeta.palette.light.accent}, text=${v2IndustryMeta.palette.light.text}
+- Suggested color palette (dark):  bg=${v2IndustryMeta.palette.dark.bg}, accent=${v2IndustryMeta.palette.dark.accent}, text=${v2IndustryMeta.palette.dark.text}
+
+CATEGORIZED IMAGE LIBRARY (use these EXACT URLs — they are pre-verified):
+- For each section below, pick the most appropriate image from the matching category.
+- Hero images go in hero/banner sections. Product images go in product cards. Lifestyle images go in editorial sections. Team images go in "About"/"Team" sections. Workspace images go in "Studio"/"Office" sections. Detail images go in close-up/texture sections.
+${imgLines.join('\n')}
+
+IMPORTANT: Use the URLs above verbatim. Do NOT invent Unsplash photo IDs — only use IDs from the list provided. If a section needs a different image type (e.g., hero section needs a banner), use a hero-category image. If the section type is ambiguous, use a product image.
+`;
+  } else if (subIndustryCues) {
+    // Fallback to old SUB_INDUSTRY_CUES for backward compatibility
+    subIndustrySection = `
 INDUSTRY SUB-CONTEXT (detected from prompt): ${parsed.subIndustry}
 - This is a ${subIndustryCues.label}.
 - Use font pairing: ${subIndustryCues.fontPairing}
@@ -1166,7 +1220,8 @@ ${subIndustryCues.patternHint ? `- Decorative pattern: ${subIndustryCues.pattern
 - Use Unsplash images matching: ${subIndustryCues.imageryKeywords.join(', ')}
 - IMPORTANT: Use REAL Unsplash photo IDs. Sample working IDs you can use:
   ${getUnsplashImagesForSubIndustry(parsed.subIndustry).slice(0, 8).join('\n  ')}
-` : '';
+`;
+  }
 
   // ── Single-page mode ──
   const singlePageNote = parsed.isSinglePage
@@ -1476,6 +1531,17 @@ async function runGenerationJob(
 
     console.log(`[generate] job ${jobId} page=${req.page} parsed: hexColors=${parsed.hexColors.length} elements=${parsed.requiredElements.length} animations=${parsed.animations.length} subIndustry=${parsed.subIndustry || 'none'} language=${parsed.language}`);
 
+    // ── Phase 4: Log auto-detected industry (V2) ──
+    const v2Det = detectIndustryV2(req.prompt);
+    console.log(`[generate] job ${jobId} industry-v2: ${v2Det.industry.id} (confidence=${v2Det.confidence.toFixed(2)}, matched=${v2Det.matchedKeywords.length} keywords, subIndustry=${v2Det.detectedSubIndustry || 'none'})`);
+    if (job) {
+      job.industryV2 = v2Det.industry.id;
+      job.industryV2SubIndustry = v2Det.detectedSubIndustry;
+      job.industryV2Confidence = v2Det.confidence;
+      job.matchedKeywords = v2Det.matchedKeywords;
+      JOBS.set(jobId, job);
+    }
+
     const content = await callGlmWithRetry(zai, req, parsed, colors, headerFooter, () => {
       const j = JOBS.get(jobId);
       if (j) {
@@ -1668,6 +1734,11 @@ export async function GET(request: NextRequest) {
       heartbeats: job.heartbeats,
       elapsedMs: Date.now() - job.startedAt,
       error: job.error,
+      // Phase 4: V2 industry auto-detection
+      industryV2: job.industryV2,
+      industryV2SubIndustry: job.industryV2SubIndustry,
+      industryV2Confidence: job.industryV2Confidence,
+      matchedKeywords: job.matchedKeywords,
       result: job.result,
     });
   }
@@ -1697,6 +1768,19 @@ export async function GET(request: NextRequest) {
     subIndustries: Object.entries(SUB_INDUSTRY_CUES).map(([id, c]) => ({
       id,
       label: c.label,
+    })),
+    // Phase 4: comprehensive industry catalog (40+ industries)
+    industriesV2: ALL_INDUSTRIES.map(i => ({
+      id: i.id,
+      nameEn: i.nameEn,
+      nameFa: i.nameFa,
+      group: i.group,
+      groupFa: i.groupFa,
+      subIndustries: i.subIndustries,
+      suggestedSections: i.suggestedSections,
+      sampleProducts: i.sampleProducts,
+      fontPairing: i.fontPairing,
+      palette: i.palette,
     })),
   });
 }

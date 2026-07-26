@@ -21,6 +21,7 @@ import { toast } from '@/hooks/use-toast'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
+import IndustryGallery from '@/components/industry/IndustryGallery'
 import {
   Sparkles, Wand2, Monitor, Smartphone, Tablet, Code2, Rocket,
   Download, Eye, ArrowLeft, RefreshCw, Save, X,
@@ -2257,6 +2258,23 @@ function PreviewPhase() {
           <div className="mt-4 rounded-lg border border-white/8 bg-white/[0.02] p-3">
             <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.prompt')}</p>
             <p className="text-xs text-white/40 leading-relaxed line-clamp-6">{builderPrompt}</p>
+          </div>
+
+          {/* Phase 4: Industry Image Library — collapsible */}
+          <div className="mt-4 rounded-lg border border-purple-500/20 bg-purple-500/[0.02] overflow-hidden">
+            <details>
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-200/70 uppercase tracking-wider hover:bg-purple-500/5 flex items-center gap-2">
+                <Layers className="w-3 h-3" />
+                {t('p4.title')}
+              </summary>
+              <div className="p-3 pt-2 border-t border-purple-500/10">
+                <IndustryGallery
+                  compact
+                  disableGeneration={false}
+                  autoLoad={false}
+                />
+              </div>
+            </details>
           </div>
         </div>
 
