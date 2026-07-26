@@ -1,0 +1,1027 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import { useAppStore } from '@/lib/store'
+     6→import { Button } from '@/components/ui/button'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Textarea } from '@/components/ui/textarea'
+     9→import { Badge } from '@/components/ui/badge'
+    10→import { Progress } from '@/components/ui/progress'
+    11→import {
+    12→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    13→} from '@/components/ui/select'
+    14→import { toast } from '@/hooks/use-toast'
+    15→import {
+    16→  Sparkles, Wand2, Monitor, Smartphone, Tablet, Code2, Rocket,
+    17→  Download, Eye, ArrowLeft, RefreshCw, Save, X,
+    18→  ChevronRight, Zap, Layers, Palette, Type, Layout,
+    19→  Loader2, CheckCircle2, AlertCircle, Globe, Home, Mail, Server,
+    20→  Briefcase, Store, ShoppingBag, Newspaper, Building2, Calendar, User,
+    21→  Sun, Moon, Minimize, Flame,
+    22→} from 'lucide-react'
+    23→
+    24→// ─── Industry metadata (mirrors server-side) ──────────────────────────────
+    25→
+    26→type Industry = 'portfolio' | 'saas' | 'restaurant' | 'ecommerce' | 'blog' | 'agency' | 'event' | 'personal'
+    27→type StyleMode = 'light' | 'dark' | 'minimal' | 'bold'
+    28→
+    29→const INDUSTRY_OPTIONS: { id: Industry; label: string; icon: typeof Briefcase; hint: string }[] = [
+    30→  { id: 'portfolio', label: 'Creative Portfolio', icon: Palette, hint: 'Designers, photographers, artists' },
+    31→  { id: 'saas', label: 'SaaS / Startup', icon: Zap, hint: 'Software products and apps' },
+    32→  { id: 'restaurant', label: 'Restaurant / Café', icon: Flame, hint: 'Food, menus, reservations' },
+    33→  { id: 'ecommerce', label: 'E-Commerce Store', icon: ShoppingBag, hint: 'Online shops, products' },
+    34→  { id: 'blog', label: 'Editorial Blog', icon: Newspaper, hint: 'Articles, magazines, content' },
+    35→  { id: 'agency', label: 'Agency / Studio', icon: Building2, hint: 'Services, case studies, team' },
+    36→  { id: 'event', label: 'Event / Conference', icon: Calendar, hint: 'Schedules, speakers, registration' },
+    37→  { id: 'personal', label: 'Personal / Resume', icon: User, hint: 'Bio, experience, projects' },
+    38→]
+    39→
+    40→const STYLE_OPTIONS: { id: StyleMode; label: string; icon: typeof Sun; swatch: { bg: string; accent: string; text: string } }[] = [
+    41→  { id: 'light', label: 'Light', icon: Sun, swatch: { bg: '#FFFFFF', accent: '#6366F1', text: '#0F172A' } },
+    42→  { id: 'dark', label: 'Dark', icon: Moon, swatch: { bg: '#0A0A0F', accent: '#A855F7', text: '#F8FAFC' } },
+    43→  { id: 'minimal', label: 'Minimal', icon: Minimize, swatch: { bg: '#FAFAF9', accent: '#1C1917', text: '#1C1917' } },
+    44→  { id: 'bold', label: 'Bold', icon: Flame, swatch: { bg: '#FFFBEB', accent: '#F59E0B', text: '#1F2937' } },
+    45→]
+    46→
+    47→const PAGE_ORDER: { id: 'home' | 'about' | 'services' | 'contact'; name: string; icon: typeof Home }[] = [
+    48→  { id: 'home', name: 'Home', icon: Home },
+    49→  { id: 'about', name: 'About', icon: Layers },
+    50→  { id: 'services', name: 'Services', icon: Briefcase },
+    51→  { id: 'contact', name: 'Contact', icon: Mail },
+    52→]
+    53→
+    54→const PROMPT_SUGGESTIONS: { text: string; industry: Industry; icon: string }[] = [
+    55→  { text: 'A cozy specialty coffee shop called "Ember & Roast" in Portland — focus on single-origin beans and a warm, rustic vibe', industry: 'restaurant', icon: '☕' },
+    56→  { text: 'A photography portfolio for Mira Solano, a Brooklyn-based editorial photographer who shoots for fashion magazines', industry: 'portfolio', icon: '📷' },
+    57→  { text: 'A SaaS landing page for "NovaPulse" — an AI analytics platform for product teams, with a 14-day free trial', industry: 'saas', icon: '⚡' },
+    58→  { text: 'An online store for "Luxe Market" — a curated marketplace for handmade home goods and ceramics', industry: 'ecommerce', icon: '🛍️' },
+    59→  { text: 'A design agency site for "Studio Arc" — a brand strategy and visual design studio in Berlin', industry: 'agency', icon: '🎨' },
+    60→  { text: 'A personal site for a senior product designer showing case studies, blog posts, and contact info', industry: 'personal', icon: '👤' },
+    61→]
+    62→
+    63→const DEVICE_SIZES = {
+    64→  desktop: { width: '100%', label: 'Desktop', icon: Monitor },
+    65→  tablet: { width: '768px', label: 'Tablet', icon: Tablet },
+    66→  mobile: { width: '375px', label: 'Mobile', icon: Smartphone },
+    67→} as const
+    68→
+    69→// ─── Prompt Phase ──────────────────────────────────────────────────────────
+    70→
+    71→function PromptPhase() {
+    72→  const {
+    73→    setBuilderPrompt, builderPrompt, startGeneration,
+    74→    builderIndustry, setBuilderIndustry,
+    75→    builderStyle, setBuilderStyle,
+    76→  } = useAppStore()
+    77→
+    78→  const [cursorVisible, setCursorVisible] = useState(true)
+    79→  const textareaRef = useRef<HTMLTextAreaElement>(null)
+    80→
+    81→  useEffect(() => {
+    82→    const interval = setInterval(() => setCursorVisible(v => !v), 530)
+    83→    return () => clearInterval(interval)
+    84→  }, [])
+    85→
+    86→  const handleGenerate = () => {
+    87→    if (!builderPrompt.trim()) {
+    88→      toast({ title: 'Please enter a prompt', description: 'Describe the website you want to build' })
+    89→      return
+    90→    }
+    91→    startGeneration(builderPrompt)
+    92→  }
+    93→
+    94→  const handleSuggestionClick = (text: string, industry: Industry) => {
+    95→    setBuilderPrompt(text)
+    96→    setBuilderIndustry(industry)
+    97→    textareaRef.current?.focus()
+    98→  }
+    99→
+   100→  return (
+   101→    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12">
+   102→      {/* Background floating elements */}
+   103→      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+   104→        <motion.div
+   105→          className="absolute -top-20 -left-20 h-80 w-80 rounded-full bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-3xl"
+   106→          animate={{ y: [0, 30, 0], x: [0, 20, 0] }}
+   107→          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+   108→        />
+   109→        <motion.div
+   110→          className="absolute -bottom-40 -right-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/10 blur-3xl"
+   111→          animate={{ y: [0, -40, 0], x: [0, -30, 0] }}
+   112→          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+   113→        />
+   114→        <motion.div
+   115→          className="absolute top-1/3 right-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-orange-500/8 to-amber-500/8 blur-3xl"
+   116→          animate={{ y: [0, 20, 0], scale: [1, 1.1, 1] }}
+   117→          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+   118→        />
+   119→      </div>
+   120→
+   121→      {/* Grid pattern */}
+   122→      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+   123→        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+   124→        backgroundSize: '60px 60px',
+   125→      }} />
+   126→
+   127→      {/* Main content */}
+   128→      <motion.div
+   129→        initial={{ opacity: 0, y: 40 }}
+   130→        animate={{ opacity: 1, y: 0 }}
+   131→        transition={{ duration: 0.8, ease: 'easeOut' }}
+   132→        className="relative z-10 w-full max-w-4xl"
+   133→      >
+   134→        {/* Header */}
+   135→        <div className="mb-8 text-center">
+   136→          <motion.div
+   137→            initial={{ scale: 0 }}
+   138→            animate={{ scale: 1 }}
+   139→            transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+   140→            className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm backdrop-blur-md"
+   141→          >
+   142→            <Sparkles className="h-4 w-4 text-purple-400" />
+   143→            <span className="text-white/60">Powered by GLM-4.7 AI · Generates 4 complete pages</span>
+   144→          </motion.div>
+   145→
+   146→          <h1 className="mb-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
+   147→            Describe your vision
+   148→          </h1>
+   149→          <p className="text-lg text-white/40">
+   150→            Tell us what you want — the AI will craft a complete 4-page website (Home, About, Services, Contact)
+   151→          </p>
+   152→        </div>
+   153→
+   154→        {/* Controls row: industry + style */}
+   155→        <motion.div
+   156→          initial={{ opacity: 0, y: 20 }}
+   157→          animate={{ opacity: 1, y: 0 }}
+   158→          transition={{ delay: 0.3 }}
+   159→          className="mb-5 grid gap-4 sm:grid-cols-2"
+   160→        >
+   161→          {/* Industry selector */}
+   162→          <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4">
+   163→            <label className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
+   164→              <Briefcase className="h-3.5 w-3.5" /> Industry
+   165→            </label>
+   166→            <Select value={builderIndustry} onValueChange={(v) => setBuilderIndustry(v as Industry)}>
+   167→              <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
+   168→                <SelectValue />
+   169→              </SelectTrigger>
+   170→              <SelectContent className="bg-[#15151F] border-white/10 max-h-80">
+   171→                {INDUSTRY_OPTIONS.map(opt => {
+   172→                  const Icon = opt.icon
+   173→                  return (
+   174→                    <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white">
+   175→                      <div className="flex items-center gap-2">
+   176→                        <Icon className="h-4 w-4 text-purple-400" />
+   177→                        <div className="flex flex-col">
+   178→                          <span className="text-sm font-medium">{opt.label}</span>
+   179→                          <span className="text-xs text-white/40">{opt.hint}</span>
+   180→                        </div>
+   181→                      </div>
+   182→                    </SelectItem>
+   183→                  )
+   184→                })}
+   185→              </SelectContent>
+   186→            </Select>
+   187→          </div>
+   188→
+   189→          {/* Style selector */}
+   190→          <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4">
+   191→            <label className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
+   192→              <Palette className="h-3.5 w-3.5" /> Visual Style
+   193→            </label>
+   194→            <Select value={builderStyle} onValueChange={(v) => setBuilderStyle(v as StyleMode)}>
+   195→              <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
+   196→                <SelectValue />
+   197→              </SelectTrigger>
+   198→              <SelectContent className="bg-[#15151F] border-white/10">
+   199→                {STYLE_OPTIONS.map(opt => {
+   200→                  const Icon = opt.icon
+   201→                  return (
+   202→                    <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white">
+   203→                      <div className="flex items-center gap-2">
+   204→                        <Icon className="h-4 w-4 text-purple-400" />
+   205→                        <span className="text-sm font-medium">{opt.label}</span>
+   206→                        <div className="ml-2 flex gap-1">
+   207→                          <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.bg }} />
+   208→                          <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.accent }} />
+   209→                          <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.text }} />
+   210→                        </div>
+   211→                      </div>
+   212→                    </SelectItem>
+   213→                  )
+   214→                })}
+   215→              </SelectContent>
+   216→            </Select>
+   217→          </div>
+   218→        </motion.div>
+   219→
+   220→        {/* Prompt input area */}
+   221→        <motion.div
+   222→          initial={{ opacity: 0, y: 20 }}
+   223→          animate={{ opacity: 1, y: 0 }}
+   224→          transition={{ delay: 0.4 }}
+   225→          className="relative mb-6"
+   226→        >
+   227→          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
+   228→            <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/5 to-transparent" />
+   229→            <Textarea
+   230→              ref={textareaRef}
+   231→              value={builderPrompt}
+   232→              onChange={(e) => setBuilderPrompt(e.target.value)}
+   233→              placeholder="Be specific — describe your business, name, target audience, vibe, and any must-have sections. e.g. 'A cozy specialty coffee shop called Ember & Roast in Portland — focus on single-origin beans and a warm rustic vibe'"
+   234→              className="relative min-h-[160px] resize-none border-0 bg-transparent p-6 text-base text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
+   235→              onKeyDown={(e) => {
+   236→                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+   237→                  e.preventDefault()
+   238→                  handleGenerate()
+   239→                }
+   240→              }}
+   241→            />
+   242→            {builderPrompt.length === 0 && cursorVisible && (
+   243→              <div className="absolute left-6 top-[88px] h-5 w-0.5 animate-pulse bg-purple-400" />
+   244→            )}
+   245→            {/* Footer of textarea */}
+   246→            <div className="flex items-center justify-between border-t border-white/5 bg-black/20 px-6 py-2.5">
+   247→              <span className="text-xs text-white/30">
+   248→                {builderPrompt.length} chars · ⌘+Enter to generate
+   249→              </span>
+   250→              <span className="text-xs text-white/40">
+   251→                ~ 4-6 min total · 4 pages, generated sequentially
+   252→              </span>
+   253→            </div>
+   254→          </div>
+   255→        </motion.div>
+   256→
+   257→        {/* Generate button */}
+   258→        <motion.div
+   259→          initial={{ opacity: 0, y: 20 }}
+   260→          animate={{ opacity: 1, y: 0 }}
+   261→          transition={{ delay: 0.5 }}
+   262→          className="mb-10 flex justify-center"
+   263→        >
+   264→          <Button
+   265→            onClick={handleGenerate}
+   266→            disabled={!builderPrompt.trim()}
+   267→            className="group relative h-14 overflow-hidden rounded-xl border-0 px-10 text-base font-semibold text-white shadow-lg shadow-purple-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+   268→            style={{ background: 'linear-gradient(135deg, #6c5ce7, #a855f7, #ec4899)' }}
+   269→          >
+   270→            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s linear infinite' }} />
+   271→            <Wand2 className="mr-2 h-5 w-5" />
+   272→            Generate Website
+   273→            <ChevronRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+   274→          </Button>
+   275→        </motion.div>
+   276→
+   277→        {/* Suggestion cards */}
+   278→        <motion.div
+   279→          initial={{ opacity: 0 }}
+   280→          animate={{ opacity: 1 }}
+   281→          transition={{ delay: 0.6 }}
+   282→        >
+   283→          <p className="mb-4 text-center text-sm text-white/30">Or try a fully-fleshed example</p>
+   284→          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   285→            {PROMPT_SUGGESTIONS.map((suggestion, i) => (
+   286→              <motion.div
+   287→                key={suggestion.text}
+   288→                initial={{ opacity: 0, y: 15 }}
+   289→                animate={{ opacity: 1, y: 0 }}
+   290→                transition={{ delay: 0.7 + i * 0.06 }}
+   291→              >
+   292→                <Card
+   293→                  className="cursor-pointer border-white/8 bg-white/[0.02] backdrop-blur-md transition-all duration-300 hover:border-purple-500/30 hover:bg-white/[0.05] hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10"
+   294→                  onClick={() => handleSuggestionClick(suggestion.text, suggestion.industry)}
+   295→                >
+   296→                  <CardContent className="flex h-full flex-col gap-2 p-4">
+   297→                    <div className="flex items-center gap-2">
+   298→                      <span className="text-2xl">{suggestion.icon}</span>
+   299→                      <Badge variant="secondary" className="ml-auto border-white/10 bg-white/5 text-xs text-white/40">
+   300→                        {INDUSTRY_OPTIONS.find(o => o.id === suggestion.industry)?.label.split(' ')[0]}
+   301→                      </Badge>
+   302→                    </div>
+   303→                    <span className="text-sm leading-relaxed text-white/70 line-clamp-3">{suggestion.text}</span>
+   304→                  </CardContent>
+   305→                </Card>
+   306→              </motion.div>
+   307→            ))}
+   308→          </div>
+   309→        </motion.div>
+   310→      </motion.div>
+   311→    </div>
+   312→  )
+   313→}
+   314→
+   315→// ─── Generating Phase (real API calls, real progress) ─────────────────────
+   316→
+   317→interface PageGenState {
+   318→  id: 'home' | 'about' | 'services' | 'contact'
+   319→  name: string
+   320→  status: 'pending' | 'generating' | 'done' | 'error'
+   321→  error?: string
+   322→  html?: string
+   323→  css?: string
+   324→  js?: string
+   325→  siteName?: string
+   326→}
+   327→
+   328→function GeneratingPhase() {
+   329→  const {
+   330→    builderPrompt, builderIndustry, builderStyle,
+   331→    setGeneratedPages, setGeneratedSiteName,
+   332→    setCurrentPreviewPage, setIsGenerating, setBuilderPhase,
+   333→    setGenerationProgress, setGenerationStatus,
+   334→  } = useAppStore()
+   335→
+   336→  const [pageStates, setPageStates] = useState<PageGenState[]>(
+   337→    PAGE_ORDER.map(p => ({ id: p.id, name: p.name, status: 'pending' }))
+   338→  )
+   339→  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+   340→  const [globalError, setGlobalError] = useState<string | null>(null)
+   341→  const cancelRef = useRef(false)
+   342→
+   343→  // Tick elapsed timer
+   344→  useEffect(() => {
+   345→    const interval = setInterval(() => {
+   346→      if (!cancelRef.current) setElapsedSeconds(s => s + 1)
+   347→    }, 1000)
+   348→    return () => clearInterval(interval)
+   349→  }, [])
+   350→
+   351→  // Run the 4 page generations SEQUENTIALLY (parallel hits the GLM-4.7 API
+   352→  // rate limit and returns 429). Each call takes ~60-90s, so total is ~5min.
+   353→  // The user sees real per-page progress, so the wait feels productive.
+   354→  useEffect(() => {
+   355→    cancelRef.current = false
+   356→    let cancelled = false
+   357→
+   358→    async function generateAll() {
+   359→      const collected: { id: string; name: string; html: string; css: string; js?: string }[] = []
+   360→      let siteName = ''
+   361→
+   362→      for (let i = 0; i < PAGE_ORDER.length; i++) {
+   363→        if (cancelled || cancelRef.current) return
+   364→        const pageInfo = PAGE_ORDER[i]
+   365→
+   366→        setPageStates(prev => prev.map(p => p.id === pageInfo.id ? { ...p, status: 'generating' } : p))
+   367→        setGenerationStatus(`Generating ${pageInfo.name} page…`)
+   368→        setGenerationProgress(Math.round((i / PAGE_ORDER.length) * 100))
+   369→
+   370→        try {
+   371→          // POLLING APPROACH (fixes 502 from preview-proxy):
+   372→          // 1. POST /api/generate → returns { jobId } immediately
+   373→          // 2. Poll GET /api/generate?jobId=X every 2.5s until status is
+   374→          //    'done' or 'error'
+   375→          // 3. Each request is short (~100ms) so no proxy can 502 out
+   376→          //
+   377→          // The GLM-4.7 API takes 60-150s per page, but the work runs in
+   378→          // the background on the server. The client just polls.
+   379→          const startRes = await fetch('/api/generate', {
+   380→            method: 'POST',
+   381→            headers: { 'Content-Type': 'application/json' },
+   382→            body: JSON.stringify({
+   383→              prompt: builderPrompt,
+   384→              industry: builderIndustry,
+   385→              style: builderStyle,
+   386→              page: pageInfo.id,
+   387→            }),
+   388→          })
+   389→
+   390→          if (cancelled || cancelRef.current) return
+   391→
+   392→          if (!startRes.ok) {
+   393→            const errBody = await startRes.json().catch(() => ({ error: `HTTP ${startRes.status}` }))
+   394→            throw new Error(errBody.error || `HTTP ${startRes.status}`)
+   395→          }
+   396→
+   397→          const startData = await startRes.json()
+   398→          const jobId = startData?.jobId
+   399→          if (!jobId) {
+   400→            throw new Error('Server did not return a jobId')
+   401→          }
+   402→
+   403→          // Poll until done/error
+   404→          let data: any = null
+   405→          let streamError: string | null = null
+   406→          const POLL_INTERVAL_MS = 2500
+   407→          const MAX_POLL_DURATION_MS = 8 * 60 * 1000 // 8 min per page max
+   408→          const pollStart = Date.now()
+   409→
+   410→          while (true) {
+   411→            if (cancelled || cancelRef.current) return
+   412→
+   413→            const elapsed = Date.now() - pollStart
+   414→            if (elapsed > MAX_POLL_DURATION_MS) {
+   415→              throw new Error(`Timed out after ${Math.round(elapsed / 1000)}s waiting for ${pageInfo.name} page`)
+   416→            }
+   417→
+   418→            // Wait before next poll (but not on first iteration)
+   419→            if (elapsed > 0) {
+   420→              await new Promise<void>(r => setTimeout(r, POLL_INTERVAL_MS))
+   421→              if (cancelled || cancelRef.current) return
+   422→            }
+   423→
+   424→            const statusRes = await fetch(`/api/generate?jobId=${encodeURIComponent(jobId)}`, {
+   425→              method: 'GET',
+   426→              headers: { 'Cache-Control': 'no-cache' },
+   427→            })
+   428→
+   429→            if (!statusRes.ok) {
+   430→              // 404 = job expired/gone
+   431→              if (statusRes.status === 404) {
+   432→                throw new Error('Generation job disappeared — please retry')
+   433→              }
+   434→              const errBody = await statusRes.json().catch(() => ({ error: `HTTP ${statusRes.status}` }))
+   435→              throw new Error(errBody.error || `Status poll HTTP ${statusRes.status}`)
+   436→            }
+   437→
+   438→            const status = await statusRes.json()
+   439→            if (cancelled || cancelRef.current) return
+   440→
+   441→            // Update UI with heartbeat info so the user sees progress
+   442→            if (status.heartbeats !== undefined) {
+   443→              setGenerationStatus(
+   444→                `Generating ${pageInfo.name} page… (${status.heartbeats} AI ticks, ${Math.round((Date.now() - pollStart) / 1000)}s)`
+   445→              )
+   446→            }
+   447→
+   448→            if (status.status === 'done') {
+   449→              data = status
+   450→              break
+   451→            }
+   452→            if (status.status === 'error') {
+   453→              streamError = status.error || 'Generation failed'
+   454→              break
+   455→            }
+   456→            // else: 'pending' or 'generating' — keep polling
+   457→          }
+   458→
+   459→          if (cancelled || cancelRef.current) return
+   460→
+   461→          if (streamError) {
+   462→            throw new Error(streamError)
+   463→          }
+   464→          if (!data?.result?.page?.html) {
+   465→            throw new Error('AI returned no HTML')
+   466→          }
+   467→
+   468→          if (data.result.siteName && !siteName) siteName = data.result.siteName
+   469→
+   470→          const completed: PageGenState = {
+   471→            id: pageInfo.id,
+   472→            name: data.result.page.name || pageInfo.name,
+   473→            status: 'done',
+   474→            html: data.result.page.html,
+   475→            css: data.result.page.css || '',
+   476→            js: data.result.page.js || '',
+   477→          }
+   478→
+   479→          collected.push({
+   480→            id: `page-${pageInfo.id}`,
+   481→            name: completed.name,
+   482→            route: pageInfo.id === 'home' ? '/' : `/${pageInfo.id}`,
+   483→            html: completed.html || '',
+   484→            css: completed.css || '',
+   485→            js: completed.js,
+   486→          })
+   487→
+   488→          setPageStates(prev => prev.map(p => p.id === pageInfo.id ? completed : p))
+   489→          setGenerationProgress(Math.round(((i + 1) / PAGE_ORDER.length) * 100))
+   490→        } catch (err: any) {
+   491→          if (cancelled || cancelRef.current) return
+   492→          const msg = err?.message || 'Generation failed'
+   493→          setPageStates(prev => prev.map(p => p.id === pageInfo.id ? { ...p, status: 'error', error: msg } : p))
+   494→          setGlobalError(msg)
+   495→          return
+   496→        }
+   497→      }
+   498→
+   499→      if (cancelled || cancelRef.current) return
+   500→
+   501→      setGeneratedPages(collected)
+   502→      setGeneratedSiteName(siteName || 'Untitled Site')
+   503→      setCurrentPreviewPage(collected[0].id)
+   504→      setGenerationProgress(100)
+   505→      setGenerationStatus('Done!')
+   506→      setIsGenerating(false)
+   507→      setBuilderPhase('preview')
+   508→    }
+   509→
+   510→    generateAll()
+   511→
+   512→    return () => {
+   513→      cancelled = true
+   514→      cancelRef.current = true
+   515→    }
+   516→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   517→  }, [])
+   518→
+   519→  const handleCancel = () => {
+   520→    cancelRef.current = true
+   521→    setIsGenerating(false)
+   522→    setGenerationProgress(0)
+   523→    setGenerationStatus('')
+   524→    setBuilderPhase('prompt')
+   525→  }
+   526→
+   527→  const handleRetry = () => {
+   528→    // Reset states and re-run by remounting (force re-render via phase change)
+   529→    setIsGenerating(false)
+   530→    setGenerationProgress(0)
+   531→    setGenerationStatus('')
+   532→    setBuilderPhase('prompt')
+   533→  }
+   534→
+   535→  const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
+   536→  const doneCount = pageStates.filter(p => p.status === 'done').length
+   537→  const hasError = pageStates.some(p => p.status === 'error')
+   538→
+   539→  return (
+   540→    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
+   541→      {/* Animated gradient orbs */}
+   542→      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+   543→        <motion.div
+   544→          className="absolute left-1/4 top-1/4 h-60 w-60 rounded-full bg-purple-500/20 blur-[100px]"
+   545→          animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
+   546→          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+   547→        />
+   548→        <motion.div
+   549→          className="absolute right-1/4 bottom-1/4 h-60 w-60 rounded-full bg-pink-500/20 blur-[100px]"
+   550→          animate={{ scale: [1.5, 1, 1.5], opacity: [0.3, 0.2, 0.3] }}
+   551→          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+   552→        />
+   553→        <motion.div
+   554→          className="absolute left-1/2 top-1/2 h-40 w-40 rounded-full bg-emerald-500/15 blur-[80px]"
+   555→          animate={{ scale: [1, 1.3, 1], x: [0, 40, 0] }}
+   556→          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+   557→        />
+   558→      </div>
+   559→
+   560→      <motion.div
+   561→        initial={{ opacity: 0, scale: 0.95 }}
+   562→        animate={{ opacity: 1, scale: 1 }}
+   563→        transition={{ duration: 0.5 }}
+   564→        className="relative z-10 w-full max-w-2xl"
+   565→      >
+   566→        {/* Central animation */}
+   567→        <div className="mb-8 flex justify-center">
+   568→          <motion.div
+   569→            className="relative h-24 w-24"
+   570→            animate={{ rotate: hasError ? 0 : 360 }}
+   571→            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+   572→          >
+   573→            <div className="absolute inset-0 rounded-full border-2 border-purple-500/30" />
+   574→            <div className="absolute inset-2 rounded-full border-2 border-pink-500/20" style={{ animationDirection: 'reverse' }} />
+   575→            <div className="absolute inset-4 rounded-full border-2 border-emerald-500/20" />
+   576→            <motion.div
+   577→              className="absolute inset-0 flex items-center justify-center"
+   578→              animate={{ rotate: hasError ? 0 : -360 }}
+   579→              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+   580→            >
+   581→              {hasError ? <AlertCircle className="h-8 w-8 text-red-400" /> : <Sparkles className="h-8 w-8 text-purple-400" />}
+   582→            </motion.div>
+   583→          </motion.div>
+   584→        </div>
+   585→
+   586→        {/* Title */}
+   587→        <div className="mb-8 text-center">
+   588→          <h2 className="mb-2 text-2xl font-bold text-white">
+   589→            {hasError ? 'Generation hit an error' : 'Generating your website'}
+   590→          </h2>
+   591→          <p className="text-sm text-white/40">
+   592→            {hasError
+   593→              ? 'One of the pages failed. You can retry from the prompt, or cancel.'
+   594→              : 'GLM-4.7 is crafting 4 complete pages sequentially — this takes ~4-6 minutes total'
+   595→            }
+   596→          </p>
+   597→        </div>
+   598→
+   599→        {/* Progress bar */}
+   600→        <div className="mb-6">
+   601→          <Progress
+   602→            value={hasError ? 100 : (doneCount / PAGE_ORDER.length) * 100}
+   603→            className={`h-2 bg-white/10 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-purple-500 [&>[data-slot=progress-indicator]]:via-pink-500 [&>[data-slot=progress-indicator]]:to-emerald-500 ${hasError ? '[&>[data-slot=progress-indicator]]:from-red-500 [&>[data-slot=progress-indicator]]:via-red-500 [&>[data-slot=progress-indicator]]:to-red-500' : ''}`}
+   604→          />
+   605→          <div className="mt-2 flex justify-between text-xs text-white/40">
+   606→            <span>{doneCount}/{PAGE_ORDER.length} pages done</span>
+   607→            <span>{formatTime(elapsedSeconds)} elapsed</span>
+   608→          </div>
+   609→        </div>
+   610→
+   611→        {/* Per-page status list */}
+   612→        <div className="mb-8 space-y-3">
+   613→          {pageStates.map((page, i) => {
+   614→            const isPending = page.status === 'pending'
+   615→            const isGenerating = page.status === 'generating'
+   616→            const isDone = page.status === 'done'
+   617→            const isError = page.status === 'error'
+   618→            const Icon = PAGE_ORDER[i].icon
+   619→
+   620→            return (
+   621→              <motion.div
+   622→                key={page.id}
+   623→                initial={{ opacity: 0, x: -20 }}
+   624→                animate={{ opacity: 1, x: 0 }}
+   625→                transition={{ delay: i * 0.1 }}
+   626→                className={`flex items-center gap-3 rounded-lg border p-3 transition-all duration-500 ${
+   627→                  isError
+   628→                    ? 'border-red-500/30 bg-red-500/10'
+   629→                    : isDone
+   630→                    ? 'border-emerald-500/20 bg-emerald-500/5'
+   631→                    : isGenerating
+   632→                    ? 'border-purple-500/30 bg-purple-500/10'
+   633→                    : 'border-white/5 bg-white/[0.02]'
+   634→                }`}
+   635→              >
+   636→                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+   637→                  isError ? 'bg-red-500/20 text-red-400'
+   638→                  : isDone ? 'bg-emerald-500/20 text-emerald-400'
+   639→                  : isGenerating ? 'bg-purple-500/20 text-purple-400'
+   640→                  : 'bg-white/5 text-white/20'
+   641→                }`}>
+   642→                  {isDone ? (
+   643→                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300 }}>
+   644→                      <CheckCircle2 className="h-4 w-4" />
+   645→                    </motion.div>
+   646→                  ) : isGenerating ? (
+   647→                    <Loader2 className="h-4 w-4 animate-spin" />
+   648→                  ) : isError ? (
+   649→                    <AlertCircle className="h-4 w-4" />
+   650→                  ) : (
+   651→                    <Icon className="h-4 w-4" />
+   652→                  )}
+   653→                </div>
+   654→                <div className="flex-1">
+   655→                  <span className={`text-sm font-medium ${
+   656→                    isError ? 'text-red-300'
+   657→                    : isDone ? 'text-emerald-300'
+   658→                    : isGenerating ? 'text-white'
+   659→                    : 'text-white/30'
+   660→                  }`}>
+   661→                    {page.name} page
+   662→                  </span>
+   663→                  {isError && page.error && (
+   664→                    <p className="text-xs text-red-400/70 mt-0.5 line-clamp-1">{page.error}</p>
+   665→                  )}
+   666→                  {isGenerating && (
+   667→                    <p className="text-xs text-purple-300/70 mt-0.5">AI is writing HTML, CSS, and content…</p>
+   668→                  )}
+   669→                  {isDone && (
+   670→                    <p className="text-xs text-emerald-400/70 mt-0.5">
+   671→                      {page.html ? `${(page.html.length / 1024).toFixed(1)} KB generated` : 'Ready'}
+   672→                    </p>
+   673→                  )}
+   674→                </div>
+   675→                {isDone && (
+   676→                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-emerald-400">✓</motion.span>
+   677→                )}
+   678→              </motion.div>
+   679→            )
+   680→          })}
+   681→        </div>
+   682→
+   683→        {/* Action buttons */}
+   684→        <div className="flex justify-center gap-3">
+   685→          {hasError ? (
+   686→            <Button onClick={handleRetry} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+   687→              <RefreshCw className="mr-2 h-4 w-4" /> Back to prompt
+   688→            </Button>
+   689→          ) : null}
+   690→          <Button
+   691→            variant="ghost"
+   692→            onClick={handleCancel}
+   693→            className="text-white/30 hover:text-white/60 hover:bg-white/5"
+   694→          >
+   695→            <X className="mr-2 h-4 w-4" />
+   696→            Cancel Generation
+   697→          </Button>
+   698→        </div>
+   699→
+   700→        {/* Live status line */}
+   701→        {!hasError && (
+   702→          <p className="mt-6 text-center text-xs text-white/30">
+   703→            {useAppStore.getState().generationStatus || 'Initializing…'}
+   704→          </p>
+   705→        )}
+   706→      </motion.div>
+   707→    </div>
+   708→  )
+   709→}
+   710→
+   711→// ─── Preview Phase ────────────────────────────────────────────────────────
+   712→
+   713→function LockIcon() {
+   714→  return (
+   715→    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+   716→      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+   717→      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+   718→    </svg>
+   719→  )
+   720→}
+   721→const Lock = LockIcon
+   722→
+   723→function PreviewPhase() {
+   724→  const {
+   725→    generatedPages, generatedSiteName,
+   726→    currentPreviewPage, setCurrentPreviewPage,
+   727→    setBuilderPhase, builderPrompt,
+   728→    navigate, addProject,
+   729→    builderIndustry, builderStyle,
+   730→  } = useAppStore()
+   731→
+   732→  const [deviceSize, setDeviceSize] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+   733→  const iframeRef = useRef<HTMLIFrameElement>(null)
+   734→
+   735→  const currentPage = generatedPages.find(p => p.id === currentPreviewPage) || generatedPages[0]
+   736→  const siteName = generatedSiteName || 'Untitled Site'
+   737→
+   738→  // Update iframe content when page changes
+   739→  useEffect(() => {
+   740→    if (iframeRef.current && currentPage) {
+   741→      iframeRef.current.srcdoc = currentPage.html
+   742→    }
+   743→  }, [currentPreviewPage, currentPage])
+   744→
+   745→  const handleSaveProject = () => {
+   746→    const project = {
+   747→      id: `proj-${Date.now()}`,
+   748→      name: siteName,
+   749→      description: builderPrompt,
+   750→      prompt: builderPrompt,
+   751→      thumbnail: '',
+   752→      status: 'draft',
+   753→      framework: 'html',
+   754→      theme: `${builderIndustry}-${builderStyle}`,
+   755→      createdAt: new Date().toISOString(),
+   756→      updatedAt: new Date().toISOString(),
+   757→    }
+   758→    addProject(project)
+   759→    toast({ title: 'Project saved!', description: `${siteName} has been saved to your dashboard` })
+   760→  }
+   761→
+   762→  const handleExport = () => {
+   763→    if (!currentPage) return
+   764→    const blob = new Blob([currentPage.html], { type: 'text/html' })
+   765→    const url = URL.createObjectURL(blob)
+   766→    const a = window.document.createElement('a')
+   767→    a.href = url
+   768→    a.download = `${siteName.toLowerCase().replace(/\s+/g, '-')}-${currentPage.route.replace('/', '') || 'home'}.html`
+   769→    window.document.body.appendChild(a)
+   770→    a.click()
+   771→    window.document.body.removeChild(a)
+   772→    URL.revokeObjectURL(url)
+   773→    toast({ title: 'Exported!', description: `${currentPage.name} page HTML downloaded` })
+   774→  }
+   775→
+   776→  const handleExportAll = () => {
+   777→    // Bundle all pages as a single zip-like structure: just download each one
+   778→    generatedPages.forEach((page, i) => {
+   779→      setTimeout(() => {
+   780→        const blob = new Blob([page.html], { type: 'text/html' })
+   781→        const url = URL.createObjectURL(blob)
+   782→        const a = window.document.createElement('a')
+   783→        a.href = url
+   784→        a.download = `${siteName.toLowerCase().replace(/\s+/g, '-')}-${page.route.replace('/', '') || 'home'}.html`
+   785→        window.document.body.appendChild(a)
+   786→        a.click()
+   787→        window.document.body.removeChild(a)
+   788→        URL.revokeObjectURL(url)
+   789→      }, i * 300)
+   790→    })
+   791→    toast({ title: 'Exporting all pages!', description: `${generatedPages.length} HTML files downloading…` })
+   792→  }
+   793→
+   794→  const handleDeploy = () => {
+   795→    toast({ title: 'Deploying...', description: 'Your website is being deployed to production' })
+   796→  }
+   797→
+   798→  const handleRegenerate = () => {
+   799→    setBuilderPhase('prompt')
+   800→  }
+   801→
+   802→  const handleEdit = () => {
+   803→    if (!currentPage) return
+   804→    // Make sure currentPreviewPage is set so editor loads the right page
+   805→    setCurrentPreviewPage(currentPage.id)
+   806→    navigate('editor')
+   807→  }
+   808→
+   809→  const iframeWidth = DEVICE_SIZES[deviceSize].width
+   810→
+   811→  const industryLabel = builderIndustry.charAt(0).toUpperCase() + builderIndustry.slice(1)
+   812→  const styleLabel = builderStyle.charAt(0).toUpperCase() + builderStyle.slice(1)
+   813→
+   814→  if (!currentPage) {
+   815→    return (
+   816→      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] text-white/60">
+   817→        No pages generated yet.
+   818→      </div>
+   819→    )
+   820→  }
+   821→
+   822→  return (
+   823→    <div className="flex h-screen flex-col bg-[#0a0a0f]">
+   824→      {/* Top toolbar */}
+   825→      <div className="flex items-center justify-between border-b border-white/8 bg-[#0c0c14] px-4 py-3">
+   826→        <div className="flex items-center gap-3">
+   827→          <Badge variant="secondary" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+   828→            <CheckCircle2 className="mr-1 h-3 w-3" />
+   829→            Ready
+   830→          </Badge>
+   831→          <span className="text-sm font-semibold text-white/80">{siteName}</span>
+   832→          <span className="hidden text-xs text-white/30 sm:inline">· {generatedPages.length} pages · {industryLabel} · {styleLabel}</span>
+   833→        </div>
+   834→
+   835→        {/* Device toggle */}
+   836→        <div className="flex items-center gap-1 rounded-lg border border-white/8 bg-white/[0.03] p-1">
+   837→          {(Object.entries(DEVICE_SIZES) as [keyof typeof DEVICE_SIZES, typeof DEVICE_SIZES[keyof typeof DEVICE_SIZES]][]).map(([key, config]) => {
+   838→            const Icon = config.icon
+   839→            return (
+   840→              <Button
+   841→                key={key}
+   842→                variant={deviceSize === key ? 'secondary' : 'ghost'}
+   843→                size="sm"
+   844→                onClick={() => setDeviceSize(key)}
+   845→                className={`h-8 px-2 ${deviceSize === key ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+   846→              >
+   847→                <Icon className="h-4 w-4" />
+   848→              </Button>
+   849→            )
+   850→          })}
+   851→        </div>
+   852→
+   853→        {/* Action buttons */}
+   854→        <div className="flex items-center gap-2">
+   855→          <Button variant="ghost" size="sm" onClick={handleRegenerate} className="text-white/30 hover:text-white/60 hover:bg-white/5">
+   856→            <RefreshCw className="mr-1 h-4 w-4" />
+   857→            <span className="hidden sm:inline">Regenerate</span>
+   858→          </Button>
+   859→          <Button variant="ghost" size="sm" onClick={handleSaveProject} className="text-white/30 hover:text-white/60 hover:bg-white/5">
+   860→            <Save className="mr-1 h-4 w-4" />
+   861→            <span className="hidden sm:inline">Save</span>
+   862→          </Button>
+   863→          <Button variant="ghost" size="sm" onClick={handleExport} className="text-white/30 hover:text-white/60 hover:bg-white/5">
+   864→            <Download className="mr-1 h-4 w-4" />
+   865→            <span className="hidden sm:inline">Export page</span>
+   866→          </Button>
+   867→          <Button variant="ghost" size="sm" onClick={handleExportAll} className="text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/5">
+   868→            <Rocket className="mr-1 h-4 w-4" />
+   869→            <span className="hidden sm:inline">Export all</span>
+   870→          </Button>
+   871→          <Button size="sm" onClick={handleEdit} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:opacity-90">
+   872→            <Code2 className="mr-1 h-4 w-4" />
+   873→            Edit in Visual Editor
+   874→          </Button>
+   875→        </div>
+   876→      </div>
+   877→
+   878→      {/* Main content */}
+   879→      <div className="flex flex-1 overflow-hidden">
+   880→        {/* Sidebar - Page navigation */}
+   881→        <div className="w-64 border-r border-white/8 bg-[#0c0c14] p-4 overflow-y-auto">
+   882→          <div className="mb-4">
+   883→            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Pages</p>
+   884→            <div className="space-y-1">
+   885→              {generatedPages.map((page, i) => {
+   886→                const pageMeta = PAGE_ORDER[i]
+   887→                const Icon = pageMeta?.icon || Layout
+   888→                const isActive = currentPreviewPage === page.id
+   889→                return (
+   890→                  <motion.button
+   891→                    key={page.id}
+   892→                    whileHover={{ x: 4 }}
+   893→                    onClick={() => setCurrentPreviewPage(page.id)}
+   894→                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-all ${
+   895→                      isActive
+   896→                        ? 'bg-purple-500/10 text-white border border-purple-500/20'
+   897→                        : 'text-white/40 hover:bg-white/5 hover:text-white/60'
+   898→                    }`}
+   899→                  >
+   900→                    <Icon className="h-4 w-4" />
+   901→                    <div className="flex-1">
+   902→                      <div className="font-medium">{page.name}</div>
+   903→                      <div className="text-xs text-white/30">{page.route}</div>
+   904→                    </div>
+   905→                    {page.html && (
+   906→                      <span className="text-xs text-white/20">{(page.html.length / 1024).toFixed(1)}K</span>
+   907→                    )}
+   908→                  </motion.button>
+   909→                )
+   910→              })}
+   911→            </div>
+   912→          </div>
+   913→
+   914→          <div className="mt-6 rounded-lg border border-white/8 bg-white/[0.02] p-3">
+   915→            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Site Details</p>
+   916→            <div className="space-y-2 text-xs text-white/40">
+   917→              <div className="flex justify-between">
+   918→                <span>Site name</span>
+   919→                <span className="text-white/60 truncate ml-2 max-w-32" title={siteName}>{siteName}</span>
+   920→              </div>
+   921→              <div className="flex justify-between">
+   922→                <span>Industry</span>
+   923→                <span className="text-white/60">{industryLabel}</span>
+   924→              </div>
+   925→              <div className="flex justify-between">
+   926→                <span>Style</span>
+   927→                <span className="text-white/60">{styleLabel}</span>
+   928→              </div>
+   929→              <div className="flex justify-between">
+   930→                <span>Pages</span>
+   931→                <span className="text-white/60">{generatedPages.length}</span>
+   932→              </div>
+   933→              <div className="flex justify-between">
+   934→                <span>Total size</span>
+   935→                <span className="text-white/60">
+   936→                  {(generatedPages.reduce((sum, p) => sum + (p.html?.length || 0), 0) / 1024).toFixed(1)} KB
+   937→                </span>
+   938→              </div>
+   939→              <div className="flex justify-between">
+   940→                <span>Framework</span>
+   941→                <span className="text-white/60">HTML/CSS</span>
+   942→              </div>
+   943→              <div className="flex justify-between">
+   944→                <span>AI model</span>
+   945→                <span className="text-white/60">GLM-4.7</span>
+   946→              </div>
+   947→            </div>
+   948→          </div>
+   949→
+   950→          <div className="mt-6 rounded-lg border border-white/8 bg-white/[0.02] p-3">
+   951→            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Prompt</p>
+   952→            <p className="text-xs text-white/40 leading-relaxed line-clamp-6">{builderPrompt}</p>
+   953→          </div>
+   954→        </div>
+   955→
+   956→        {/* Preview area */}
+   957→        <div className="flex flex-1 items-center justify-center bg-[#0a0a0f] p-4 overflow-auto">
+   958→          <motion.div
+   959→            layout
+   960→            className="relative overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/40"
+   961→            style={{ width: iframeWidth, maxWidth: '100%', height: deviceSize === 'mobile' ? '667px' : deviceSize === 'tablet' ? '1024px' : 'calc(100vh - 120px)' }}
+   962→          >
+   963→            {/* Browser chrome */}
+   964→            <div className="flex items-center gap-2 bg-[#1a1a24] px-3 py-2 border-b border-white/5">
+   965→              <div className="flex gap-1.5">
+   966→                <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+   967→                <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
+   968→                <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+   969→              </div>
+   970→              <div className="flex-1 mx-4">
+   971→                <div className="flex items-center gap-1 rounded-md bg-white/5 px-3 py-1">
+   972→                  <Lock className="h-3 w-3 text-white/20" />
+   973→                  <span className="text-xs text-white/30 truncate">
+   974→                    {siteName.toLowerCase().replace(/\s+/g, '-')}.app{currentPage.route === '/' ? '' : currentPage.route}
+   975→                  </span>
+   976→                </div>
+   977→              </div>
+   978→              <span className="text-xs text-white/30">{currentPage.name}</span>
+   979→            </div>
+   980→
+   981→            {/* iframe — sandbox includes allow-same-origin so the editor's postMessage bridge works after we navigate there */}
+   982→            <iframe
+   983→              ref={iframeRef}
+   984→              srcDoc={currentPage.html}
+   985→              title="Website Preview"
+   986→              className="w-full bg-white border-0"
+   987→              style={{ height: deviceSize === 'mobile' ? '641px' : deviceSize === 'tablet' ? '998px' : 'calc(100vh - 160px)' }}
+   988→              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+   989→            />
+   990→          </motion.div>
+   991→        </div>
+   992→      </div>
+   993→    </div>
+   994→  )
+   995→}
+   996→
+   997→// ─── Main Component ─────────────────────────────────────────────────────────
+   998→
+   999→export default function BuilderPage() {
+  1000→  const { builderPhase } = useAppStore()
+  1001→
+  1002→  return (
+  1003→    <AnimatePresence mode="wait">
+  1004→      <motion.div
+  1005→        key={builderPhase}
+  1006→        initial={{ opacity: 0 }}
+  1007→        animate={{ opacity: 1 }}
+  1008→        exit={{ opacity: 0 }}
+  1009→        transition={{ duration: 0.3 }}
+  1010→        className="min-h-screen bg-[#0a0a0f]"
+  1011→      >
+  1012→        {builderPhase === 'prompt' && <PromptPhase />}
+  1013→        {builderPhase === 'generating' && <GeneratingPhase />}
+  1014→        {builderPhase === 'preview' && <PreviewPhase />}
+  1015→        {builderPhase === 'edit' && (
+  1016→          <div className="flex min-h-screen items-center justify-center">
+  1017→            <div className="text-center">
+  1018→              <Loader2 className="h-8 w-8 animate-spin text-purple-400 mx-auto mb-4" />
+  1019→              <p className="text-white/60">Transitioning to editor...</p>
+  1020→            </div>
+  1021→          </div>
+  1022→        )}
+  1023→      </motion.div>
+  1024→    </AnimatePresence>
+  1025→  )
+  1026→}
+  1027→

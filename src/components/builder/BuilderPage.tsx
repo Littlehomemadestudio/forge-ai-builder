@@ -2,12 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAppStore } from '@/lib/store'
+import { useAppStore, type BuilderStyle, type BuilderComplexity, type BuilderPageLength, type BuilderLayoutDensity, type BuilderAnimationLevel, type BuilderResponsivePriority, type BuilderContentTone, type BuilderNavigationStyle, type BuilderSEOLevel, type BuilderAccessibilityLevel, type BuilderImageStyle, type BuilderCTAStyle } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -15,16 +21,17 @@ import { toast } from '@/hooks/use-toast'
 import {
   Sparkles, Wand2, Monitor, Smartphone, Tablet, Code2, Rocket,
   Download, Eye, ArrowLeft, RefreshCw, Save, X,
-  ChevronRight, Zap, Layers, Palette, Type, Layout,
+  ChevronRight, ChevronDown, ChevronUp, Zap, Layers, Palette, Type, Layout,
   Loader2, CheckCircle2, AlertCircle, Globe, Home, Mail, Server,
   Briefcase, Store, ShoppingBag, Newspaper, Building2, Calendar, User,
-  Sun, Moon, Minimize, Flame,
+  Sun, Moon, Minimize, Flame, Sliders, Paintbrush, Shield, Accessibility,
+  Image, Navigation, Megaphone, Clock, DollarSign, HelpCircle,
+  MessageSquare, Share2, Phone, Columns, Grip, Tag, AlignLeft, AlignCenter, AlignRight, LayoutGrid,
 } from 'lucide-react'
 
-// ─── Industry metadata (mirrors server-side) ──────────────────────────────
+// ─── Industry metadata ──────────────────────────────────────────────────────
 
 type Industry = 'portfolio' | 'saas' | 'restaurant' | 'ecommerce' | 'blog' | 'agency' | 'event' | 'personal'
-type StyleMode = 'light' | 'dark' | 'minimal' | 'bold'
 
 const INDUSTRY_OPTIONS: { id: Industry; label: string; icon: typeof Briefcase; hint: string }[] = [
   { id: 'portfolio', label: 'Creative Portfolio', icon: Palette, hint: 'Designers, photographers, artists' },
@@ -37,14 +44,142 @@ const INDUSTRY_OPTIONS: { id: Industry; label: string; icon: typeof Briefcase; h
   { id: 'personal', label: 'Personal / Resume', icon: User, hint: 'Bio, experience, projects' },
 ]
 
-const STYLE_OPTIONS: { id: StyleMode; label: string; icon: typeof Sun; swatch: { bg: string; accent: string; text: string } }[] = [
+// ─── Style presets (expanded from 4 to 8) ────────────────────────────────────
+
+const STYLE_OPTIONS: { id: BuilderStyle; label: string; icon: typeof Sun; swatch: { bg: string; accent: string; text: string } }[] = [
   { id: 'light', label: 'Light', icon: Sun, swatch: { bg: '#FFFFFF', accent: '#6366F1', text: '#0F172A' } },
   { id: 'dark', label: 'Dark', icon: Moon, swatch: { bg: '#0A0A0F', accent: '#A855F7', text: '#F8FAFC' } },
   { id: 'minimal', label: 'Minimal', icon: Minimize, swatch: { bg: '#FAFAF9', accent: '#1C1917', text: '#1C1917' } },
   { id: 'bold', label: 'Bold', icon: Flame, swatch: { bg: '#FFFBEB', accent: '#F59E0B', text: '#1F2937' } },
+  { id: 'glassmorphism', label: 'Glass', icon: Sparkles, swatch: { bg: '#1a1a2e', accent: '#a855f7', text: '#f8fafc' } },
+  { id: 'neobrutalism', label: 'Neo-Brutal', icon: Zap, swatch: { bg: '#FFF000', accent: '#000000', text: '#000000' } },
+  { id: 'retro', label: 'Retro', icon: Clock, swatch: { bg: '#F5E6D3', accent: '#D2691E', text: '#3C2415' } },
+  { id: 'gradient', label: 'Gradient', icon: Palette, swatch: { bg: '#0F172A', accent: '#6366F1', text: '#F8FAFC' } },
 ]
 
-const PAGE_ORDER: { id: 'home' | 'about' | 'services' | 'contact'; name: string; icon: typeof Home }[] = [
+// ─── Font family options ────────────────────────────────────────────────────
+
+const FONT_OPTIONS = [
+  'Inter', 'Geist', 'system-ui', 'Arial', 'Helvetica', 'Georgia',
+  'Times New Roman', 'Courier New', 'Verdana', 'Playfair Display',
+  'Montserrat', 'Poppins', 'Roboto', 'Lora', 'Merriweather', 'Fira Code',
+]
+
+// ─── Option descriptors ─────────────────────────────────────────────────────
+
+const COMPLEXITY_OPTIONS: { id: BuilderComplexity; label: string; desc: string }[] = [
+  { id: 'simple', label: 'Simple', desc: 'Basic layout, minimal sections, quick generation' },
+  { id: 'standard', label: 'Standard', desc: 'Balanced layout with key sections and content' },
+  { id: 'advanced', label: 'Advanced', desc: 'Rich layout, multiple sections, detailed content' },
+  { id: 'comprehensive', label: 'Comprehensive', desc: 'Full-featured site with every section fleshed out' },
+]
+
+const PAGE_LENGTH_OPTIONS: { id: BuilderPageLength; label: string; desc: string }[] = [
+  { id: 'short', label: 'Short', desc: '1-2 sections, minimal scroll' },
+  { id: 'medium', label: 'Medium', desc: '3-4 sections, balanced content' },
+  { id: 'long', label: 'Long', desc: '5-7 sections, detailed content' },
+  { id: 'extended', label: 'Extended', desc: '8+ sections, comprehensive coverage' },
+]
+
+const LAYOUT_DENSITY_OPTIONS: { id: BuilderLayoutDensity; label: string; desc: string }[] = [
+  { id: 'compact', label: 'Compact', desc: 'Tight spacing, more content per view' },
+  { id: 'comfortable', label: 'Comfortable', desc: 'Standard spacing, easy reading' },
+  { id: 'spacious', label: 'Spacious', desc: 'Generous whitespace, elegant feel' },
+  { id: 'ultra-spacious', label: 'Ultra-Spacious', desc: 'Maximum whitespace, premium feel' },
+]
+
+const CONTENT_TONE_OPTIONS: { id: BuilderContentTone; label: string; desc: string }[] = [
+  { id: 'professional', label: 'Professional', desc: 'Formal, business-oriented language' },
+  { id: 'casual', label: 'Casual', desc: 'Friendly, conversational tone' },
+  { id: 'playful', label: 'Playful', desc: 'Fun, creative, energetic language' },
+  { id: 'elegant', label: 'Elegant', desc: 'Refined, sophisticated expression' },
+  { id: 'technical', label: 'Technical', desc: 'Precise, detailed, jargon-friendly' },
+  { id: 'warm', label: 'Warm', desc: 'Inviting, personal, empathetic tone' },
+]
+
+const ANIMATION_LEVEL_OPTIONS: { id: BuilderAnimationLevel; label: string; desc: string }[] = [
+  { id: 'none', label: 'None', desc: 'No animations, purely static' },
+  { id: 'subtle', label: 'Subtle', desc: 'Micro-interactions, gentle transitions' },
+  { id: 'moderate', label: 'Moderate', desc: 'Visible animations, scroll reveals' },
+  { id: 'energetic', label: 'Energetic', desc: 'Dynamic animations, bold transitions' },
+  { id: 'immersive', label: 'Immersive', desc: 'Full animated experience, parallax, 3D' },
+]
+
+const RESPONSIVE_PRIORITY_OPTIONS: { id: BuilderResponsivePriority; label: string; desc: string }[] = [
+  { id: 'mobile-first', label: 'Mobile-First', desc: 'Optimized for mobile, then desktop' },
+  { id: 'desktop-first', label: 'Desktop-First', desc: 'Optimized for desktop, then mobile' },
+  { id: 'universal', label: 'Universal', desc: 'Equal priority for all devices' },
+]
+
+const NAVIGATION_STYLE_OPTIONS: { id: BuilderNavigationStyle; label: string; desc: string }[] = [
+  { id: 'top', label: 'Top Bar', desc: 'Fixed navigation bar at top' },
+  { id: 'sticky', label: 'Sticky Header', desc: 'Header sticks on scroll' },
+  { id: 'sidebar', label: 'Sidebar', desc: 'Side navigation panel' },
+  { id: 'centered', label: 'Centered', desc: 'Centered logo with nav below' },
+  { id: 'minimal', label: 'Minimal', desc: 'Icon-only or hamburger menu' },
+]
+
+const CTA_STYLE_OPTIONS: { id: BuilderCTAStyle; label: string; desc: string }[] = [
+  { id: 'button', label: 'Button', desc: 'Standard solid button' },
+  { id: 'pill', label: 'Pill', desc: 'Rounded pill-shaped button' },
+  { id: 'link', label: 'Link', desc: 'Text link with arrow' },
+  { id: 'gradient', label: 'Gradient', desc: 'Gradient-filled button' },
+  { id: 'outlined', label: 'Outlined', desc: 'Border-only button' },
+]
+
+const SEO_LEVEL_OPTIONS: { id: BuilderSEOLevel; label: string; desc: string }[] = [
+  { id: 'basic', label: 'Basic', desc: 'Title, meta description, headings' },
+  { id: 'standard', label: 'Standard', desc: 'Full meta tags, structured data hints' },
+  { id: 'advanced', label: 'Advanced', desc: 'Complete SEO markup, OG tags, semantic HTML' },
+]
+
+const ACCESSIBILITY_LEVEL_OPTIONS: { id: BuilderAccessibilityLevel; label: string; desc: string }[] = [
+  { id: 'basic', label: 'Basic', desc: 'Alt text, semantic elements' },
+  { id: 'enhanced', label: 'Enhanced', desc: 'ARIA labels, keyboard nav, focus states' },
+  { id: 'maximum', label: 'Maximum', desc: 'WCAG 2.1 AA compliant, full accessibility' },
+]
+
+const IMAGE_STYLE_OPTIONS: { id: BuilderImageStyle; label: string; desc: string }[] = [
+  { id: 'illustrations', label: 'Illustrations', desc: 'Custom SVG/CSS illustrations' },
+  { id: 'photos', label: 'Photos', desc: 'Real photography from Unsplash' },
+  { id: 'icons', label: 'Icons', desc: 'Icon-focused design (Lucide-style)' },
+  { id: 'abstract', label: 'Abstract', desc: 'Abstract patterns, gradients, shapes' },
+  { id: 'mixed', label: 'Mixed', desc: 'Combination of all styles' },
+  { id: 'none', label: 'None', desc: 'No images, pure typography & color' },
+]
+
+const LOGO_PLACEMENT_OPTIONS = [
+  { id: 'left', label: 'Left', icon: AlignLeft },
+  { id: 'center', label: 'Center', icon: AlignCenter },
+  { id: 'right', label: 'Right', icon: AlignRight },
+]
+
+const SECTION_TOGGLE_ITEMS: { key: string; label: string; icon: typeof Sparkles; desc: string }[] = [
+  { key: 'includeHero', label: 'Hero Section', icon: Layout, desc: 'Large headline + CTA area' },
+  { key: 'includeFeatures', label: 'Features Grid', icon: LayoutGrid, desc: '3-6 feature cards' },
+  { key: 'includeTestimonials', label: 'Testimonials', icon: MessageSquare, desc: 'Customer quotes & reviews' },
+  { key: 'includePricing', label: 'Pricing', icon: DollarSign, desc: 'Pricing tiers table' },
+  { key: 'includeFAQ', label: 'FAQ', icon: HelpCircle, desc: 'Frequently asked questions' },
+  { key: 'includeNewsletter', label: 'Newsletter', icon: Mail, desc: 'Email signup form' },
+  { key: 'includeCTA', label: 'CTA Banner', icon: Megaphone, desc: 'Call-to-action section' },
+  { key: 'includeFooter', label: 'Footer', icon: Layers, desc: 'Site footer with links' },
+  { key: 'includeAnimations', label: 'Animations', icon: Sparkles, desc: 'Scroll reveals & transitions' },
+  { key: 'includeSocialLinks', label: 'Social Links', icon: Share2, desc: 'Social media icons' },
+  { key: 'includeContactForm', label: 'Contact Form', icon: Phone, desc: 'Contact form with fields' },
+]
+
+const PAGE_CONFIG_ITEMS = [
+  { id: 'home', name: 'Home', icon: Home },
+  { id: 'about', name: 'About', icon: Layers },
+  { id: 'services', name: 'Services', icon: Briefcase },
+  { id: 'contact', name: 'Contact', icon: Mail },
+  { id: 'blog', name: 'Blog', icon: Newspaper },
+  { id: 'pricing', name: 'Pricing', icon: DollarSign },
+  { id: 'faq', name: 'FAQ', icon: HelpCircle },
+  { id: 'portfolio', name: 'Portfolio', icon: Palette },
+]
+
+const CORE_PAGE_ORDER: { id: 'home' | 'about' | 'services' | 'contact'; name: string; icon: typeof Home }[] = [
   { id: 'home', name: 'Home', icon: Home },
   { id: 'about', name: 'About', icon: Layers },
   { id: 'services', name: 'Services', icon: Briefcase },
@@ -66,13 +201,668 @@ const DEVICE_SIZES = {
   mobile: { width: '375px', label: 'Mobile', icon: Smartphone },
 } as const
 
-// ─── Prompt Phase ──────────────────────────────────────────────────────────
+// ─── Reusable glass card wrapper ────────────────────────────────────────────
+
+function GlassCard({ label, icon, children, className = '' }: { label: string; icon: typeof Sparkles; children: React.ReactNode; className?: string }) {
+  const Icon = icon
+  return (
+    <div className={`rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 ${className}`}>
+      <label className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+// ─── Color picker input ─────────────────────────────────────────────────────
+
+function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Label className="text-xs text-white/40 min-w-[60px]">{label}</Label>
+      <div className="relative flex items-center gap-1.5">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-7 w-7 rounded-md border border-white/20 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-md"
+        />
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-7 w-[80px] text-xs border-white/10 bg-white/5 text-white/70 px-2"
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── Advanced Options Panel ─────────────────────────────────────────────────
+
+function AdvancedOptionsPanel() {
+  const { builderAdvancedOptions, setBuilderAdvancedOptions, builderStyle, setBuilderStyle } = useAppStore()
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [activeTab, setActiveTab] = useState('brand')
+
+  const updateColorScheme = (key: string, value: string) => {
+    setBuilderAdvancedOptions({
+      colorScheme: { ...builderAdvancedOptions.colorScheme, [key]: value },
+    })
+  }
+
+  const updatePageConfig = (pageId: string, field: 'enabled' | 'length', value: boolean | BuilderPageLength) => {
+    setBuilderAdvancedOptions({
+      pageConfigs: builderAdvancedOptions.pageConfigs.map(p =>
+        p.id === pageId ? { ...p, [field]: value } : p
+      ),
+    })
+  }
+
+  const updateSectionToggle = (key: string, value: boolean) => {
+    setBuilderAdvancedOptions({ [key]: value })
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.55 }}
+      className="mb-6"
+    >
+      {/* Toggle button */}
+      <button
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/50 transition-all hover:bg-white/[0.06] hover:text-white/70 hover:border-white/20"
+      >
+        <Sliders className="h-4 w-4" />
+        <span>Advanced Options</span>
+        {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+
+      {/* Collapsible content */}
+      <AnimatePresence>
+        {showAdvanced && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="mt-4">
+              {/* Tab navigation */}
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="w-full bg-white/[0.03] border border-white/10 rounded-xl h-auto p-1 mb-4 flex-wrap">
+                  <TabsTrigger value="brand" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                    <Paintbrush className="h-3 w-3 mr-1" /> Brand
+                  </TabsTrigger>
+                  <TabsTrigger value="complexity" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                    <Layers className="h-3 w-3 mr-1" /> Length
+                  </TabsTrigger>
+                  <TabsTrigger value="visual" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                    <Palette className="h-3 w-3 mr-1" /> Style
+                  </TabsTrigger>
+                  <TabsTrigger value="sections" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                    <Layout className="h-3 w-3 mr-1" /> Sections
+                  </TabsTrigger>
+                  <TabsTrigger value="navigation" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                    <Navigation className="h-3 w-3 mr-1" /> UX
+                  </TabsTrigger>
+                  <TabsTrigger value="seo" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                    <Shield className="h-3 w-3 mr-1" /> SEO
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* ─── Brand & Identity Tab ─────────────────────────────── */}
+                <TabsContent value="brand" className="mt-0">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Brand Name */}
+                    <GlassCard label="Brand Name" icon={Tag}>
+                      <Input
+                        value={builderAdvancedOptions.brandName}
+                        onChange={(e) => setBuilderAdvancedOptions({ brandName: e.target.value })}
+                        placeholder="Enter your brand name..."
+                        className="border-white/10 bg-white/5 text-white placeholder:text-white/25 h-9"
+                      />
+                    </GlassCard>
+
+                    {/* Font Family */}
+                    <GlassCard label="Font Family" icon={Type}>
+                      <Select
+                        value={builderAdvancedOptions.fontFamily}
+                        onValueChange={(v) => setBuilderAdvancedOptions({ fontFamily: v })}
+                      >
+                        <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#15151F] border-white/10 max-h-60">
+                          {FONT_OPTIONS.map(font => (
+                            <SelectItem key={font} value={font} className="text-white focus:bg-purple-500/20 focus:text-white">
+                              <span style={{ fontFamily: font }} className="text-sm">{font}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </GlassCard>
+                  </div>
+
+                  {/* Logo Placement */}
+                  <GlassCard label="Logo Placement" icon={AlignLeft} className="mt-4">
+                    <div className="flex gap-2">
+                      {LOGO_PLACEMENT_OPTIONS.map(opt => {
+                        const Icon = opt.icon
+                        const isActive = (builderAdvancedOptions as any).logoPlacement === opt.id
+                        // Default to 'left' if not set
+                        const currentPlacement = (builderAdvancedOptions as any).logoPlacement || 'left'
+                        const isSelected = currentPlacement === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ logoPlacement: opt.id } as any)}
+                            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60'
+                            }`}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            {opt.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Color Scheme */}
+                  <GlassCard label="Color Scheme" icon={Palette} className="mt-4">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <ColorPicker label="Primary" value={builderAdvancedOptions.colorScheme.primary} onChange={(v) => updateColorScheme('primary', v)} />
+                      <ColorPicker label="Accent" value={builderAdvancedOptions.colorScheme.accent} onChange={(v) => updateColorScheme('accent', v)} />
+                      <ColorPicker label="Background" value={builderAdvancedOptions.colorScheme.background} onChange={(v) => updateColorScheme('background', v)} />
+                      <ColorPicker label="Surface" value={builderAdvancedOptions.colorScheme.surface} onChange={(v) => updateColorScheme('surface', v)} />
+                      <ColorPicker label="Text" value={builderAdvancedOptions.colorScheme.text} onChange={(v) => updateColorScheme('text', v)} />
+                      <ColorPicker label="Muted" value={builderAdvancedOptions.colorScheme.muted} onChange={(v) => updateColorScheme('muted', v)} />
+                    </div>
+                    {/* Color preview bar */}
+                    <div className="mt-3 flex gap-1 rounded-lg overflow-hidden h-8">
+                      {Object.entries(builderAdvancedOptions.colorScheme).map(([key, color]) => (
+                        <TooltipProvider key={key}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="flex-1 cursor-pointer transition-all hover:flex-[2]"
+                                style={{ backgroundColor: color }}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-[#15151F] border-white/10 text-xs text-white/70">
+                              {key}: {color}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ))}
+                    </div>
+                  </GlassCard>
+                </TabsContent>
+
+                {/* ─── Complexity & Length Tab ─────────────────────────── */}
+                <TabsContent value="complexity" className="mt-0">
+                  {/* Complexity */}
+                  <GlassCard label="Complexity Level" icon={Layers}>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {COMPLEXITY_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.complexity === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ complexity: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Default Page Length */}
+                  <GlassCard label="Default Page Length" icon={Grip} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {PAGE_LENGTH_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.pageLength === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ pageLength: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Layout Density */}
+                  <GlassCard label="Layout Density" icon={Columns} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {LAYOUT_DENSITY_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.layoutDensity === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ layoutDensity: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Page Configuration Table */}
+                  <GlassCard label="Page Configuration" icon={Layout} className="mt-4">
+                    <div className="space-y-2">
+                      {PAGE_CONFIG_ITEMS.map(pageItem => {
+                        const config = builderAdvancedOptions.pageConfigs.find(p => p.id === pageItem.id)
+                        if (!config) return null
+                        const Icon = pageItem.icon
+                        return (
+                          <div key={pageItem.id} className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
+                            <Icon className="h-4 w-4 text-white/30" />
+                            <span className="text-sm text-white/60 min-w-[80px]">{config.name}</span>
+                            <Switch
+                              checked={config.enabled}
+                              onCheckedChange={(v) => updatePageConfig(pageItem.id, 'enabled', v)}
+                              className="data-[state=checked]:bg-purple-500"
+                            />
+                            {config.enabled && (
+                              <Select
+                                value={config.length}
+                                onValueChange={(v) => updatePageConfig(pageItem.id, 'length', v as BuilderPageLength)}
+                              >
+                                <SelectTrigger className="h-7 w-[100px] text-xs border-white/10 bg-white/5 text-white/70">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#15151F] border-white/10">
+                                  {PAGE_LENGTH_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white text-xs">
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            <Badge variant="secondary" className={`ml-auto text-xs border ${config.enabled ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/30'}`}>
+                              {config.enabled ? 'On' : 'Off'}
+                            </Badge>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+                </TabsContent>
+
+                {/* ─── Visual Style Tab ──────────────────────────────── */}
+                <TabsContent value="visual" className="mt-0">
+                  {/* Expanded Style Grid (8 options with swatches) */}
+                  <GlassCard label="Visual Style" icon={Palette}>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {STYLE_OPTIONS.map(opt => {
+                        const Icon = opt.icon
+                        const isSelected = builderStyle === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderStyle(opt.id)}
+                            className={`group flex flex-col items-center gap-2 rounded-xl px-3 py-3 transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30 shadow-lg shadow-purple-500/10'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
+                            }`}
+                          >
+                            <Icon className={`h-5 w-5 ${isSelected ? 'text-purple-300' : 'text-white/40'}`} />
+                            <span className={`text-xs font-medium ${isSelected ? 'text-purple-300' : 'text-white/50'}`}>
+                              {opt.label}
+                            </span>
+                            {/* Color swatches */}
+                            <div className="flex gap-1">
+                              <div className="h-4 w-4 rounded border border-white/20 transition-transform group-hover:scale-125" style={{ background: opt.swatch.bg }} />
+                              <div className="h-4 w-4 rounded border border-white/20 transition-transform group-hover:scale-125" style={{ background: opt.swatch.accent }} />
+                              <div className="h-4 w-4 rounded border border-white/20 transition-transform group-hover:scale-125" style={{ background: opt.swatch.text }} />
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Content Tone */}
+                  <GlassCard label="Content Tone" icon={MessageSquare} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {CONTENT_TONE_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.contentTone === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ contentTone: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Layout Density (also shown here for convenience) */}
+                  <GlassCard label="Layout Density" icon={Columns} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {LAYOUT_DENSITY_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.layoutDensity === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ layoutDensity: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+                </TabsContent>
+
+                {/* ─── Sections & Features Tab ────────────────────────── */}
+                <TabsContent value="sections" className="mt-0">
+                  <GlassCard label="Sections & Features" icon={Layout}>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {SECTION_TOGGLE_ITEMS.map(item => {
+                        const Icon = item.icon
+                        const isEnabled = (builderAdvancedOptions as any)[item.key] as boolean
+                        return (
+                          <div key={item.key} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Icon className="h-4 w-4 text-white/30 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <span className="text-sm text-white/60 truncate block">{item.label}</span>
+                                <span className="text-xs text-white/25 truncate block">{item.desc}</span>
+                              </div>
+                            </div>
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={(v) => updateSectionToggle(item.key, v)}
+                              className="data-[state=checked]:bg-purple-500 flex-shrink-0"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+                </TabsContent>
+
+                {/* ─── Navigation & UX Tab ─────────────────────────────── */}
+                <TabsContent value="navigation" className="mt-0">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Navigation Style */}
+                    <GlassCard label="Navigation Style" icon={Navigation}>
+                      <div className="space-y-1.5">
+                        {NAVIGATION_STYLE_OPTIONS.map(opt => {
+                          const isSelected = builderAdvancedOptions.navigationStyle === opt.id
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => setBuilderAdvancedOptions({ navigationStyle: opt.id })}
+                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                                isSelected
+                                  ? 'bg-purple-500/20 border border-purple-500/30'
+                                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                                {opt.label}
+                              </span>
+                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                                {opt.desc}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </GlassCard>
+
+                    {/* CTA Style */}
+                    <GlassCard label="CTA Style" icon={Megaphone}>
+                      <div className="space-y-1.5">
+                        {CTA_STYLE_OPTIONS.map(opt => {
+                          const isSelected = builderAdvancedOptions.ctaStyle === opt.id
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => setBuilderAdvancedOptions({ ctaStyle: opt.id })}
+                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                                isSelected
+                                  ? 'bg-purple-500/20 border border-purple-500/30'
+                                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                                {opt.label}
+                              </span>
+                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                                {opt.desc}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </GlassCard>
+                  </div>
+
+                  {/* Animation Level */}
+                  <GlassCard label="Animation Level" icon={Sparkles} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {ANIMATION_LEVEL_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.animationLevel === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ animationLevel: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+
+                  {/* Responsive Priority */}
+                  <GlassCard label="Responsive Priority" icon={Smartphone} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {RESPONSIVE_PRIORITY_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.responsivePriority === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ responsivePriority: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+                </TabsContent>
+
+                {/* ─── SEO & Accessibility Tab ─────────────────────────── */}
+                <TabsContent value="seo" className="mt-0">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {/* SEO Level */}
+                    <GlassCard label="SEO Level" icon={Shield}>
+                      <div className="space-y-1.5">
+                        {SEO_LEVEL_OPTIONS.map(opt => {
+                          const isSelected = builderAdvancedOptions.seoLevel === opt.id
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => setBuilderAdvancedOptions({ seoLevel: opt.id })}
+                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                                isSelected
+                                  ? 'bg-purple-500/20 border border-purple-500/30'
+                                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                                {opt.label}
+                              </span>
+                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                                {opt.desc}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </GlassCard>
+
+                    {/* Accessibility Level */}
+                    <GlassCard label="Accessibility Level" icon={Accessibility}>
+                      <div className="space-y-1.5">
+                        {ACCESSIBILITY_LEVEL_OPTIONS.map(opt => {
+                          const isSelected = builderAdvancedOptions.accessibilityLevel === opt.id
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => setBuilderAdvancedOptions({ accessibilityLevel: opt.id })}
+                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                                isSelected
+                                  ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                                {opt.label}
+                              </span>
+                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                                {opt.desc}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </GlassCard>
+                  </div>
+
+                  {/* Image Style */}
+                  <GlassCard label="Image Style" icon={Image} className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {IMAGE_STYLE_OPTIONS.map(opt => {
+                        const isSelected = builderAdvancedOptions.imageStyle === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => setBuilderAdvancedOptions({ imageStyle: opt.id })}
+                            className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
+                              isSelected
+                                ? 'bg-purple-500/20 border border-purple-500/30'
+                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              {opt.label}
+                            </span>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              {opt.desc}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </GlassCard>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+// ─── Prompt Phase ───────────────────────────────────────────────────────────
 
 function PromptPhase() {
   const {
     setBuilderPrompt, builderPrompt, startGeneration,
     builderIndustry, setBuilderIndustry,
     builderStyle, setBuilderStyle,
+    builderAdvancedOptions,
   } = useAppStore()
 
   const [cursorVisible, setCursorVisible] = useState(true)
@@ -96,6 +886,12 @@ function PromptPhase() {
     setBuilderIndustry(industry)
     textareaRef.current?.focus()
   }
+
+  // Determine enabled pages for generation
+  const enabledPages = builderAdvancedOptions.pageConfigs
+    .filter(p => p.enabled && CORE_PAGE_ORDER.some(cp => cp.id === p.id))
+
+  const totalEnabledPages = builderAdvancedOptions.pageConfigs.filter(p => p.enabled).length
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12">
@@ -140,14 +936,14 @@ function PromptPhase() {
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm backdrop-blur-md"
           >
             <Sparkles className="h-4 w-4 text-purple-400" />
-            <span className="text-white/60">Powered by GLM-4.7 AI · Generates 4 complete pages</span>
+            <span className="text-white/60">Powered by AI · Generates {totalEnabledPages} complete pages</span>
           </motion.div>
 
           <h1 className="mb-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
             Describe your vision
           </h1>
           <p className="text-lg text-white/40">
-            Tell us what you want — the AI will craft a complete 4-page website (Home, About, Services, Contact)
+            Tell us what you want — the AI will craft a complete multi-page website with your specifications
           </p>
         </div>
 
@@ -159,10 +955,7 @@ function PromptPhase() {
           className="mb-5 grid gap-4 sm:grid-cols-2"
         >
           {/* Industry selector */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4">
-            <label className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
-              <Briefcase className="h-3.5 w-3.5" /> Industry
-            </label>
+          <GlassCard label="Industry" icon={Briefcase}>
             <Select value={builderIndustry} onValueChange={(v) => setBuilderIndustry(v as Industry)}>
               <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
                 <SelectValue />
@@ -184,18 +977,15 @@ function PromptPhase() {
                 })}
               </SelectContent>
             </Select>
-          </div>
+          </GlassCard>
 
           {/* Style selector */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4">
-            <label className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
-              <Palette className="h-3.5 w-3.5" /> Visual Style
-            </label>
-            <Select value={builderStyle} onValueChange={(v) => setBuilderStyle(v as StyleMode)}>
+          <GlassCard label="Visual Style" icon={Palette}>
+            <Select value={builderStyle} onValueChange={(v) => setBuilderStyle(v as BuilderStyle)}>
               <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#15151F] border-white/10">
+              <SelectContent className="bg-[#15151F] border-white/10 max-h-80">
                 {STYLE_OPTIONS.map(opt => {
                   const Icon = opt.icon
                   return (
@@ -214,7 +1004,7 @@ function PromptPhase() {
                 })}
               </SelectContent>
             </Select>
-          </div>
+          </GlassCard>
         </motion.div>
 
         {/* Prompt input area */}
@@ -248,11 +1038,14 @@ function PromptPhase() {
                 {builderPrompt.length} chars · ⌘+Enter to generate
               </span>
               <span className="text-xs text-white/40">
-                ~ 4-6 min total · 4 pages, generated sequentially
+                {enabledPages.length} core pages · {totalEnabledPages} total enabled · ~4-6 min
               </span>
             </div>
           </div>
         </motion.div>
+
+        {/* Advanced Options Panel */}
+        <AdvancedOptionsPanel />
 
         {/* Generate button */}
         <motion.div
@@ -315,7 +1108,7 @@ function PromptPhase() {
 // ─── Generating Phase (real API calls, real progress) ─────────────────────
 
 interface PageGenState {
-  id: 'home' | 'about' | 'services' | 'contact'
+  id: string
   name: string
   status: 'pending' | 'generating' | 'done' | 'error'
   error?: string
@@ -328,13 +1121,20 @@ interface PageGenState {
 function GeneratingPhase() {
   const {
     builderPrompt, builderIndustry, builderStyle,
+    builderAdvancedOptions,
     setGeneratedPages, setGeneratedSiteName,
     setCurrentPreviewPage, setIsGenerating, setBuilderPhase,
     setGenerationProgress, setGenerationStatus,
+    generationStatus,
   } = useAppStore()
 
+  // Determine which core pages to generate based on pageConfigs
+  const pagesToGenerate = CORE_PAGE_ORDER.filter(cp =>
+    builderAdvancedOptions.pageConfigs.find(pc => pc.id === cp.id && pc.enabled)
+  )
+
   const [pageStates, setPageStates] = useState<PageGenState[]>(
-    PAGE_ORDER.map(p => ({ id: p.id, name: p.name, status: 'pending' }))
+    pagesToGenerate.map(p => ({ id: p.id, name: p.name, status: 'pending' }))
   )
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -348,43 +1148,68 @@ function GeneratingPhase() {
     return () => clearInterval(interval)
   }, [])
 
-  // Run the 4 page generations SEQUENTIALLY (parallel hits the GLM-4.7 API
-  // rate limit and returns 429). Each call takes ~60-90s, so total is ~5min.
-  // The user sees real per-page progress, so the wait feels productive.
+  // Run page generations SEQUENTIALLY
   useEffect(() => {
     cancelRef.current = false
     let cancelled = false
 
     async function generateAll() {
-      const collected: { id: string; name: string; html: string; css: string; js?: string }[] = []
+      const collected: { id: string; name: string; route: string; html: string; css: string; js?: string }[] = []
       let siteName = ''
 
-      for (let i = 0; i < PAGE_ORDER.length; i++) {
+      for (let i = 0; i < pagesToGenerate.length; i++) {
         if (cancelled || cancelRef.current) return
-        const pageInfo = PAGE_ORDER[i]
+        const pageInfo = pagesToGenerate[i]
 
         setPageStates(prev => prev.map(p => p.id === pageInfo.id ? { ...p, status: 'generating' } : p))
         setGenerationStatus(`Generating ${pageInfo.name} page…`)
-        setGenerationProgress(Math.round((i / PAGE_ORDER.length) * 100))
+        setGenerationProgress(Math.round((i / pagesToGenerate.length) * 100))
 
         try {
-          // POLLING APPROACH (fixes 502 from preview-proxy):
-          // 1. POST /api/generate → returns { jobId } immediately
-          // 2. Poll GET /api/generate?jobId=X every 2.5s until status is
-          //    'done' or 'error'
-          // 3. Each request is short (~100ms) so no proxy can 502 out
-          //
-          // The GLM-4.7 API takes 60-150s per page, but the work runs in
-          // the background on the server. The client just polls.
+          // Build request body with advanced options
+          const requestBody = {
+            prompt: builderPrompt,
+            industry: builderIndustry,
+            style: builderStyle,
+            page: pageInfo.id,
+            siteName: builderAdvancedOptions.brandName || undefined,
+            // Advanced options for the server to use in prompt construction
+            advancedOptions: {
+              complexity: builderAdvancedOptions.complexity,
+              pageLength: builderAdvancedOptions.pageConfigs.find(p => p.id === pageInfo.id)?.length || builderAdvancedOptions.pageLength,
+              layoutDensity: builderAdvancedOptions.layoutDensity,
+              animationLevel: builderAdvancedOptions.animationLevel,
+              responsivePriority: builderAdvancedOptions.responsivePriority,
+              contentTone: builderAdvancedOptions.contentTone,
+              navigationStyle: builderAdvancedOptions.navigationStyle,
+              seoLevel: builderAdvancedOptions.seoLevel,
+              accessibilityLevel: builderAdvancedOptions.accessibilityLevel,
+              imageStyle: builderAdvancedOptions.imageStyle,
+              ctaStyle: builderAdvancedOptions.ctaStyle,
+              fontFamily: builderAdvancedOptions.fontFamily,
+              colorScheme: builderAdvancedOptions.colorScheme,
+              logoPlacement: (builderAdvancedOptions as any).logoPlacement || 'left',
+              // Section toggles
+              includeHero: builderAdvancedOptions.includeHero,
+              includeFeatures: builderAdvancedOptions.includeFeatures,
+              includeTestimonials: builderAdvancedOptions.includeTestimonials,
+              includePricing: builderAdvancedOptions.includePricing,
+              includeFAQ: builderAdvancedOptions.includeFAQ,
+              includeNewsletter: builderAdvancedOptions.includeNewsletter,
+              includeCTA: builderAdvancedOptions.includeCTA,
+              includeFooter: builderAdvancedOptions.includeFooter,
+              includeAnimations: builderAdvancedOptions.includeAnimations,
+              includeSocialLinks: builderAdvancedOptions.includeSocialLinks,
+              includeContactForm: builderAdvancedOptions.includeContactForm,
+              // All page configs for context
+              pageConfigs: builderAdvancedOptions.pageConfigs,
+            },
+          }
+
           const startRes = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: builderPrompt,
-              industry: builderIndustry,
-              style: builderStyle,
-              page: pageInfo.id,
-            }),
+            body: JSON.stringify(requestBody),
           })
 
           if (cancelled || cancelRef.current) return
@@ -404,7 +1229,7 @@ function GeneratingPhase() {
           let data: any = null
           let streamError: string | null = null
           const POLL_INTERVAL_MS = 2500
-          const MAX_POLL_DURATION_MS = 8 * 60 * 1000 // 8 min per page max
+          const MAX_POLL_DURATION_MS = 8 * 60 * 1000
           const pollStart = Date.now()
 
           while (true) {
@@ -415,7 +1240,6 @@ function GeneratingPhase() {
               throw new Error(`Timed out after ${Math.round(elapsed / 1000)}s waiting for ${pageInfo.name} page`)
             }
 
-            // Wait before next poll (but not on first iteration)
             if (elapsed > 0) {
               await new Promise<void>(r => setTimeout(r, POLL_INTERVAL_MS))
               if (cancelled || cancelRef.current) return
@@ -427,7 +1251,6 @@ function GeneratingPhase() {
             })
 
             if (!statusRes.ok) {
-              // 404 = job expired/gone
               if (statusRes.status === 404) {
                 throw new Error('Generation job disappeared — please retry')
               }
@@ -438,7 +1261,6 @@ function GeneratingPhase() {
             const status = await statusRes.json()
             if (cancelled || cancelRef.current) return
 
-            // Update UI with heartbeat info so the user sees progress
             if (status.heartbeats !== undefined) {
               setGenerationStatus(
                 `Generating ${pageInfo.name} page… (${status.heartbeats} AI ticks, ${Math.round((Date.now() - pollStart) / 1000)}s)`
@@ -453,7 +1275,6 @@ function GeneratingPhase() {
               streamError = status.error || 'Generation failed'
               break
             }
-            // else: 'pending' or 'generating' — keep polling
           }
 
           if (cancelled || cancelRef.current) return
@@ -486,7 +1307,7 @@ function GeneratingPhase() {
           })
 
           setPageStates(prev => prev.map(p => p.id === pageInfo.id ? completed : p))
-          setGenerationProgress(Math.round(((i + 1) / PAGE_ORDER.length) * 100))
+          setGenerationProgress(Math.round(((i + 1) / pagesToGenerate.length) * 100))
         } catch (err: any) {
           if (cancelled || cancelRef.current) return
           const msg = err?.message || 'Generation failed'
@@ -499,7 +1320,7 @@ function GeneratingPhase() {
       if (cancelled || cancelRef.current) return
 
       setGeneratedPages(collected)
-      setGeneratedSiteName(siteName || 'Untitled Site')
+      setGeneratedSiteName(siteName || builderAdvancedOptions.brandName || 'Untitled Site')
       setCurrentPreviewPage(collected[0].id)
       setGenerationProgress(100)
       setGenerationStatus('Done!')
@@ -513,7 +1334,6 @@ function GeneratingPhase() {
       cancelled = true
       cancelRef.current = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCancel = () => {
@@ -525,7 +1345,6 @@ function GeneratingPhase() {
   }
 
   const handleRetry = () => {
-    // Reset states and re-run by remounting (force re-render via phase change)
     setIsGenerating(false)
     setGenerationProgress(0)
     setGenerationStatus('')
@@ -591,7 +1410,7 @@ function GeneratingPhase() {
           <p className="text-sm text-white/40">
             {hasError
               ? 'One of the pages failed. You can retry from the prompt, or cancel.'
-              : 'GLM-4.7 is crafting 4 complete pages sequentially — this takes ~4-6 minutes total'
+              : `AI is crafting ${pagesToGenerate.length} complete pages sequentially — this takes ~4-6 minutes total`
             }
           </p>
         </div>
@@ -599,11 +1418,11 @@ function GeneratingPhase() {
         {/* Progress bar */}
         <div className="mb-6">
           <Progress
-            value={hasError ? 100 : (doneCount / PAGE_ORDER.length) * 100}
+            value={hasError ? 100 : (doneCount / pagesToGenerate.length) * 100}
             className={`h-2 bg-white/10 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-purple-500 [&>[data-slot=progress-indicator]]:via-pink-500 [&>[data-slot=progress-indicator]]:to-emerald-500 ${hasError ? '[&>[data-slot=progress-indicator]]:from-red-500 [&>[data-slot=progress-indicator]]:via-red-500 [&>[data-slot=progress-indicator]]:to-red-500' : ''}`}
           />
           <div className="mt-2 flex justify-between text-xs text-white/40">
-            <span>{doneCount}/{PAGE_ORDER.length} pages done</span>
+            <span>{doneCount}/{pagesToGenerate.length} pages done</span>
             <span>{formatTime(elapsedSeconds)} elapsed</span>
           </div>
         </div>
@@ -615,7 +1434,7 @@ function GeneratingPhase() {
             const isGenerating = page.status === 'generating'
             const isDone = page.status === 'done'
             const isError = page.status === 'error'
-            const Icon = PAGE_ORDER[i].icon
+            const Icon = pagesToGenerate[i].icon
 
             return (
               <motion.div
@@ -700,7 +1519,7 @@ function GeneratingPhase() {
         {/* Live status line */}
         {!hasError && (
           <p className="mt-6 text-center text-xs text-white/30">
-            {useAppStore.getState().generationStatus || 'Initializing…'}
+            {generationStatus || 'Initializing…'}
           </p>
         )}
       </motion.div>
@@ -708,7 +1527,7 @@ function GeneratingPhase() {
   )
 }
 
-// ─── Preview Phase ────────────────────────────────────────────────────────
+// ─── Preview Phase ──────────────────────────────────────────────────────────
 
 function LockIcon() {
   return (
@@ -727,6 +1546,7 @@ function PreviewPhase() {
     setBuilderPhase, builderPrompt,
     navigate, addProject,
     builderIndustry, builderStyle,
+    builderAdvancedOptions,
   } = useAppStore()
 
   const [deviceSize, setDeviceSize] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
@@ -774,7 +1594,6 @@ function PreviewPhase() {
   }
 
   const handleExportAll = () => {
-    // Bundle all pages as a single zip-like structure: just download each one
     generatedPages.forEach((page, i) => {
       setTimeout(() => {
         const blob = new Blob([page.html], { type: 'text/html' })
@@ -791,17 +1610,12 @@ function PreviewPhase() {
     toast({ title: 'Exporting all pages!', description: `${generatedPages.length} HTML files downloading…` })
   }
 
-  const handleDeploy = () => {
-    toast({ title: 'Deploying...', description: 'Your website is being deployed to production' })
-  }
-
   const handleRegenerate = () => {
     setBuilderPhase('prompt')
   }
 
   const handleEdit = () => {
     if (!currentPage) return
-    // Make sure currentPreviewPage is set so editor loads the right page
     setCurrentPreviewPage(currentPage.id)
     navigate('editor')
   }
@@ -810,6 +1624,16 @@ function PreviewPhase() {
 
   const industryLabel = builderIndustry.charAt(0).toUpperCase() + builderIndustry.slice(1)
   const styleLabel = builderStyle.charAt(0).toUpperCase() + builderStyle.slice(1)
+
+  // Helper labels for advanced options
+  const complexityLabel = COMPLEXITY_OPTIONS.find(o => o.id === builderAdvancedOptions.complexity)?.label || 'Standard'
+  const toneLabel = CONTENT_TONE_OPTIONS.find(o => o.id === builderAdvancedOptions.contentTone)?.label || 'Professional'
+  const densityLabel = LAYOUT_DENSITY_OPTIONS.find(o => o.id === builderAdvancedOptions.layoutDensity)?.label || 'Comfortable'
+  const seoLabel = SEO_LEVEL_OPTIONS.find(o => o.id === builderAdvancedOptions.seoLevel)?.label || 'Standard'
+  const accessibilityLabel = ACCESSIBILITY_LEVEL_OPTIONS.find(o => o.id === builderAdvancedOptions.accessibilityLevel)?.label || 'Enhanced'
+
+  // Count enabled sections
+  const enabledSectionsCount = SECTION_TOGGLE_ITEMS.filter(item => (builderAdvancedOptions as any)[item.key]).length
 
   if (!currentPage) {
     return (
@@ -878,12 +1702,12 @@ function PreviewPhase() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Page navigation */}
-        <div className="w-64 border-r border-white/8 bg-[#0c0c14] p-4 overflow-y-auto">
+        <div className="w-64 border-r border-white/8 bg-[#0c0c14] p-4 overflow-y-auto max-h-screen">
           <div className="mb-4">
             <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Pages</p>
             <div className="space-y-1">
               {generatedPages.map((page, i) => {
-                const pageMeta = PAGE_ORDER[i]
+                const pageMeta = CORE_PAGE_ORDER[i]
                 const Icon = pageMeta?.icon || Layout
                 const isActive = currentPreviewPage === page.id
                 return (
@@ -940,14 +1764,54 @@ function PreviewPhase() {
                 <span>Framework</span>
                 <span className="text-white/60">HTML/CSS</span>
               </div>
+              <Separator className="bg-white/5 my-2" />
               <div className="flex justify-between">
-                <span>AI model</span>
-                <span className="text-white/60">GLM-4.7</span>
+                <span>Complexity</span>
+                <span className="text-white/60">{complexityLabel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tone</span>
+                <span className="text-white/60">{toneLabel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Density</span>
+                <span className="text-white/60">{densityLabel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SEO</span>
+                <span className="text-white/60">{seoLabel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Accessibility</span>
+                <span className="text-white/60">{accessibilityLabel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Sections</span>
+                <span className="text-white/60">{enabledSectionsCount}/{SECTION_TOGGLE_ITEMS.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Font</span>
+                <span className="text-white/60 truncate ml-2 max-w-32">{builderAdvancedOptions.fontFamily}</span>
+              </div>
+              <Separator className="bg-white/5 my-2" />
+              <div className="flex gap-1.5 mt-1">
+                {Object.entries(builderAdvancedOptions.colorScheme).map(([key, color]) => (
+                  <TooltipProvider key={key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="h-5 w-5 rounded border border-white/15 cursor-pointer" style={{ backgroundColor: color }} />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#15151F] border-white/10 text-xs text-white/70">
+                        {key}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="mt-6 rounded-lg border border-white/8 bg-white/[0.02] p-3">
+          <div className="mt-4 rounded-lg border border-white/8 bg-white/[0.02] p-3">
             <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">Prompt</p>
             <p className="text-xs text-white/40 leading-relaxed line-clamp-6">{builderPrompt}</p>
           </div>
@@ -978,7 +1842,7 @@ function PreviewPhase() {
               <span className="text-xs text-white/30">{currentPage.name}</span>
             </div>
 
-            {/* iframe — sandbox includes allow-same-origin so the editor's postMessage bridge works after we navigate there */}
+            {/* iframe */}
             <iframe
               ref={iframeRef}
               srcDoc={currentPage.html}

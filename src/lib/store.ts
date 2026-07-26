@@ -43,10 +43,68 @@ export type BuilderIndustry =
   | 'event'
   | 'personal'
 
-export type BuilderStyle = 'light' | 'dark' | 'minimal' | 'bold'
+export type BuilderStyle = 'light' | 'dark' | 'minimal' | 'bold' | 'glassmorphism' | 'neobrutalism' | 'retro' | 'gradient'
 
-export type EditorPanel = 'layers' | 'components' | 'design-library'
-export type InspectorTab = 'style' | 'layout' | 'animation' | 'seo'
+export type BuilderComplexity = 'simple' | 'standard' | 'advanced' | 'comprehensive'
+export type BuilderPageLength = 'short' | 'medium' | 'long' | 'extended'
+export type BuilderLayoutDensity = 'compact' | 'comfortable' | 'spacious' | 'ultra-spacious'
+export type BuilderAnimationLevel = 'none' | 'subtle' | 'moderate' | 'energetic' | 'immersive'
+export type BuilderResponsivePriority = 'mobile-first' | 'desktop-first' | 'universal'
+export type BuilderContentTone = 'professional' | 'casual' | 'playful' | 'elegant' | 'technical' | 'warm'
+export type BuilderNavigationStyle = 'top' | 'sticky' | 'sidebar' | 'centered' | 'minimal'
+export type BuilderSEOLevel = 'basic' | 'standard' | 'advanced'
+export type BuilderAccessibilityLevel = 'basic' | 'enhanced' | 'maximum'
+export type BuilderImageStyle = 'illustrations' | 'photos' | 'icons' | 'abstract' | 'mixed' | 'none'
+export type BuilderCTAStyle = 'button' | 'pill' | 'link' | 'gradient' | 'outlined'
+
+interface BuilderPageConfig {
+  id: string
+  name: string
+  enabled: boolean
+  length: BuilderPageLength
+}
+
+interface BuilderColorScheme {
+  primary: string
+  accent: string
+  background: string
+  surface: string
+  text: string
+  muted: string
+}
+
+interface BuilderAdvancedOptions {
+  complexity: BuilderComplexity
+  pageLength: BuilderPageLength
+  layoutDensity: BuilderLayoutDensity
+  animationLevel: BuilderAnimationLevel
+  responsivePriority: BuilderResponsivePriority
+  contentTone: BuilderContentTone
+  navigationStyle: BuilderNavigationStyle
+  seoLevel: BuilderSEOLevel
+  accessibilityLevel: BuilderAccessibilityLevel
+  imageStyle: BuilderImageStyle
+  ctaStyle: BuilderCTAStyle
+  colorScheme: BuilderColorScheme
+  fontFamily: string
+  brandName: string
+  pageConfigs: BuilderPageConfig[]
+  includeHero: boolean
+  includeFeatures: boolean
+  includeTestimonials: boolean
+  includePricing: boolean
+  includeFAQ: boolean
+  includeNewsletter: boolean
+  includeCTA: boolean
+  includeFooter: boolean
+  includeAnimations: boolean
+  includeSocialLinks: boolean
+  includeContactForm: boolean
+}
+
+export type EditorPanel = 'layers' | 'components' | 'design-library' | 'design-tokens' | 'pages' | 'assets'
+export type InspectorTab = 'style' | 'layout' | 'animation' | 'seo' | 'responsive' | 'content'
+export type EditorCanvasMode = 'select' | 'text' | 'move' | 'draw'
 
 export type DevicePreview = 'desktop' | 'tablet' | 'mobile' | 'landscape' | 'portrait'
 
@@ -109,6 +167,7 @@ interface AppState {
   builderIndustry: BuilderIndustry
   builderStyle: BuilderStyle
   builderMode: 'ai' | 'templates'
+  builderAdvancedOptions: BuilderAdvancedOptions
   generatedPages: GeneratedPage[]
   generatedSiteName: string
   currentPreviewPage: string
@@ -124,6 +183,11 @@ interface AppState {
   editorHistory: EditorHistoryEntry[]
   historyIndex: number
   showCodePanel: boolean
+  editorCanvasMode: EditorCanvasMode
+  editorZoom: number
+  editorShowGrid: boolean
+  editorShowGuides: boolean
+  editorSnapToGrid: boolean
   
   // Theme
   themeMode: ThemeMode
@@ -156,6 +220,7 @@ interface AppState {
   setBuilderIndustry: (industry: BuilderIndustry) => void
   setBuilderStyle: (style: BuilderStyle) => void
   setBuilderMode: (mode: 'ai' | 'templates') => void
+  setBuilderAdvancedOptions: (options: Partial<BuilderAdvancedOptions>) => void
   setGeneratedPages: (pages: GeneratedPage[]) => void
   setGeneratedSiteName: (name: string) => void
   updateGeneratedPage: (pageId: string, updates: Partial<GeneratedPage>) => void
@@ -173,6 +238,8 @@ interface AppState {
   pushHistory: (entry: EditorHistoryEntry) => void
   undo: () => void
   redo: () => void
+  setEditorCanvasMode: (mode: EditorCanvasMode) => void
+  setEditorZoom: (zoom: number) => void
   setShowCodePanel: (show: boolean) => void
   
   // Actions - Theme
@@ -201,6 +268,43 @@ export const useAppStore = create<AppState>((set, get) => ({
   builderIndustry: 'portfolio',
   builderStyle: 'dark',
   builderMode: 'ai',
+  builderAdvancedOptions: {
+    complexity: 'standard',
+    pageLength: 'medium',
+    layoutDensity: 'comfortable',
+    animationLevel: 'subtle',
+    responsivePriority: 'universal',
+    contentTone: 'professional',
+    navigationStyle: 'sticky',
+    seoLevel: 'standard',
+    accessibilityLevel: 'enhanced',
+    imageStyle: 'mixed',
+    ctaStyle: 'button',
+    colorScheme: { primary: '#7c3aed', accent: '#2dd4bf', background: '#0a0a0f', surface: '#1a1a2e', text: '#ffffff', muted: '#94a3b8' },
+    fontFamily: 'Inter',
+    brandName: '',
+    pageConfigs: [
+      { id: 'home', name: 'Home', enabled: true, length: 'long' },
+      { id: 'about', name: 'About', enabled: true, length: 'medium' },
+      { id: 'services', name: 'Services', enabled: true, length: 'medium' },
+      { id: 'contact', name: 'Contact', enabled: true, length: 'short' },
+      { id: 'blog', name: 'Blog', enabled: false, length: 'medium' },
+      { id: 'pricing', name: 'Pricing', enabled: false, length: 'short' },
+      { id: 'faq', name: 'FAQ', enabled: false, length: 'short' },
+      { id: 'portfolio', name: 'Portfolio', enabled: false, length: 'medium' },
+    ],
+    includeHero: true,
+    includeFeatures: true,
+    includeTestimonials: true,
+    includePricing: false,
+    includeFAQ: false,
+    includeNewsletter: true,
+    includeCTA: true,
+    includeFooter: true,
+    includeAnimations: true,
+    includeSocialLinks: true,
+    includeContactForm: true,
+  },
   generatedPages: [],
   generatedSiteName: '',
   currentPreviewPage: '',
@@ -215,6 +319,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   editorHistory: [],
   historyIndex: -1,
   showCodePanel: false,
+  editorCanvasMode: 'select',
+  editorZoom: 100,
+  editorShowGrid: false,
+  editorShowGuides: false,
+  editorSnapToGrid: true,
   
   themeMode: 'dark',
   
@@ -252,6 +361,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBuilderIndustry: (industry) => set({ builderIndustry: industry }),
   setBuilderStyle: (style) => set({ builderStyle: style }),
   setBuilderMode: (mode) => set({ builderMode: mode }),
+  setBuilderAdvancedOptions: (options) => set((state) => ({
+    builderAdvancedOptions: { ...state.builderAdvancedOptions, ...options }
+  })),
   setGeneratedPages: (pages) => set({ generatedPages: pages }),
   setGeneratedSiteName: (name) => set({ generatedSiteName: name }),
   updateGeneratedPage: (pageId, updates) => set((state) => ({
@@ -286,6 +398,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   redo: () => set((state) => ({
     historyIndex: Math.min(state.editorHistory.length - 1, state.historyIndex + 1)
   })),
+  setEditorCanvasMode: (mode) => set({ editorCanvasMode: mode }),
+  setEditorZoom: (zoom) => set({ editorZoom: zoom }),
   setShowCodePanel: (show) => set({ showCodePanel: show }),
   
   // Theme

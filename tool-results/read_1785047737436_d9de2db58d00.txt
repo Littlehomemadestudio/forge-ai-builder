@@ -1,0 +1,1309 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import { useAppStore } from '@/lib/store'
+     6→import { CSS_PROPERTY_GROUPS } from '@/lib/editor/css-properties'
+     7→import { EDITOR_COMPONENT_CATEGORIES, getComponentById } from '@/lib/editor/components'
+     8→import { DEVICE_CONFIGS } from '@/lib/editor/types'
+     9→import type { ComputedElementInfo, HistoryEntry } from '@/lib/editor/types'
+    10→import { Button } from '@/components/ui/button'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Label } from '@/components/ui/label'
+    13→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    14→import { Slider } from '@/components/ui/slider'
+    15→import { Switch } from '@/components/ui/switch'
+    16→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    17→import { Separator } from '@/components/ui/separator'
+    18→import { Badge } from '@/components/ui/badge'
+    19→import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+    20→import { ScrollArea } from '@/components/ui/scroll-area'
+    21→import { toast } from '@/hooks/use-toast'
+    22→import {
+    23→  Undo2, Redo2, Monitor, Smartphone, Tablet, Code2, Save, Download, Rocket,
+    24→  ArrowLeft, Eye, EyeOff, Trash2, Copy, Plus, Search, Layers,
+    25→  Grid3X3, Palette, Type, Layout, Square, Circle, ChevronDown, ChevronRight,
+    26→  Move, Maximize2, Sparkles, Wand2, Bold, Italic, Underline,
+    27→  AlignLeft, AlignCenter, AlignRight, Image, Link, Settings2, FileCode,
+    28→  Globe, Hash, MousePointer2, DragHandle, BoxSelect, Edit3, Trash,
+    29→  PanelLeft, PanelRight, PanelBottom, Columns2, LayoutDashboard,
+    30→  LayoutGrid, LayoutList, Grid2X2, ZoomIn, ZoomOut, PenTool
+    31→} from 'lucide-react'
+    32→
+    33→// ─── iframe Bridge Script (injected into the preview iframe) ──────────────
+    34→// This is the MOST CRITICAL piece - makes the iframe interactive
+    35→function getIframeInjectScript(): string {
+    36→  return `
+    37→(function() {
+    38→  let selectedId = null;
+    39→  let hoveredId = null;
+    40→  let isEditing = false;
+    41→  let overlayEl = null;
+    42→  let selectionBox = null;
+    43→  let labelEl = null;
+    44→
+    45→  // Assign unique IDs to every element
+    46→  function assignIds() {
+    47→    const all = document.querySelectorAll('*');
+    48→    let counter = 0;
+    49→    all.forEach(el => {
+    50→      if (!el.getAttribute('data-fid')) {
+    51→        el.setAttribute('data-fid', 'f-el-' + counter);
+    52→        counter++;
+    53→      }
+    54→    });
+    55→  }
+    56→
+    57→  // Create overlay elements
+    58→  function createOverlays() {
+    59→    overlayEl = document.createElement('div');
+    60→    overlayEl.id = 'forge-hover-overlay';
+    61→    overlayEl.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;';
+    62→    document.body.appendChild(overlayEl);
+    63→
+    64→    selectionBox = document.createElement('div');
+    65→    selectionBox.id = 'forge-selection-box';
+    66→    selectionBox.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;';
+    67→    document.body.appendChild(selectionBox);
+    68→
+    69→    labelEl = document.createElement('div');
+    70→    labelEl.id = 'forge-label';
+    71→    labelEl.style.cssText = 'position:fixed;z-index:10000;pointer-events:none;font-size:11px;font-family:Inter,system-ui,sans-serif;background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;white-space:nowrap;';
+    72→    document.body.appendChild(labelEl);
+    73→  }
+    74→
+    75→  // Show hover overlay
+    76→  function showHover(id) {
+    77→    const el = document.querySelector('[data-fid="' + id + '"]');
+    78→    if (!el) return;
+    79→    const rect = el.getBoundingClientRect();
+    80→    overlayEl.style.top = rect.top + 'px';
+    81→    overlayEl.style.left = rect.left + 'px';
+    82→    overlayEl.style.width = rect.width + 'px';
+    83→    overlayEl.style.height = rect.height + 'px';
+    84→    overlayEl.style.background = 'rgba(59,130,246,0.15)';
+    85→    overlayEl.style.border = '1px solid rgba(59,130,246,0.5)';
+    86→    overlayEl.style.borderRadius = getComputedStyle(el).borderRadius;
+    87→    overlayEl.style.display = 'block';
+    88→    hoveredId = id;
+    89→  }
+    90→
+    91→  function hideHover() {
+    92→    overlayEl.style.display = 'none';
+    93→    hoveredId = null;
+    94→  }
+    95→
+    96→  // Show selection
+    97→  function showSelection(id) {
+    98→    const el = document.querySelector('[data-fid="' + id + '"]');
+    99→    if (!el) return;
+   100→    const rect = el.getBoundingClientRect();
+   101→    selectionBox.style.top = (rect.top - 2) + 'px';
+   102→    selectionBox.style.left = (rect.left - 2) + 'px';
+   103→    selectionBox.style.width = (rect.width + 4) + 'px';
+   104→    selectionBox.style.height = (rect.height + 4) + 'px';
+   105→    selectionBox.style.border = '2px solid #3b82f6';
+   106→    selectionBox.style.borderRadius = getComputedStyle(el).borderRadius;
+   107→    selectionBox.style.display = 'block';
+   108→
+   109→    // Label
+   110→    const tagName = el.tagName.toLowerCase();
+   111→    const className = el.className ? '.' + el.className.split(' ').slice(0,2).join('.') : '';
+   112→    labelEl.textContent = tagName + className;
+   113→    labelEl.style.top = (rect.top - 24) + 'px';
+   114→    labelEl.style.left = rect.left + 'px';
+   115→    labelEl.style.display = rect.top > 30 ? 'block' : 'none';
+   116→
+   117→    selectedId = id;
+   118→  }
+   119→
+   120→  function hideSelection() {
+   121→    selectionBox.style.display = 'none';
+   122→    labelEl.style.display = 'none';
+   123→    selectedId = null;
+   124→  }
+   125→
+   126→  // Send element info to parent
+   127→  function sendElementInfo(el) {
+   128→    const id = el.getAttribute('data-fid');
+   129→    const computed = getComputedStyle(el);
+   130→    const rect = el.getBoundingClientRect();
+   131→
+   132→    // Collect computed styles
+   133→    const styles = {};
+   134→    const importantProps = [
+   135→      'display','position','top','right','bottom','left','z-index',
+   136→      'width','height','min-width','min-height','max-width','max-height',
+   137→      'margin-top','margin-right','margin-bottom','margin-left',
+   138→      'padding-top','padding-right','padding-bottom','padding-left',
+   139→      'font-family','font-size','font-weight','font-style','line-height',
+   140→      'letter-spacing','word-spacing','text-align','text-decoration','text-transform',
+   141→      'color','background-color','background-image','background-size','background-position','background-repeat',
+   142→      'border-top-width','border-right-width','border-bottom-width','border-left-width',
+   143→      'border-top-style','border-right-style','border-bottom-style','border-left-style',
+   144→      'border-top-color','border-right-color','border-bottom-color','border-left-color',
+   145→      'border-top-left-radius','border-top-right-radius','border-bottom-right-radius','border-bottom-left-radius',
+   146→      'outline-width','outline-style','outline-color','outline-offset',
+   147→      'box-shadow','text-shadow','opacity','cursor','visibility',
+   148→      'overflow','overflow-x','overflow-y','float','clear',
+   149→      'flex-direction','flex-wrap','justify-content','align-items','align-self',
+   150→      'flex-grow','flex-shrink','flex-basis','gap','row-gap','column-gap',
+   151→      'grid-template-columns','grid-template-rows','grid-column','grid-row',
+   152→      'order','transform','transform-origin','filter','backdrop-filter',
+   153→      'transition','animation','object-fit','object-position',
+   154→      'white-space','word-break','direction','writing-mode',
+   155→      'list-style-type','list-style-position','table-layout','border-collapse',
+   156→      'fill','stroke','stroke-width','mix-blend-mode','background-blend-mode',
+   157→      'pointer-events','user-select'
+   158→    ];
+   159→    importantProps.forEach(prop => {
+   160→      styles[prop] = computed.getPropertyValue(prop);
+   161→    });
+   162→
+   163→    // Collect attributes
+   164→    const attributes = {};
+   165→    for (let i = 0; i < el.attributes.length; i++) {
+   166→      const attr = el.attributes[i];
+   167→      if (attr.name !== 'data-fid' && attr.name !== 'style') {
+   168→        attributes[attr.name] = attr.value;
+   169→      }
+   170→    }
+   171→
+   172→    // Parent and children
+   173→    const parent = el.parentElement;
+   174→    const parentId = parent ? parent.getAttribute('data-fid') : null;
+   175→    const childIds = [];
+   176→    // el.children is an HTMLCollection (not an array) — must convert before .forEach
+   177→    Array.from(el.children).forEach(child => {
+   178→      const cid = child.getAttribute('data-fid');
+   179→      if (cid) childIds.push(cid);
+   180→    });
+   181→
+   182→    window.parent.postMessage({
+   183→      type: 'element-selected',
+   184→      data: {
+   185→        id: id,
+   186→        tag: el.tagName.toLowerCase(),
+   187→        className: el.className || '',
+   188→        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+   189→        styles: styles,
+   190→        content: el.innerHTML,
+   191→        textContent: el.textContent || '',
+   192→        attributes: attributes,
+   193→        parentId: parentId,
+   194→        childIds: childIds
+   195→      }
+   196→    }, '*');
+   197→  }
+   198→
+   199→  // Handle mouse events
+   200→  document.addEventListener('mouseover', function(e) {
+   201→    if (isEditing) return;
+   202→    const el = e.target;
+   203→    if (el === overlayEl || el === selectionBox || el === labelEl) return;
+   204→    const fid = el.getAttribute('data-fid');
+   205→    if (fid) showHover(fid);
+   206→  }, true);
+   207→
+   208→  document.addEventListener('mouseout', function(e) {
+   209→    if (isEditing) return;
+   210→    hideHover();
+   211→  }, true);
+   212→
+   213→  document.addEventListener('click', function(e) {
+   214→    if (isEditing) return;
+   215→    e.preventDefault();
+   216→    e.stopPropagation();
+   217→    const el = e.target;
+   218→    if (el === overlayEl || el === selectionBox || el === labelEl) return;
+   219→    const fid = el.getAttribute('data-fid');
+   220→    if (fid) {
+   221→      showSelection(fid);
+   222→      sendElementInfo(el);
+   223→    }
+   224→  }, true);
+   225→
+   226→  // Double-click for inline text editing
+   227→  document.addEventListener('dblclick', function(e) {
+   228→    e.preventDefault();
+   229→    e.stopPropagation();
+   230→    const el = e.target;
+   231→    const fid = el.getAttribute('data-fid');
+   232→    if (!fid) return;
+   233→
+   234→    // Only allow editing on elements with direct text content
+   235→    if (el.children.length === 0 || (el.children.length === 1 && el.children[0].tagName === 'BR')) {
+   236→      isEditing = true;
+   237→      el.contentEditable = 'true';
+   238→      el.style.cursor = 'text';
+   239→      el.focus();
+   240→
+   241→      // Select all text
+   242→      const range = document.createRange();
+   243→      range.selectNodeContents(el);
+   244→      const sel = window.getSelection();
+   245→      sel.removeAllRanges();
+   246→      sel.addRange(range);
+   247→    }
+   248→  }, true);
+   249→
+   250→  // Handle blur from inline editing
+   251→  document.addEventListener('blur', function(e) {
+   252→    const el = e.target;
+   253→    if (el.contentEditable === 'true') {
+   254→      el.contentEditable = 'false';
+   255→      el.style.cursor = '';
+   256→      isEditing = false;
+   257→
+   258→      window.parent.postMessage({
+   259→        type: 'text-edited',
+   260→        data: {
+   261→          id: el.getAttribute('data-fid'),
+   262→          content: el.innerHTML,
+   263→          textContent: el.textContent
+   264→        }
+   265→      }, '*');
+   266→    }
+   267→  }, true);
+   268→
+   269→  // Prevent link navigation
+   270→  document.addEventListener('click', function(e) {
+   271→    const link = e.target.closest('a');
+   272→    if (link && !isEditing) {
+   273→      e.preventDefault();
+   274→    }
+   275→  });
+   276→
+   277→  // Prevent form submission
+   278→  document.addEventListener('submit', function(e) {
+   279→    e.preventDefault();
+   280→  });
+   281→
+   282→  // Listen for parent messages
+   283→  window.addEventListener('message', function(e) {
+   284→    const msg = e.data;
+   285→    if (!msg || !msg.type) return;
+   286→
+   287→    switch (msg.type) {
+   288→      case 'apply-style': {
+   289→        const el = document.querySelector('[data-fid="' + msg.data.elementId + '"]');
+   290→        if (el) {
+   291→          el.style.setProperty(msg.data.property, msg.data.value, 'important');
+   292→        }
+   293→        break;
+   294→      }
+   295→      case 'apply-content': {
+   296→        const el = document.querySelector('[data-fid="' + msg.data.elementId + '"]');
+   297→        if (el) {
+   298→          el.innerHTML = msg.data.content;
+   299→          assignIds();
+   300→          if (selectedId === msg.data.elementId) {
+   301→            showSelection(selectedId);
+   302→            sendElementInfo(el);
+   303→          }
+   304→        }
+   305→        break;
+   306→      }
+   307→      case 'add-component': {
+   308→        const parent = document.querySelector('[data-fid="' + msg.data.parentId + '"]');
+   309→        if (parent) {
+   310→          const temp = document.createElement('div');
+   311→          temp.innerHTML = msg.data.html;
+   312→          const newEl = temp.firstElementChild;
+   313→          if (msg.data.position >= 0 && parent.children[msg.data.position]) {
+   314→            parent.insertBefore(newEl, parent.children[msg.data.position]);
+   315→          } else {
+   316→            parent.appendChild(newEl);
+   317→          }
+   318→          assignIds();
+   319→        } else {
+   320→          // Add to body
+   321→          const temp = document.createElement('div');
+   322→          temp.innerHTML = msg.data.html;
+   323→          const newEl = temp.firstElementChild;
+   324→          document.body.appendChild(newEl);
+   325→          assignIds();
+   326→        }
+   327→        break;
+   328→      }
+   329→      case 'remove-element': {
+   330→        const el = document.querySelector('[data-fid="' + msg.data.elementId + '"]');
+   331→        if (el) {
+   332→          el.remove();
+   333→          if (selectedId === msg.data.elementId) hideSelection();
+   334→          assignIds();
+   335→        }
+   336→        break;
+   337→      }
+   338→      case 'select-element': {
+   339→        const el = document.querySelector('[data-fid="' + msg.data.elementId + '"]');
+   340→        if (el) {
+   341→          showSelection(msg.data.elementId);
+   342→          sendElementInfo(el);
+   343→        }
+   344→        break;
+   345→      }
+   346→      case 'highlight-element': {
+   347→        showHover(msg.data.elementId);
+   348→        break;
+   349→      }
+   350→      case 'update-html': {
+   351→        document.body.innerHTML = msg.data.html;
+   352→        assignIds();
+   353→        createOverlays();
+   354→        hideSelection();
+   355→        hideHover();
+   356→        break;
+   357→      }
+   358→      case 'get-elements-tree': {
+   359→        function buildTree(el, depth) {
+   360→          const fid = el.getAttribute('data-fid');
+   361→          if (!fid) return null;
+   362→          const children = [];
+   363→          // el.children is an HTMLCollection (not an array) — must convert
+   364→          // before calling .forEach, otherwise this throws silently and the
+   365→          // tree never gets built.
+   366→          Array.from(el.children).forEach(child => {
+   367→            const c = buildTree(child, depth + 1);
+   368→            if (c) children.push(c);
+   369→          });
+   370→          return {
+   371→            id: fid,
+   372→            tag: el.tagName.toLowerCase(),
+   373→            className: el.className || '',
+   374→            textContent: (el.textContent || '').substring(0, 50),
+   375→            children: children,
+   376→            depth: depth
+   377→          };
+   378→        }
+   379→        const tree = buildTree(document.body, 0);
+   380→        window.parent.postMessage({ type: 'elements-tree', data: tree }, '*');
+   381→        break;
+   382→      }
+   383→    }
+   384→  });
+   385→
+   386→  // Initialize
+   387→  assignIds();
+   388→  createOverlays();
+   389→
+   390→  // Notify parent that iframe is ready
+   391→  window.parent.postMessage({ type: 'ready', data: null }, '*');
+   392→})();
+   393→`
+   394→}
+   395→
+   396→// ─── Default Website HTML ────────────────────────────────────────────────
+   397→function getDefaultWebsiteHTML(): string {
+   398→  return `<!DOCTYPE html>
+   399→<html lang="en">
+   400→<head>
+   401→<meta charset="UTF-8">
+   402→<meta name="viewport" content="width=device-width, initial-scale=1.0">
+   403→<title>Forge Project</title>
+   404→<style>
+   405→  * { margin: 0; padding: 0; box-sizing: border-box; }
+   406→  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #ffffff; line-height: 1.6; }
+   407→  a { color: inherit; text-decoration: none; }
+   408→  button { cursor: pointer; font-family: inherit; }
+   409→  img { max-width: 100%; }
+   410→</style>
+   411→</head>
+   412→<body>
+   413→<nav style="display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;background:#0a0a0a;border-bottom:1px solid #1a1a2e;">
+   414→  <div style="font-weight:700;font-size:1.2rem;color:#7c3aed;">Brand</div>
+   415→  <div style="display:flex;gap:1.5rem;align-items:center;">
+   416→    <a href="#">Home</a>
+   417→    <a href="#">Features</a>
+   418→    <a href="#">Pricing</a>
+   419→    <a href="#">About</a>
+   420→    <button style="background:#7c3aed;color:#fff;padding:0.5rem 1.25rem;border:none;border-radius:0.5rem;font-weight:600;">Get Started</button>
+   421→  </div>
+   422→</nav>
+   423→
+   424→<section style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5rem 2rem;min-height:60vh;background:linear-gradient(135deg,#0a0a0a,#1a1a2e);">
+   425→  <h1 style="font-size:3.5rem;font-weight:900;margin-bottom:1rem;text-align:center;">Build something amazing</h1>
+   426→  <p style="font-size:1.25rem;color:#888;margin-bottom:2.5rem;text-align:center;max-width:600px;">The modern platform for creating beautiful websites. Design, edit, and deploy with ease.</p>
+   427→  <div style="display:flex;gap:1rem;">
+   428→    <button style="background:#7c3aed;color:#fff;padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-weight:600;font-size:1rem;">Start Building</button>
+   429→    <button style="background:transparent;color:#fff;padding:0.75rem 2rem;border:1px solid #2a2a3e;border-radius:0.5rem;font-size:1rem;">Learn More</button>
+   430→  </div>
+   431→</section>
+   432→
+   433→<section style="padding:4rem 2rem;background:#0a0a0a;">
+   434→  <h2 style="font-size:2rem;font-weight:700;margin-bottom:2.5rem;text-align:center;">Key Features</h2>
+   435→  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:900px;margin:0 auto;">
+   436→    <div style="background:#1a1a2e;border-radius:0.75rem;padding:1.5rem;border:1px solid #2a2a3e;">
+   437→      <div style="width:2.5rem;height:2.5rem;background:#7c3aed;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;color:#fff;">⚡</div>
+   438→      <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">AI Generation</h3>
+   439→      <p style="color:#888;font-size:0.9rem;line-height:1.6;">Describe what you want and watch it come to life instantly.</p>
+   440→    </div>
+   441→    <div style="background:#1a1a2e;border-radius:0.75rem;padding:1.5rem;border:1px solid #2a2a3e;">
+   442→      <div style="width:2.5rem;height:2.5rem;background:#2dd4bf;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;color:#fff;">✏️</div>
+   443→      <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">Visual Editor</h3>
+   444→      <p style="color:#888;font-size:0.9rem;line-height:1.6;">Click, drag, refine. Every pixel is under your control.</p>
+   445→    </div>
+   446→    <div style="background:#1a1a2e;border-radius:0.75rem;padding:1.5rem;border:1px solid #2a2a3e;">
+   447→      <div style="width:2.5rem;height:2.5rem;background:#f472b6;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;color:#fff;">📦</div>
+   448→      <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">Export Freedom</h3>
+   449→      <p style="color:#888;font-size:0.9rem;line-height:1.6;">Download clean code. Your website, your rules.</p>
+   450→    </div>
+   451→  </div>
+   452→</section>
+   453→
+   454→<section style="display:flex;justify-content:center;gap:1.5rem;padding:4rem 2rem;background:#0a0a0a;flex-wrap:wrap;">
+   455→  <div style="background:#1a1a2e;border-radius:0.75rem;padding:2rem;border:1px solid #2a2a3e;text-align:center;width:280px;">
+   456→    <h3 style="font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;color:#888;">Free</h3>
+   457→    <div style="font-size:2.5rem;font-weight:800;margin:1rem 0;">$0</div>
+   458→    <p style="color:#888;font-size:0.9rem;margin-bottom:1.5rem;">100 AI credits/month</p>
+   459→    <button style="background:#2a2a3e;color:#fff;padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-weight:600;width:100%;">Get Started</button>
+   460→  </div>
+   461→  <div style="background:#1a1a2e;border-radius:0.75rem;padding:2rem;border:2px solid #7c3aed;text-align:center;width:280px;">
+   462→    <h3 style="font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;color:#7c3aed;">Pro</h3>
+   463→    <div style="font-size:2.5rem;font-weight:800;margin:1rem 0;">$19<span style="font-size:1rem;color:#888;">/mo</span></div>
+   464→    <p style="color:#888;font-size:0.9rem;margin-bottom:1.5rem;">500 credits, all features</p>
+   465→    <button style="background:#7c3aed;color:#fff;padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-weight:600;width:100%;">Start Trial</button>
+   466→  </div>
+   467→  <div style="background:#1a1a2e;border-radius:0.75rem;padding:2rem;border:1px solid #2a2a3e;text-align:center;width:280px;">
+   468→    <h3 style="font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;color:#888;">Enterprise</h3>
+   469→    <div style="font-size:2.5rem;font-weight:800;margin:1rem 0;">$49<span style="font-size:1rem;color:#888;">/mo</span></div>
+   470→    <p style="color:#888;font-size:0.9rem;margin-bottom:1.5rem;">Unlimited, white-label</p>
+   471→    <button style="background:#2a2a3e;color:#fff;padding:0.75rem 2rem;border:none;border-radius:0.5rem;font-weight:600;width:100%;">Contact Sales</button>
+   472→  </div>
+   473→</section>
+   474→
+   475→<section style="display:flex;flex-direction:column;align-items:center;padding:4rem 2rem;background:linear-gradient(135deg,#7c3aed,#2dd4bf);color:#fff;text-align:center;">
+   476→  <h2 style="font-size:2.5rem;font-weight:800;margin-bottom:1rem;">Ready to start building?</h2>
+   477→  <p style="font-size:1.1rem;color:rgba(255,255,255,0.85);margin-bottom:2rem;max-width:500px;">Join thousands of creators who build with Forge.</p>
+   478→  <button style="background:#fff;color:#7c3aed;padding:1rem 3rem;border:none;border-radius:0.5rem;font-weight:700;font-size:1.1rem;">Start Free Trial</button>
+   479→</section>
+   480→
+   481→<footer style="display:flex;justify-content:space-between;padding:2rem;background:#0a0a0a;border-top:1px solid #1a1a2e;color:#888;">
+   482→  <div style="font-weight:700;color:#fff;font-size:1.1rem;">Brand</div>
+   483→  <div>© 2025 Brand. All rights reserved.</div>
+   484→</footer>
+   485→</body>
+   486→</html>`
+   487→}
+   488→
+   489→// ─── Prepare HTML for iframe (inject bridge script) ────────────────────────
+   490→function prepareHTMLForIframe(html: string): string {
+   491→  const script = getIframeInjectScript()
+   492→  // Inject before </body> or at end
+   493→  if (html.includes('</body>')) {
+   494→    return html.replace('</body>', `<script>${script}</script></body>`)
+   495→  }
+   496→  return html + `<script>${script}</script>`
+   497→}
+   498→
+   499→// ─── Element Tree Node ─────────────────────────────────────────────────────
+   500→interface TreeNode {
+   501→  id: string
+   502→  tag: string
+   503→  className: string
+   504→  textContent: string
+   505→  children: TreeNode[]
+   506→  depth: number
+   507→}
+   508→
+   509→// ─── Main Editor Component ─────────────────────────────────────────────────
+   510→export default function EditorPage() {
+   511→  // Pull generated content from the global store (set by BuilderPage)
+   512→  const generatedPages = useAppStore(s => s.generatedPages)
+   513→  const currentPreviewPage = useAppStore(s => s.currentPreviewPage)
+   514→  const setCurrentPreviewPage = useAppStore(s => s.setCurrentPreviewPage)
+   515→  const updateGeneratedPage = useAppStore(s => s.updateGeneratedPage)
+   516→  const generatedSiteName = useAppStore(s => s.generatedSiteName)
+   517→
+   518→  // Resolve the initial HTML: prefer the currently-selected generated page,
+   519→  // fall back to the first generated page, otherwise use the default placeholder.
+   520→  const initialHTML = (() => {
+   521→    const selected = generatedPages.find(p => p.id === currentPreviewPage)
+   522→    if (selected?.html) return selected.html
+   523→    if (generatedPages[0]?.html) return generatedPages[0].html
+   524→    return getDefaultWebsiteHTML()
+   525→  })()
+   526→
+   527→  // State
+   528→  const [websiteHTML, setWebsiteHTML] = useState(initialHTML)
+   529→  const [selectedElement, setSelectedElement] = useState<ComputedElementInfo | null>(null)
+   530→  const [selectedStyles, setSelectedStyles] = useState<Record<string, string>>({})
+   531→  const [history, setHistory] = useState<HistoryEntry[]>([{ id: 'h0', html: initialHTML, label: 'Initial', timestamp: Date.now() }])
+   532→  const [historyIndex, setHistoryIndex] = useState(0)
+   533→  const [device, setDevice] = useState('desktop')
+   534→  const [leftPanelTab, setLeftPanelTab] = useState('components')
+   535→  const [showCodePanel, setShowCodePanel] = useState(false)
+   536→  const [codeContent, setCodeContent] = useState('')
+   537→  const [searchQuery, setSearchQuery] = useState('')
+   538→  const [elementTree, setElementTree] = useState<TreeNode | null>(null)
+   539→  const [zoom, setZoom] = useState(100)
+   540→  const [editingContent, setEditingContent] = useState('')
+   541→  const [editingAttributes, setEditingAttributes] = useState<Record<string, string>>({})
+   542→  const [expandedTreeNodes, setExpandedTreeNodes] = useState<Set<string>>(new Set(['f-el-0']))
+   543→
+   544→  const iframeRef = useRef<HTMLIFrameElement>(null)
+   545→  const historyDebounceRef = useRef<NodeJS.Timeout | null>(null)
+   546→  // Track which store page-id the current local websiteHTML belongs to.
+   547→  // When the user switches pages in the toolbar, we save any pending changes
+   548→  // to the previous page-id, then load the new page's HTML.
+   549→  const activePageIdRef = useRef<string>(
+   550→    generatedPages.find(p => p.id === currentPreviewPage)?.id || generatedPages[0]?.id || 'default'
+   551→  )
+   552→
+   553→  // Get device config
+   554→  const deviceConfig = DEVICE_CONFIGS.find(d => d.name === device) || DEVICE_CONFIGS[0]
+   555→
+   556→  // ─── Send message to iframe ───────────────────────────────────────────────
+   557→  const sendMessage = useCallback((type: string, data: unknown) => {
+   558→    if (iframeRef.current && iframeRef.current.contentWindow) {
+   559→      iframeRef.current.contentWindow.postMessage({ type, data }, '*')
+   560→    }
+   561→  }, [])
+   562→
+   563→  // ─── Request element tree from iframe ──────────────────────────────────────
+   564→  const requestTree = useCallback(() => {
+   565→    sendMessage('get-elements-tree', {})
+   566→  }, [sendMessage])
+   567→
+   568→  // ─── Push to history (debounced) ───────────────────────────────────────────
+   569→  const pushHistory = useCallback((label: string) => {
+   570→    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current)
+   571→    historyDebounceRef.current = setTimeout(() => {
+   572→      // Get current HTML from iframe
+   573→      if (iframeRef.current && iframeRef.current.contentDocument) {
+   574→        const currentHTML = iframeRef.current.contentDocument.documentElement.outerHTML
+   575→        const newEntry: HistoryEntry = { id: 'h' + Date.now(), html: currentHTML, label, timestamp: Date.now() }
+   576→        setHistory(prev => [...prev.slice(0, historyIndex + 1), newEntry])
+   577→        setHistoryIndex(prev => prev + 1)
+   578→        // Also persist the latest HTML back to the global store so the
+   579→        // builder preview and other tabs see the user's edits.
+   580→        setWebsiteHTML(currentHTML)
+   581→        const pageId = activePageIdRef.current
+   582→        if (pageId && pageId !== 'default') {
+   583→          updateGeneratedPage(pageId, { html: currentHTML })
+   584→        }
+   585→      }
+   586→    }, 500)
+   587→  }, [historyIndex, updateGeneratedPage])
+   588→
+   589→  // ─── iframe Message Handler ───────────────────────────────────────────────
+   590→  const handleMessage = useCallback((e: MessageEvent) => {
+   591→    const msg = e.data
+   592→    if (!msg || !msg.type) return
+   593→
+   594→    switch (msg.type) {
+   595→      case 'element-selected': {
+   596→        const data = msg.data as ComputedElementInfo
+   597→        setSelectedElement(data)
+   598→        setSelectedStyles(data.styles || {})
+   599→        setEditingContent(data.content || '')
+   600→        setEditingAttributes(data.attributes || {})
+   601→        // Expand tree to show this element
+   602→        setExpandedTreeNodes(prev => new Set([...prev, data.id]))
+   603→        break
+   604→      }
+   605→      case 'text-edited': {
+   606→        const { id, content } = msg.data
+   607→        if (selectedElement && selectedElement.id === id) {
+   608→          setSelectedElement(prev => prev ? { ...prev, content, textContent: content } : null)
+   609→          setEditingContent(content)
+   610→          pushHistory('Edit text')
+   611→        }
+   612→        break
+   613→      }
+   614→      case 'ready': {
+   615→        // Request tree on iframe ready
+   616→        requestTree()
+   617→        break
+   618→      }
+   619→      case 'elements-tree': {
+   620→        setElementTree(msg.data as TreeNode)
+   621→        break
+   622→      }
+   623→    }
+   624→  }, [selectedElement, pushHistory, requestTree])
+   625→
+   626→  useEffect(() => {
+   627→    window.addEventListener('message', handleMessage)
+   628→    return () => window.removeEventListener('message', handleMessage)
+   629→  }, [handleMessage])
+   630→
+   631→  // ─── Switch page (called when user picks a different page in the toolbar) ─
+   632→  // Saves the current iframe HTML to the store for the previous page, then
+   633→  // loads the new page's HTML into the iframe and resets history.
+   634→  const switchPage = useCallback((newPageId: string) => {
+   635→    if (newPageId === activePageIdRef.current) return
+   636→    const target = generatedPages.find(p => p.id === newPageId)
+   637→    if (!target) return
+   638→
+   639→    // 1. Flush any pending history debounce so the current page's latest
+   640→    //    HTML is captured before we switch.
+   641→    if (historyDebounceRef.current) {
+   642→      clearTimeout(historyDebounceRef.current)
+   643→      historyDebounceRef.current = null
+   644→    }
+   645→    // 2. Snapshot current iframe HTML and persist it for the outgoing page.
+   646→    if (iframeRef.current?.contentDocument) {
+   647→      const currentHTML = iframeRef.current.contentDocument.documentElement.outerHTML
+   648→      updateGeneratedPage(activePageIdRef.current, { html: currentHTML })
+   649→    }
+   650→    // 3. Load the new page's HTML into local state and reset history.
+   651→    activePageIdRef.current = newPageId
+   652→    setWebsiteHTML(target.html)
+   653→    setHistory([{ id: 'h0', html: target.html, label: target.name, timestamp: Date.now() }])
+   654→    setHistoryIndex(0)
+   655→    setSelectedElement(null)
+   656→    setSelectedStyles({})
+   657→    setElementTree(null)
+   658→    // 4. Tell the store which page is now active.
+   659→    setCurrentPreviewPage(newPageId)
+   660→  }, [generatedPages, updateGeneratedPage, setCurrentPreviewPage])
+   661→
+   662→  // ─── Apply Style Change ────────────────────────────────────────────────────
+   663→  const applyStyle = useCallback((property: string, value: string) => {
+   664→    if (!selectedElement) return
+   665→    sendMessage('apply-style', { elementId: selectedElement.id, property, value })
+   666→    setSelectedStyles(prev => ({ ...prev, [property]: value }))
+   667→    pushHistory(`Change ${property}`)
+   668→  }, [selectedElement, sendMessage, pushHistory])
+   669→
+   670→  // ─── Apply Content Change ──────────────────────────────────────────────────
+   671→  const applyContent = useCallback((content: string) => {
+   672→    if (!selectedElement) return
+   673→    sendMessage('apply-content', { elementId: selectedElement.id, content })
+   674→    setEditingContent(content)
+   675→    pushHistory('Edit content')
+   676→  }, [selectedElement, sendMessage, pushHistory])
+   677→
+   678→  // ─── Apply Attribute Change ────────────────────────────────────────────────
+   679→  const applyAttribute = useCallback((attr: string, value: string) => {
+   680→    if (!selectedElement) return
+   681→    // Send as content modification that includes the attribute change
+   682→    // We need to update the element's attribute
+   683→    const el = iframeRef.current?.contentDocument?.querySelector(`[data-fid="${selectedElement.id}"]`)
+   684→    if (el) {
+   685→      if (value) {
+   686→        el.setAttribute(attr, value)
+   687→      } else {
+   688→        el.removeAttribute(attr)
+   689→      }
+   690→      pushHistory(`Change ${attr}`)
+   691→    }
+   692→    setEditingAttributes(prev => ({ ...prev, [attr]: value }))
+   693→  }, [selectedElement, pushHistory])
+   694→
+   695→  // ─── Add Component ─────────────────────────────────────────────────────────
+   696→  const addComponent = useCallback((componentId: string) => {
+   697→    const comp = getComponentById(componentId)
+   698→    if (!comp) return
+   699→    const parentId = selectedElement ? selectedElement.id : 'f-el-0' // body
+   700→    sendMessage('add-component', { parentId, position: -1, html: comp.html })
+   701→    pushHistory(`Add ${comp.name}`)
+   702→    requestTree()
+   703→  }, [selectedElement, sendMessage, pushHistory, requestTree])
+   704→
+   705→  // ─── Remove Element ────────────────────────────────────────────────────────
+   706→  const removeElement = useCallback(() => {
+   707→    if (!selectedElement) return
+   708→    sendMessage('remove-element', { elementId: selectedElement.id })
+   709→    setSelectedElement(null)
+   710→    setSelectedStyles({})
+   711→    pushHistory('Remove element')
+   712→    requestTree()
+   713→  }, [selectedElement, sendMessage, pushHistory, requestTree])
+   714→
+   715→  // ─── Undo ──────────────────────────────────────────────────────────────────
+   716→  const undo = useCallback(() => {
+   717→    if (historyIndex <= 0) return
+   718→    const newIndex = historyIndex - 1
+   719→    setHistoryIndex(newIndex)
+   720→    const entry = history[newIndex]
+   721→    sendMessage('update-html', { html: entry.html })
+   722→    requestTree()
+   723→  }, [historyIndex, history, sendMessage, requestTree])
+   724→
+   725→  // ─── Redo ──────────────────────────────────────────────────────────────────
+   726→  const redo = useCallback(() => {
+   727→    if (historyIndex >= history.length - 1) return
+   728→    const newIndex = historyIndex + 1
+   729→    setHistoryIndex(newIndex)
+   730→    const entry = history[newIndex]
+   731→    sendMessage('update-html', { html: entry.html })
+   732→    requestTree()
+   733→  }, [historyIndex, history, sendMessage, requestTree])
+   734→
+   735→  // ─── Save ──────────────────────────────────────────────────────────────────
+   736→  const save = useCallback(() => {
+   737→    // Persist the current iframe HTML back to the store for the active page
+   738→    if (iframeRef.current?.contentDocument) {
+   739→      const currentHTML = iframeRef.current.contentDocument.documentElement.outerHTML
+   740→      setWebsiteHTML(currentHTML)
+   741→      const pageId = activePageIdRef.current
+   742→      if (pageId && pageId !== 'default') {
+   743→        updateGeneratedPage(pageId, { html: currentHTML })
+   744→      }
+   745→    }
+   746→    toast({ title: 'Project saved', description: 'All changes have been saved to this page' })
+   747→  }, [updateGeneratedPage])
+   748→
+   749→  // ─── Export ─────────────────────────────────────────────────────────────────
+   750→  const exportHTML = useCallback(() => {
+   751→    const doc = iframeRef.current?.contentDocument
+   752→    if (!doc) return
+   753→    const html = doc.documentElement.outerHTML
+   754→    const cleanHTML = html.replace(/<script>[^]*?<\/script>/, '') // Remove bridge script
+   755→    const finalHTML = `<!DOCTYPE html>\n${cleanHTML}`
+   756→    const blob = new Blob([finalHTML], { type: 'text/html' })
+   757→    const url = URL.createObjectURL(blob)
+   758→    const a = document.createElement('a')
+   759→    a.href = url
+   760→    a.download = 'website.html'
+   761→    a.click()
+   762→    URL.revokeObjectURL(url)
+   763→    toast({ title: 'Exported!', description: 'HTML file downloaded' })
+   764→  }, [])
+   765→
+   766→  const exportReact = useCallback(() => {
+   767→    const doc = iframeRef.current?.contentDocument
+   768→    if (!doc) return
+   769→    const bodyHTML = doc.body.innerHTML.replace(/data-fid="[^"]*"/g, '').replace(/<script>[^]*?<\/script>/, '')
+   770→    const styles = doc.querySelector('style')?.innerHTML || ''
+   771→
+   772→    const reactCode = `import React from 'react'
+   773→
+   774→const styles = \`${styles}\`
+   775→
+   776→export default function HomePage() {
+   777→  return (
+   778→    <main>
+   779→      ${bodyHTML}
+   780→    </main>
+   781→  )
+   782→}`
+   783→    const blob = new Blob([reactCode], { type: 'text/plain' })
+   784→    const url = URL.createObjectURL(blob)
+   785→    const a = document.createElement('a')
+   786→    a.href = url
+   787→    a.download = 'page.tsx'
+   788→    a.click()
+   789→    URL.revokeObjectURL(url)
+   790→    toast({ title: 'Exported!', description: 'React component downloaded' })
+   791→  }, [])
+   792→
+   793→  // ─── Navigate ──────────────────────────────────────────────────────────────
+   794→  const navigate = useAppStore(s => s.navigate)
+   795→
+   796→  // ─── iframe srcDoc ─────────────────────────────────────────────────────────
+   797→  const iframeSrcDoc = prepareHTMLForIframe(websiteHTML)
+   798→
+   799→  // ─── Code panel sync ───────────────────────────────────────────────────────
+   800→  useEffect(() => {
+   801→    if (showCodePanel) {
+   802→      const doc = iframeRef.current?.contentDocument
+   803→      if (doc) {
+   804→        setCodeContent(doc.documentElement.outerHTML)
+   805→      }
+   806→    }
+   807→  }, [showCodePanel])
+   808→
+   809→  const applyCodeChanges = useCallback(() => {
+   810→    sendMessage('update-html', { html: codeContent })
+   811→    setWebsiteHTML(codeContent)
+   812→    pushHistory('Edit code')
+   813→    requestTree()
+   814→  }, [codeContent, sendMessage, pushHistory, requestTree])
+   815→
+   816→  // ─── Render CSS Property Editor ────────────────────────────────────────────
+   817→  const renderPropertyEditor = (prop: CSSProperty, styles: Record<string, string>) => {
+   818→    const currentValue = styles[prop.name] || prop.default || ''
+   819→
+   820→    switch (prop.type) {
+   821→      case 'text':
+   822→        return (
+   823→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   824→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   825→            <Input
+   826→              value={currentValue}
+   827→              onChange={e => applyStyle(prop.name, e.target.value)}
+   828→              className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1"
+   829→              placeholder={prop.default}
+   830→            />
+   831→            {prop.unit && <span className="text-xs text-zinc-500">{prop.unit}</span>}
+   832→          </div>
+   833→        )
+   834→
+   835→      case 'number':
+   836→        return (
+   837→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   838→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   839→            <Input
+   840→              type="number"
+   841→              value={parseFloat(currentValue) || 0}
+   842→              onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || 'px'))}
+   843→              className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1"
+   844→              min={prop.min}
+   845→              max={prop.max}
+   846→              step={prop.step}
+   847→            />
+   848→            {prop.unit && <span className="text-xs text-zinc-500">{prop.unit}</span>}
+   849→          </div>
+   850→        )
+   851→
+   852→      case 'select':
+   853→        return (
+   854→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   855→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   856→            <Select value={currentValue} onValueChange={v => applyStyle(prop.name, v)}>
+   857→              <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1">
+   858→                <SelectValue />
+   859→              </SelectTrigger>
+   860→              <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+   861→                {prop.options?.map(opt => <SelectItem key={opt} value={opt} className="text-xs text-white">{opt}</SelectItem>)}
+   862→              </SelectContent>
+   863→            </Select>
+   864→          </div>
+   865→        )
+   866→
+   867→      case 'color':
+   868→        return (
+   869→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   870→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   871→            <div className="flex items-center gap-1 flex-1">
+   872→              <input
+   873→                type="color"
+   874→                value={currentValue.startsWith('#') ? currentValue : '#000000'}
+   875→                onChange={e => applyStyle(prop.name, e.target.value)}
+   876→                className="w-7 h-7 rounded border border-[#2a2a3e] cursor-pointer"
+   877→              />
+   878→              <Input
+   879→                value={currentValue}
+   880→                onChange={e => applyStyle(prop.name, e.target.value)}
+   881→                className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1"
+   882→              />
+   883→            </div>
+   884→          </div>
+   885→        )
+   886→
+   887→      case 'slider':
+   888→        return (
+   889→          <div key={prop.name} className="mb-2">
+   890→            <div className="flex items-center gap-2">
+   891→              <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   892→              <Input
+   893→                value={parseFloat(currentValue) || parseFloat(prop.default || '0')}
+   894→                onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || ''))}
+   895→                className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white w-20"
+   896→              />
+   897→              {prop.unit && <span className="text-xs text-zinc-500">{prop.unit}</span>}
+   898→            </div>
+   899→            <Slider
+   900→              value={[parseFloat(currentValue) || parseFloat(prop.default || '0')]}
+   901→              onValueChange={v => applyStyle(prop.name, v[0] + (prop.unit || ''))}
+   902→              min={prop.min || 0}
+   903→              max={prop.max || 100}
+   904→              step={prop.step || 1}
+   905→              className="mt-1"
+   906→            />
+   907→          </div>
+   908→        )
+   909→
+   910→      case 'toggle':
+   911→        return (
+   912→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   913→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   914→            <Switch
+   915→              checked={currentValue === 'true' || currentValue === 'visible' || currentValue === 'auto'}
+   916→              onCheckedChange={v => applyStyle(prop.name, v ? (prop.options?.[0] || 'true') : (prop.options?.[1] || 'none'))}
+   917→            />
+   918→          </div>
+   919→        )
+   920→
+   921→      case 'composite':
+   922→        return (
+   923→          <div key={prop.name} className="mb-3">
+   924→            <Label className="text-xs text-zinc-300 mb-1 block font-semibold">{prop.label}</Label>
+   925→            <div className="pl-2 border-l-2 border-[#2a2a3e]">
+   926→              {prop.subProperties?.map(sub => renderPropertyEditor(sub, styles))}
+   927→            </div>
+   928→          </div>
+   929→        )
+   930→
+   931→      default:
+   932→        return null
+   933→    }
+   934→  }
+   935→
+   936→  // ─── Render Element Tree ───────────────────────────────────────────────────
+   937→  const renderTreeNode = (node: TreeNode, depth: number = 0) => {
+   938→    const isExpanded = expandedTreeNodes.has(node.id)
+   939→    const isSelected = selectedElement?.id === node.id
+   940→    const hasChildren = node.children && node.children.length > 0
+   941→
+   942→    return (
+   943→      <div key={node.id}>
+   944→        <div
+   945→          className={`flex items-center gap-1 px-2 py-1 cursor-pointer rounded text-xs transition-colors ${
+   946→            isSelected ? 'bg-[#7c3aed]/20 text-[#7c3aed]' : 'text-zinc-400 hover:bg-[#1a1a2e] hover:text-white'
+   947→          }`}
+   948→          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+   949→          onClick={() => {
+   950→            sendMessage('select-element', { elementId: node.id })
+   951→            setExpandedTreeNodes(prev => new Set([...prev, node.id]))
+   952→          }}
+   953→          onMouseEnter={() => sendMessage('highlight-element', { elementId: node.id })}
+   954→          onMouseLeave={() => sendMessage('highlight-element', { elementId: '' })}
+   955→        >
+   956→          {hasChildren ? (
+   957→            <button onClick={(e) => { e.stopPropagation(); setExpandedTreeNodes(prev => { const n = new Set(prev); if (isExpanded) { n.delete(node.id); } else { n.add(node.id); } return n }) }}>
+   958→              <ChevronRight size={12} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+   959→            </button>
+   960→          ) : <span className="w-3" />}
+   961→          <span className="text-[#7c3aed] font-mono">{node.tag}</span>
+   962→          {node.className && <span className="text-zinc-500 truncate max-w-20">{node.className.split(' ')[0]}</span>}
+   963→          {node.textContent && <span className="text-zinc-600 truncate max-w-30 ml-1">"{node.textContent.substring(0, 20)}"</span>}
+   964→          {isSelected && (
+   965→            <div className="flex gap-1 ml-auto">
+   966→              <button onClick={(e) => { e.stopPropagation(); removeElement() }} className="text-red-400 hover:text-red-300"><Trash2 size={12} /></button>
+   967→              <button onClick={(e) => { e.stopPropagation(); /* duplicate */ }} className="text-zinc-400 hover:text-white"><Copy size={12} /></button>
+   968→            </div>
+   969→          )}
+   970→        </div>
+   971→        <AnimatePresence>
+   972→          {isExpanded && hasChildren && (
+   973→            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+   974→              {node.children.map(child => renderTreeNode(child, depth + 1))}
+   975→            </motion.div>
+   976→          )}
+   977→        </AnimatePresence>
+   978→      </div>
+   979→    )
+   980→  }
+   981→
+   982→  // ─── Component categories for left panel ───────────────────────────────────
+   983→  const filteredCategories = EDITOR_COMPONENT_CATEGORIES.filter(cat =>
+   984→    !searchQuery || cat.name.toLowerCase().includes(searchQuery) || cat.components.some(c => c.name.toLowerCase().includes(searchQuery) || c.description.toLowerCase().includes(searchQuery))
+   985→  )
+   986→
+   987→  // ─── Icon map for device buttons ───────────────────────────────────────────
+   988→  const deviceIcons: Record<string, React.ReactNode> = {
+   989→    desktop: <Monitor size={16} />,
+   990→    laptop: <Monitor size={14} />,
+   991→    tablet: <Tablet size={16} />,
+   992→    mobile: <Smartphone size={16} />,
+   993→    'mobile-landscape': <Smartphone size={14} className="rotate-90" />,
+   994→  }
+   995→
+   996→  // ─── Main Render ───────────────────────────────────────────────────────────
+   997→  return (
+   998→    <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
+   999→      {/* ── Top Toolbar ──────────────────────────────────────────────── */}
+  1000→      <div className="h-12 flex items-center justify-between px-4 border-b border-[#1a1a2e] bg-[#0a0a0f] shrink-0">
+  1001→        <div className="flex items-center gap-3">
+  1002→          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors" title="Back to dashboard">
+  1003→            <ArrowLeft size={18} />
+  1004→          </button>
+  1005→          <span className="font-bold text-[#7c3aed]">Forge</span>
+  1006→          <Separator orientation="vertical" className="h-6 bg-[#2a2a3e]" />
+  1007→          <span className="text-sm text-zinc-400 truncate max-w-32" title={generatedSiteName || 'Untitled Site'}>
+  1008→            {generatedSiteName || 'Untitled Site'}
+  1009→          </span>
+  1010→          {generatedPages.length > 0 && (
+  1011→            <>
+  1012→              <Separator orientation="vertical" className="h-6 bg-[#2a2a3e]" />
+  1013→              <Select value={activePageIdRef.current} onValueChange={switchPage}>
+  1014→                <SelectTrigger className="h-7 w-40 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">
+  1015→                  <SelectValue />
+  1016→                </SelectTrigger>
+  1017→                <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+  1018→                  {generatedPages.map(p => (
+  1019→                    <SelectItem key={p.id} value={p.id} className="text-xs text-white focus:bg-[#7c3aed]/30">
+  1020→                      <span className="font-medium">{p.name}</span>
+  1021→                      <span className="ml-2 text-zinc-500">{p.route}</span>
+  1022→                    </SelectItem>
+  1023→                  ))}
+  1024→                </SelectContent>
+  1025→              </Select>
+  1026→            </>
+  1027→          )}
+  1028→        </div>
+  1029→
+  1030→        <div className="flex items-center gap-2">
+  1031→          <Tooltip><TooltipTrigger asChild><button onClick={undo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Undo2 size={16} /></button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+  1032→          <Tooltip><TooltipTrigger asChild><button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Redo2 size={16} /></button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+  1033→          <Separator orientation="vertical" className="h-6 bg-[#2a2a3e] mx-1" />
+  1034→
+  1035→          {/* Device selector */}
+  1036→          <div className="flex items-center gap-1 bg-[#1a1a2e] rounded-lg p-1">
+  1037→            {DEVICE_CONFIGS.map(d => (
+  1038→              <button key={d.name} onClick={() => setDevice(d.name)} className={`p-1.5 rounded transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}>
+  1039→                {deviceIcons[d.name]}
+  1040→              </button>
+  1041→            ))}
+  1042→          </div>
+  1043→
+  1044→          <Separator orientation="vertical" className="h-6 bg-[#2a2a3e] mx-1" />
+  1045→          <span className="text-xs text-zinc-500">{zoom}%</span>
+  1046→          <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 rounded hover:bg-[#1a1a2e]"><ZoomIn size={14} /></button>
+  1047→          <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 rounded hover:bg-[#1a1a2e]"><ZoomOut size={14} /></button>
+  1048→          <button onClick={() => setZoom(100)} className="text-xs text-zinc-500 hover:text-white px-1">Reset</button>
+  1049→        </div>
+  1050→
+  1051→        <div className="flex items-center gap-2">
+  1052→          <button onClick={() => setShowCodePanel(!showCodePanel)} className={`p-1.5 rounded transition-colors ${showCodePanel ? 'bg-[#7c3aed] text-white' : 'hover:bg-[#1a1a2e] text-zinc-400'}`}>
+  1053→            <Code2 size={16} />
+  1054→          </button>
+  1055→          <button onClick={save} className="p-1.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><Save size={16} /></button>
+  1056→          <Button variant="outline" size="sm" onClick={exportHTML} className="h-7 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white hover:bg-[#2a2a3e]">
+  1057→            <Download size={14} className="mr-1" />Export
+  1058→          </Button>
+  1059→          <Button size="sm" onClick={() => toast({ title: 'Deployment started' })} className="h-7 text-xs bg-[#7c3aed] hover:bg-[#6d28d9]">
+  1060→            <Rocket size={14} className="mr-1" />Deploy
+  1061→          </Button>
+  1062→        </div>
+  1063→      </div>
+  1064→
+  1065→      {/* ── Main Content ─────────────────────────────────────────────── */}
+  1066→      <div className="flex-1 flex overflow-hidden">
+  1067→        {/* ── Left Panel ──────────────────────────────────────────────── */}
+  1068→        <div className="w-[280px] border-r border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
+  1069→          <Tabs value={leftPanelTab} onValueChange={setLeftPanelTab} className="flex flex-col h-full">
+  1070→            <TabsList className="w-full justify-start bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-9 p-0">
+  1071→              <TabsTrigger value="layers" className="text-xs data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-3 py-2 rounded-none"><Layers size={14} className="mr-1" />Layers</TabsTrigger>
+  1072→              <TabsTrigger value="components" className="text-xs data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-3 py-2 rounded-none"><Grid3X3 size={14} className="mr-1" />Components</TabsTrigger>
+  1073→              <TabsTrigger value="design" className="text-xs data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-3 py-2 rounded-none"><Palette size={14} className="mr-1" />Design</TabsTrigger>
+  1074→            </TabsList>
+  1075→
+  1076→            <TabsContent value="layers" className="flex-1 overflow-y-auto mt-0 p-2">
+  1077→              <div className="text-xs text-zinc-500 mb-2 uppercase tracking-wider font-semibold">Page Structure</div>
+  1078→              {elementTree ? renderTreeNode(elementTree, 0) : (
+  1079→                <div className="text-xs text-zinc-500 text-center py-8">Click elements in preview to select</div>
+  1080→              )}
+  1081→            </TabsContent>
+  1082→
+  1083→            <TabsContent value="components" className="flex-1 overflow-y-auto mt-0 p-2">
+  1084→              <Input placeholder="Search components..." value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-7 text-xs bg-[#111] border-[#2a2a3e] mb-2" />
+  1085→              {filteredCategories.map(cat => (
+  1086→                <div key={cat.id} className="mb-3">
+  1087→                  <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">{cat.name}</div>
+  1088→                  <div className="grid grid-cols-2 gap-1">
+  1089→                    {cat.components.map(comp => (
+  1090→                      <button key={comp.id} onClick={() => addComponent(comp.id)} className="flex flex-col items-start p-2 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-xs group">
+  1091→                        <span className="text-white font-medium group-hover:text-[#7c3aed]">{comp.name}</span>
+  1092→                        <span className="text-zinc-500 text-[10px]">{comp.description}</span>
+  1093→                      </button>
+  1094→                    ))}
+  1095→                  </div>
+  1096→                </div>
+  1097→              ))}
+  1098→            </TabsContent>
+  1099→
+  1100→            <TabsContent value="design" className="flex-1 overflow-y-auto mt-0 p-2">
+  1101→              <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-2">Quick Styles</div>
+  1102→              {/* Color Palettes */}
+  1103→              <div className="mb-3">
+  1104→                <Label className="text-xs text-zinc-400 mb-1 block">Color Palette</Label>
+  1105→                <div className="grid grid-cols-4 gap-1">
+  1106→                  {[
+  1107→                    { bg: '#7c3aed', fg: '#fff' },
+  1108→                    { bg: '#2dd4bf', fg: '#000' },
+  1109→                    { bg: '#f472b6', fg: '#fff' },
+  1110→                    { bg: '#fb923c', fg: '#000' },
+  1111→                    { bg: '#0a0a0a', fg: '#fff' },
+  1112→                    { bg: '#1a1a2e', fg: '#fff' },
+  1113→                    { bg: '#ffffff', fg: '#000' },
+  1114→                    { bg: '#f5f5f5', fg: '#000' },
+  1115→                  ].map((p, i) => (
+  1116→                    <button key={i} onClick={() => { applyStyle('background-color', p.bg); applyStyle('color', p.fg) }} className="w-full h-8 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors" style={{ background: p.bg, color: p.fg, fontSize: '10px' }}>
+  1117→                      {p.bg}
+  1118→                    </button>
+  1119→                  ))}
+  1120→                </div>
+  1121→              </div>
+  1122→              {/* Typography Presets */}
+  1123→              <div className="mb-3">
+  1124→                <Label className="text-xs text-zinc-400 mb-1 block">Typography</Label>
+  1125→                <div className="flex flex-col gap-1">
+  1126→                  {[
+  1127→                    { label: 'Heading XL', font: '2.5rem', weight: '900' },
+  1128→                    { label: 'Heading L', font: '2rem', weight: '700' },
+  1129→                    { label: 'Heading M', font: '1.5rem', weight: '600' },
+  1130→                    { label: 'Body', font: '1rem', weight: '400' },
+  1131→                    { label: 'Small', font: '0.875rem', weight: '400' },
+  1132→                    { label: 'Caption', font: '0.75rem', weight: '500' },
+  1133→                  ].map((p, i) => (
+  1134→                    <button key={i} onClick={() => { applyStyle('font-size', p.font); applyStyle('font-weight', p.weight) }} className="flex items-center justify-between p-2 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-xs">
+  1135→                      <span style={{ fontSize: p.font, fontWeight: p.weight }} className="text-white">{p.label}</span>
+  1136→                      <span className="text-zinc-500">{p.font}</span>
+  1137→                    </button>
+  1138→                  ))}
+  1139→                </div>
+  1140→              </div>
+  1141→              {/* Spacing Presets */}
+  1142→              <div className="mb-3">
+  1143→                <Label className="text-xs text-zinc-400 mb-1 block">Spacing</Label>
+  1144→                <div className="flex gap-1">
+  1145→                  {['0', '0.5rem', '1rem', '1.5rem', '2rem', '3rem', '4rem'].map((p, i) => (
+  1146→                    <button key={i} onClick={() => { applyStyle('padding', p); applyStyle('margin', p) }} className="flex-1 py-1 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] text-xs text-zinc-400 hover:text-white transition-colors">{p}</button>
+  1147→                  ))}
+  1148→                </div>
+  1149→              </div>
+  1150→            </TabsContent>
+  1151→          </Tabs>
+  1152→        </div>
+  1153→
+  1154→        {/* ── Center Preview ──────────────────────────────────────────── */}
+  1155→        <div className="flex-1 flex flex-col bg-[#0d0d15] overflow-hidden">
+  1156→          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+  1157→            <div
+  1158→              className="relative bg-white rounded-lg shadow-2xl overflow-hidden transition-all duration-300"
+  1159→              style={{
+  1160→                width: deviceConfig.width * (zoom / 100),
+  1161→                height: deviceConfig.height * (zoom / 100),
+  1162→                maxWidth: '100%',
+  1163→              }}
+  1164→            >
+  1165→              <iframe
+  1166→                ref={iframeRef}
+  1167→                srcDoc={iframeSrcDoc}
+  1168→                className="w-full h-full border-0"
+  1169→                title="Website Preview"
+  1170→                sandbox="allow-scripts allow-same-origin"
+  1171→                onLoad={() => { requestTree() }}
+  1172→              />
+  1173→            </div>
+  1174→          </div>
+  1175→
+  1176→          {/* ── Code Panel ─────────────────────────────────────────── */}
+  1177→          <AnimatePresence>
+  1178→            {showCodePanel && (
+  1179→              <motion.div
+  1180→                initial={{ height: 0 }}
+  1181→                animate={{ height: 250 }}
+  1182→                exit={{ height: 0 }}
+  1183→                className="border-t border-[#1a1a2e] bg-[#0a0a0f] overflow-hidden shrink-0"
+  1184→              >
+  1185→                <div className="flex items-center justify-between px-3 py-1 border-b border-[#1a1a2e]">
+  1186→                  <span className="text-xs text-zinc-400 font-semibold">Source Code</span>
+  1187→                  <div className="flex gap-2">
+  1188→                    <Button size="sm" variant="outline" onClick={applyCodeChanges} className="h-6 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">Apply Changes</Button>
+  1189→                    <Button size="sm" variant="outline" onClick={() => setShowCodePanel(false)} className="h-6 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">Close</Button>
+  1190→                  </div>
+  1191→                </div>
+  1192→                <textarea
+  1193→                  value={codeContent}
+  1194→                  onChange={e => setCodeContent(e.target.value)}
+  1195→                  className="w-full h-[calc(250px-32px)] bg-[#111] text-zinc-300 p-3 text-xs font-mono resize-none outline-none"
+  1196→                  spellCheck={false}
+  1197→                />
+  1198→              </motion.div>
+  1199→            )}
+  1200→          </AnimatePresence>
+  1201→        </div>
+  1202→
+  1203→        {/* ── Right Inspector Panel ───────────────────────────────────── */}
+  1204→        <div className="w-[320px] border-l border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0 overflow-y-auto">
+  1205→          {!selectedElement ? (
+  1206→            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+  1207→              <MousePointer2 size={32} className="text-zinc-500 mb-3" />
+  1208→              <p className="text-sm text-zinc-400 font-medium">Select an element</p>
+  1209→              <p className="text-xs text-zinc-500 mt-1">Click on any element in the preview to edit its properties</p>
+  1210→            </div>
+  1211→          ) : (
+  1212→            <div className="flex flex-col">
+  1213→              {/* Element header */}
+  1214→              <div className="px-3 py-2 border-b border-[#1a1a2e] bg-[#1a1a2e]/50">
+  1215→                <div className="flex items-center gap-2">
+  1216→                  <Badge className="bg-[#7c3aed]/20 text-[#7c3aed] border-[#7c3aed]/30 text-xs">{selectedElement.tag}</Badge>
+  1217→                  <span className="text-xs text-zinc-400 truncate">{selectedElement.className || selectedElement.id}</span>
+  1218→                  <div className="flex gap-1 ml-auto">
+  1219→                    <button onClick={removeElement} className="p-1 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
+  1220→                    <button onClick={() => { /* duplicate */ }} className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"><Copy size={14} /></button>
+  1221→                  </div>
+  1222→                </div>
+  1223→                <div className="text-[10px] text-zinc-600 mt-1">
+  1224→                  {Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px at ({Math.round(selectedElement.rect.left)}, {Math.round(selectedElement.rect.top)})
+  1225→                </div>
+  1226→              </div>
+  1227→
+  1228→              {/* Content editing section */}
+  1229→              <div className="px-3 py-2 border-b border-[#1a1a2e]">
+  1230→                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Content</Label>
+  1231→                <textarea
+  1232→                  value={editingContent}
+  1233→                  onChange={e => setEditingContent(e.target.value)}
+  1234→                  onBlur={() => applyContent(editingContent)}
+  1235→                  className="w-full h-20 bg-[#111] border border-[#2a2a3e] rounded text-xs text-white p-2 resize-y font-mono"
+  1236→                  placeholder="Edit element content..."
+  1237→                />
+  1238→                {/* Attribute editors for specific tags */}
+  1239→                {selectedElement.tag === 'img' && (
+  1240→                  <div className="mt-1">
+  1241→                    <Label className="text-xs text-zinc-400">Image Source</Label>
+  1242→                    <Input value={editingAttributes.src || ''} onChange={e => applyAttribute('src', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1243→                    <Label className="text-xs text-zinc-400 mt-1">Alt Text</Label>
+  1244→                    <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1245→                  </div>
+  1246→                )}
+  1247→                {selectedElement.tag === 'a' && (
+  1248→                  <div className="mt-1">
+  1249→                    <Label className="text-xs text-zinc-400">Link URL</Label>
+  1250→                    <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1251→                    <Label className="text-xs text-zinc-400 mt-1">Target</Label>
+  1252→                    <Select value={editingAttributes.target || '_self'} onValueChange={v => applyAttribute('target', v)}>
+  1253→                      <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+  1254→                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="_self" className="text-xs">Same Tab</SelectItem><SelectItem value="_blank" className="text-xs">New Tab</SelectItem></SelectContent>
+  1255→                    </Select>
+  1256→                  </div>
+  1257→                )}
+  1258→                {(selectedElement.tag === 'input' || selectedElement.tag === 'textarea') && (
+  1259→                  <div className="mt-1">
+  1260→                    <Label className="text-xs text-zinc-400">Type</Label>
+  1261→                    <Select value={editingAttributes.type || 'text'} onValueChange={v => applyAttribute('type', v)}>
+  1262→                      <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+  1263→                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+  1264→                        {['text','email','password','number','tel','url','search','date','checkbox','radio','file','submit','button'].map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+  1265→                      </SelectContent>
+  1266→                    </Select>
+  1267→                    <Label className="text-xs text-zinc-400 mt-1">Placeholder</Label>
+  1268→                    <Input value={editingAttributes.placeholder || ''} onChange={e => applyAttribute('placeholder', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1269→                  </div>
+  1270→                )}
+  1271→                {selectedElement.tag === 'button' && (
+  1272→                  <div className="mt-1">
+  1273→                    <Label className="text-xs text-zinc-400">Button Type</Label>
+  1274→                    <Select value={editingAttributes.type || 'button'} onValueChange={v => applyAttribute('type', v)}>
+  1275→                      <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+  1276→                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="button" className="text-xs">Button</SelectItem><SelectItem value="submit" className="text-xs">Submit</SelectItem></SelectContent>
+  1277→                    </Select>
+  1278→                  </div>
+  1279→                )}
+  1280→              </div>
+  1281→
+  1282→              {/* CSS Property Groups */}
+  1283→              <ScrollArea className="flex-1">
+  1284→                <div className="p-3">
+  1285→                  {CSS_PROPERTY_GROUPS.map(group => (
+  1286→                    <div key={group.name} className="mb-4">
+  1287→                      <button
+  1288→                        className="flex items-center gap-2 text-xs text-zinc-300 font-semibold uppercase tracking-wider mb-2 hover:text-[#7c3aed] transition-colors"
+  1289→                        onClick={() => {/* Could toggle collapse */}}
+  1290→                      >
+  1291→                        <span>{group.name}</span>
+  1292→                        <ChevronDown size={12} className="text-zinc-500" />
+  1293→                      </button>
+  1294→                      <div className="space-y-0.5">
+  1295→                        {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+  1296→                      </div>
+  1297→                      <Separator className="bg-[#2a2a3e]/40 mt-2" />
+  1298→                    </div>
+  1299→                  ))}
+  1300→                </div>
+  1301→              </ScrollArea>
+  1302→            </div>
+  1303→          )}
+  1304→        </div>
+  1305→      </div>
+  1306→    </div>
+  1307→  )
+  1308→}
+  1309→

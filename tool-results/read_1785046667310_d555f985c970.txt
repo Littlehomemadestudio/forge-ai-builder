@@ -1,0 +1,510 @@
+   800→  useEffect(() => {
+   801→    if (showCodePanel) {
+   802→      const doc = iframeRef.current?.contentDocument
+   803→      if (doc) {
+   804→        setCodeContent(doc.documentElement.outerHTML)
+   805→      }
+   806→    }
+   807→  }, [showCodePanel])
+   808→
+   809→  const applyCodeChanges = useCallback(() => {
+   810→    sendMessage('update-html', { html: codeContent })
+   811→    setWebsiteHTML(codeContent)
+   812→    pushHistory('Edit code')
+   813→    requestTree()
+   814→  }, [codeContent, sendMessage, pushHistory, requestTree])
+   815→
+   816→  // ─── Render CSS Property Editor ────────────────────────────────────────────
+   817→  const renderPropertyEditor = (prop: CSSProperty, styles: Record<string, string>) => {
+   818→    const currentValue = styles[prop.name] || prop.default || ''
+   819→
+   820→    switch (prop.type) {
+   821→      case 'text':
+   822→        return (
+   823→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   824→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   825→            <Input
+   826→              value={currentValue}
+   827→              onChange={e => applyStyle(prop.name, e.target.value)}
+   828→              className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1"
+   829→              placeholder={prop.default}
+   830→            />
+   831→            {prop.unit && <span className="text-xs text-zinc-500">{prop.unit}</span>}
+   832→          </div>
+   833→        )
+   834→
+   835→      case 'number':
+   836→        return (
+   837→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   838→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   839→            <Input
+   840→              type="number"
+   841→              value={parseFloat(currentValue) || 0}
+   842→              onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || 'px'))}
+   843→              className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1"
+   844→              min={prop.min}
+   845→              max={prop.max}
+   846→              step={prop.step}
+   847→            />
+   848→            {prop.unit && <span className="text-xs text-zinc-500">{prop.unit}</span>}
+   849→          </div>
+   850→        )
+   851→
+   852→      case 'select':
+   853→        return (
+   854→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   855→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   856→            <Select value={currentValue} onValueChange={v => applyStyle(prop.name, v)}>
+   857→              <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1">
+   858→                <SelectValue />
+   859→              </SelectTrigger>
+   860→              <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+   861→                {prop.options?.map(opt => <SelectItem key={opt} value={opt} className="text-xs text-white">{opt}</SelectItem>)}
+   862→              </SelectContent>
+   863→            </Select>
+   864→          </div>
+   865→        )
+   866→
+   867→      case 'color':
+   868→        return (
+   869→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   870→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   871→            <div className="flex items-center gap-1 flex-1">
+   872→              <input
+   873→                type="color"
+   874→                value={currentValue.startsWith('#') ? currentValue : '#000000'}
+   875→                onChange={e => applyStyle(prop.name, e.target.value)}
+   876→                className="w-7 h-7 rounded border border-[#2a2a3e] cursor-pointer"
+   877→              />
+   878→              <Input
+   879→                value={currentValue}
+   880→                onChange={e => applyStyle(prop.name, e.target.value)}
+   881→                className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white flex-1"
+   882→              />
+   883→            </div>
+   884→          </div>
+   885→        )
+   886→
+   887→      case 'slider':
+   888→        return (
+   889→          <div key={prop.name} className="mb-2">
+   890→            <div className="flex items-center gap-2">
+   891→              <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   892→              <Input
+   893→                value={parseFloat(currentValue) || parseFloat(prop.default || '0')}
+   894→                onChange={e => applyStyle(prop.name, e.target.value + (prop.unit || ''))}
+   895→                className="h-7 text-xs bg-[#111] border-[#2a2a3e] text-white w-20"
+   896→              />
+   897→              {prop.unit && <span className="text-xs text-zinc-500">{prop.unit}</span>}
+   898→            </div>
+   899→            <Slider
+   900→              value={[parseFloat(currentValue) || parseFloat(prop.default || '0')]}
+   901→              onValueChange={v => applyStyle(prop.name, v[0] + (prop.unit || ''))}
+   902→              min={prop.min || 0}
+   903→              max={prop.max || 100}
+   904→              step={prop.step || 1}
+   905→              className="mt-1"
+   906→            />
+   907→          </div>
+   908→        )
+   909→
+   910→      case 'toggle':
+   911→        return (
+   912→          <div key={prop.name} className="flex items-center gap-2 mb-2">
+   913→            <Label className="text-xs text-zinc-400 w-28 shrink-0">{prop.label}</Label>
+   914→            <Switch
+   915→              checked={currentValue === 'true' || currentValue === 'visible' || currentValue === 'auto'}
+   916→              onCheckedChange={v => applyStyle(prop.name, v ? (prop.options?.[0] || 'true') : (prop.options?.[1] || 'none'))}
+   917→            />
+   918→          </div>
+   919→        )
+   920→
+   921→      case 'composite':
+   922→        return (
+   923→          <div key={prop.name} className="mb-3">
+   924→            <Label className="text-xs text-zinc-300 mb-1 block font-semibold">{prop.label}</Label>
+   925→            <div className="pl-2 border-l-2 border-[#2a2a3e]">
+   926→              {prop.subProperties?.map(sub => renderPropertyEditor(sub, styles))}
+   927→            </div>
+   928→          </div>
+   929→        )
+   930→
+   931→      default:
+   932→        return null
+   933→    }
+   934→  }
+   935→
+   936→  // ─── Render Element Tree ───────────────────────────────────────────────────
+   937→  const renderTreeNode = (node: TreeNode, depth: number = 0) => {
+   938→    const isExpanded = expandedTreeNodes.has(node.id)
+   939→    const isSelected = selectedElement?.id === node.id
+   940→    const hasChildren = node.children && node.children.length > 0
+   941→
+   942→    return (
+   943→      <div key={node.id}>
+   944→        <div
+   945→          className={`flex items-center gap-1 px-2 py-1 cursor-pointer rounded text-xs transition-colors ${
+   946→            isSelected ? 'bg-[#7c3aed]/20 text-[#7c3aed]' : 'text-zinc-400 hover:bg-[#1a1a2e] hover:text-white'
+   947→          }`}
+   948→          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+   949→          onClick={() => {
+   950→            sendMessage('select-element', { elementId: node.id })
+   951→            setExpandedTreeNodes(prev => new Set([...prev, node.id]))
+   952→          }}
+   953→          onMouseEnter={() => sendMessage('highlight-element', { elementId: node.id })}
+   954→          onMouseLeave={() => sendMessage('highlight-element', { elementId: '' })}
+   955→        >
+   956→          {hasChildren ? (
+   957→            <button onClick={(e) => { e.stopPropagation(); setExpandedTreeNodes(prev => { const n = new Set(prev); if (isExpanded) { n.delete(node.id); } else { n.add(node.id); } return n }) }}>
+   958→              <ChevronRight size={12} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+   959→            </button>
+   960→          ) : <span className="w-3" />}
+   961→          <span className="text-[#7c3aed] font-mono">{node.tag}</span>
+   962→          {node.className && <span className="text-zinc-500 truncate max-w-20">{node.className.split(' ')[0]}</span>}
+   963→          {node.textContent && <span className="text-zinc-600 truncate max-w-30 ml-1">"{node.textContent.substring(0, 20)}"</span>}
+   964→          {isSelected && (
+   965→            <div className="flex gap-1 ml-auto">
+   966→              <button onClick={(e) => { e.stopPropagation(); removeElement() }} className="text-red-400 hover:text-red-300"><Trash2 size={12} /></button>
+   967→              <button onClick={(e) => { e.stopPropagation(); /* duplicate */ }} className="text-zinc-400 hover:text-white"><Copy size={12} /></button>
+   968→            </div>
+   969→          )}
+   970→        </div>
+   971→        <AnimatePresence>
+   972→          {isExpanded && hasChildren && (
+   973→            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+   974→              {node.children.map(child => renderTreeNode(child, depth + 1))}
+   975→            </motion.div>
+   976→          )}
+   977→        </AnimatePresence>
+   978→      </div>
+   979→    )
+   980→  }
+   981→
+   982→  // ─── Component categories for left panel ───────────────────────────────────
+   983→  const filteredCategories = EDITOR_COMPONENT_CATEGORIES.filter(cat =>
+   984→    !searchQuery || cat.name.toLowerCase().includes(searchQuery) || cat.components.some(c => c.name.toLowerCase().includes(searchQuery) || c.description.toLowerCase().includes(searchQuery))
+   985→  )
+   986→
+   987→  // ─── Icon map for device buttons ───────────────────────────────────────────
+   988→  const deviceIcons: Record<string, React.ReactNode> = {
+   989→    desktop: <Monitor size={16} />,
+   990→    laptop: <Monitor size={14} />,
+   991→    tablet: <Tablet size={16} />,
+   992→    mobile: <Smartphone size={16} />,
+   993→    'mobile-landscape': <Smartphone size={14} className="rotate-90" />,
+   994→  }
+   995→
+   996→  // ─── Main Render ───────────────────────────────────────────────────────────
+   997→  return (
+   998→    <div className="h-screen flex flex-col bg-[#0a0a0f] text-white overflow-hidden">
+   999→      {/* ── Top Toolbar ──────────────────────────────────────────────── */}
+  1000→      <div className="h-12 flex items-center justify-between px-4 border-b border-[#1a1a2e] bg-[#0a0a0f] shrink-0">
+  1001→        <div className="flex items-center gap-3">
+  1002→          <button onClick={() => navigate('dashboard')} className="text-zinc-500 hover:text-white transition-colors" title="Back to dashboard">
+  1003→            <ArrowLeft size={18} />
+  1004→          </button>
+  1005→          <span className="font-bold text-[#7c3aed]">Forge</span>
+  1006→          <Separator orientation="vertical" className="h-6 bg-[#2a2a3e]" />
+  1007→          <span className="text-sm text-zinc-400 truncate max-w-32" title={generatedSiteName || 'Untitled Site'}>
+  1008→            {generatedSiteName || 'Untitled Site'}
+  1009→          </span>
+  1010→          {generatedPages.length > 0 && (
+  1011→            <>
+  1012→              <Separator orientation="vertical" className="h-6 bg-[#2a2a3e]" />
+  1013→              <Select value={activePageIdRef.current} onValueChange={switchPage}>
+  1014→                <SelectTrigger className="h-7 w-40 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">
+  1015→                  <SelectValue />
+  1016→                </SelectTrigger>
+  1017→                <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+  1018→                  {generatedPages.map(p => (
+  1019→                    <SelectItem key={p.id} value={p.id} className="text-xs text-white focus:bg-[#7c3aed]/30">
+  1020→                      <span className="font-medium">{p.name}</span>
+  1021→                      <span className="ml-2 text-zinc-500">{p.route}</span>
+  1022→                    </SelectItem>
+  1023→                  ))}
+  1024→                </SelectContent>
+  1025→              </Select>
+  1026→            </>
+  1027→          )}
+  1028→        </div>
+  1029→
+  1030→        <div className="flex items-center gap-2">
+  1031→          <Tooltip><TooltipTrigger asChild><button onClick={undo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Undo2 size={16} /></button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+  1032→          <Tooltip><TooltipTrigger asChild><button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Redo2 size={16} /></button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+  1033→          <Separator orientation="vertical" className="h-6 bg-[#2a2a3e] mx-1" />
+  1034→
+  1035→          {/* Device selector */}
+  1036→          <div className="flex items-center gap-1 bg-[#1a1a2e] rounded-lg p-1">
+  1037→            {DEVICE_CONFIGS.map(d => (
+  1038→              <button key={d.name} onClick={() => setDevice(d.name)} className={`p-1.5 rounded transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}>
+  1039→                {deviceIcons[d.name]}
+  1040→              </button>
+  1041→            ))}
+  1042→          </div>
+  1043→
+  1044→          <Separator orientation="vertical" className="h-6 bg-[#2a2a3e] mx-1" />
+  1045→          <span className="text-xs text-zinc-500">{zoom}%</span>
+  1046→          <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 rounded hover:bg-[#1a1a2e]"><ZoomIn size={14} /></button>
+  1047→          <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 rounded hover:bg-[#1a1a2e]"><ZoomOut size={14} /></button>
+  1048→          <button onClick={() => setZoom(100)} className="text-xs text-zinc-500 hover:text-white px-1">Reset</button>
+  1049→        </div>
+  1050→
+  1051→        <div className="flex items-center gap-2">
+  1052→          <button onClick={() => setShowCodePanel(!showCodePanel)} className={`p-1.5 rounded transition-colors ${showCodePanel ? 'bg-[#7c3aed] text-white' : 'hover:bg-[#1a1a2e] text-zinc-400'}`}>
+  1053→            <Code2 size={16} />
+  1054→          </button>
+  1055→          <button onClick={save} className="p-1.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><Save size={16} /></button>
+  1056→          <Button variant="outline" size="sm" onClick={exportHTML} className="h-7 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white hover:bg-[#2a2a3e]">
+  1057→            <Download size={14} className="mr-1" />Export
+  1058→          </Button>
+  1059→          <Button size="sm" onClick={() => toast({ title: 'Deployment started' })} className="h-7 text-xs bg-[#7c3aed] hover:bg-[#6d28d9]">
+  1060→            <Rocket size={14} className="mr-1" />Deploy
+  1061→          </Button>
+  1062→        </div>
+  1063→      </div>
+  1064→
+  1065→      {/* ── Main Content ─────────────────────────────────────────────── */}
+  1066→      <div className="flex-1 flex overflow-hidden">
+  1067→        {/* ── Left Panel ──────────────────────────────────────────────── */}
+  1068→        <div className="w-[280px] border-r border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
+  1069→          <Tabs value={leftPanelTab} onValueChange={setLeftPanelTab} className="flex flex-col h-full">
+  1070→            <TabsList className="w-full justify-start bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-9 p-0">
+  1071→              <TabsTrigger value="layers" className="text-xs data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-3 py-2 rounded-none"><Layers size={14} className="mr-1" />Layers</TabsTrigger>
+  1072→              <TabsTrigger value="components" className="text-xs data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-3 py-2 rounded-none"><Grid3X3 size={14} className="mr-1" />Components</TabsTrigger>
+  1073→              <TabsTrigger value="design" className="text-xs data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-3 py-2 rounded-none"><Palette size={14} className="mr-1" />Design</TabsTrigger>
+  1074→            </TabsList>
+  1075→
+  1076→            <TabsContent value="layers" className="flex-1 overflow-y-auto mt-0 p-2">
+  1077→              <div className="text-xs text-zinc-500 mb-2 uppercase tracking-wider font-semibold">Page Structure</div>
+  1078→              {elementTree ? renderTreeNode(elementTree, 0) : (
+  1079→                <div className="text-xs text-zinc-500 text-center py-8">Click elements in preview to select</div>
+  1080→              )}
+  1081→            </TabsContent>
+  1082→
+  1083→            <TabsContent value="components" className="flex-1 overflow-y-auto mt-0 p-2">
+  1084→              <Input placeholder="Search components..." value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-7 text-xs bg-[#111] border-[#2a2a3e] mb-2" />
+  1085→              {filteredCategories.map(cat => (
+  1086→                <div key={cat.id} className="mb-3">
+  1087→                  <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">{cat.name}</div>
+  1088→                  <div className="grid grid-cols-2 gap-1">
+  1089→                    {cat.components.map(comp => (
+  1090→                      <button key={comp.id} onClick={() => addComponent(comp.id)} className="flex flex-col items-start p-2 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-xs group">
+  1091→                        <span className="text-white font-medium group-hover:text-[#7c3aed]">{comp.name}</span>
+  1092→                        <span className="text-zinc-500 text-[10px]">{comp.description}</span>
+  1093→                      </button>
+  1094→                    ))}
+  1095→                  </div>
+  1096→                </div>
+  1097→              ))}
+  1098→            </TabsContent>
+  1099→
+  1100→            <TabsContent value="design" className="flex-1 overflow-y-auto mt-0 p-2">
+  1101→              <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-2">Quick Styles</div>
+  1102→              {/* Color Palettes */}
+  1103→              <div className="mb-3">
+  1104→                <Label className="text-xs text-zinc-400 mb-1 block">Color Palette</Label>
+  1105→                <div className="grid grid-cols-4 gap-1">
+  1106→                  {[
+  1107→                    { bg: '#7c3aed', fg: '#fff' },
+  1108→                    { bg: '#2dd4bf', fg: '#000' },
+  1109→                    { bg: '#f472b6', fg: '#fff' },
+  1110→                    { bg: '#fb923c', fg: '#000' },
+  1111→                    { bg: '#0a0a0a', fg: '#fff' },
+  1112→                    { bg: '#1a1a2e', fg: '#fff' },
+  1113→                    { bg: '#ffffff', fg: '#000' },
+  1114→                    { bg: '#f5f5f5', fg: '#000' },
+  1115→                  ].map((p, i) => (
+  1116→                    <button key={i} onClick={() => { applyStyle('background-color', p.bg); applyStyle('color', p.fg) }} className="w-full h-8 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors" style={{ background: p.bg, color: p.fg, fontSize: '10px' }}>
+  1117→                      {p.bg}
+  1118→                    </button>
+  1119→                  ))}
+  1120→                </div>
+  1121→              </div>
+  1122→              {/* Typography Presets */}
+  1123→              <div className="mb-3">
+  1124→                <Label className="text-xs text-zinc-400 mb-1 block">Typography</Label>
+  1125→                <div className="flex flex-col gap-1">
+  1126→                  {[
+  1127→                    { label: 'Heading XL', font: '2.5rem', weight: '900' },
+  1128→                    { label: 'Heading L', font: '2rem', weight: '700' },
+  1129→                    { label: 'Heading M', font: '1.5rem', weight: '600' },
+  1130→                    { label: 'Body', font: '1rem', weight: '400' },
+  1131→                    { label: 'Small', font: '0.875rem', weight: '400' },
+  1132→                    { label: 'Caption', font: '0.75rem', weight: '500' },
+  1133→                  ].map((p, i) => (
+  1134→                    <button key={i} onClick={() => { applyStyle('font-size', p.font); applyStyle('font-weight', p.weight) }} className="flex items-center justify-between p-2 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-xs">
+  1135→                      <span style={{ fontSize: p.font, fontWeight: p.weight }} className="text-white">{p.label}</span>
+  1136→                      <span className="text-zinc-500">{p.font}</span>
+  1137→                    </button>
+  1138→                  ))}
+  1139→                </div>
+  1140→              </div>
+  1141→              {/* Spacing Presets */}
+  1142→              <div className="mb-3">
+  1143→                <Label className="text-xs text-zinc-400 mb-1 block">Spacing</Label>
+  1144→                <div className="flex gap-1">
+  1145→                  {['0', '0.5rem', '1rem', '1.5rem', '2rem', '3rem', '4rem'].map((p, i) => (
+  1146→                    <button key={i} onClick={() => { applyStyle('padding', p); applyStyle('margin', p) }} className="flex-1 py-1 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] text-xs text-zinc-400 hover:text-white transition-colors">{p}</button>
+  1147→                  ))}
+  1148→                </div>
+  1149→              </div>
+  1150→            </TabsContent>
+  1151→          </Tabs>
+  1152→        </div>
+  1153→
+  1154→        {/* ── Center Preview ──────────────────────────────────────────── */}
+  1155→        <div className="flex-1 flex flex-col bg-[#0d0d15] overflow-hidden">
+  1156→          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+  1157→            <div
+  1158→              className="relative bg-white rounded-lg shadow-2xl overflow-hidden transition-all duration-300"
+  1159→              style={{
+  1160→                width: deviceConfig.width * (zoom / 100),
+  1161→                height: deviceConfig.height * (zoom / 100),
+  1162→                maxWidth: '100%',
+  1163→              }}
+  1164→            >
+  1165→              <iframe
+  1166→                ref={iframeRef}
+  1167→                srcDoc={iframeSrcDoc}
+  1168→                className="w-full h-full border-0"
+  1169→                title="Website Preview"
+  1170→                sandbox="allow-scripts allow-same-origin"
+  1171→                onLoad={() => { requestTree() }}
+  1172→              />
+  1173→            </div>
+  1174→          </div>
+  1175→
+  1176→          {/* ── Code Panel ─────────────────────────────────────────── */}
+  1177→          <AnimatePresence>
+  1178→            {showCodePanel && (
+  1179→              <motion.div
+  1180→                initial={{ height: 0 }}
+  1181→                animate={{ height: 250 }}
+  1182→                exit={{ height: 0 }}
+  1183→                className="border-t border-[#1a1a2e] bg-[#0a0a0f] overflow-hidden shrink-0"
+  1184→              >
+  1185→                <div className="flex items-center justify-between px-3 py-1 border-b border-[#1a1a2e]">
+  1186→                  <span className="text-xs text-zinc-400 font-semibold">Source Code</span>
+  1187→                  <div className="flex gap-2">
+  1188→                    <Button size="sm" variant="outline" onClick={applyCodeChanges} className="h-6 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">Apply Changes</Button>
+  1189→                    <Button size="sm" variant="outline" onClick={() => setShowCodePanel(false)} className="h-6 text-xs border-[#2a2a3e] bg-[#1a1a2e] text-white">Close</Button>
+  1190→                  </div>
+  1191→                </div>
+  1192→                <textarea
+  1193→                  value={codeContent}
+  1194→                  onChange={e => setCodeContent(e.target.value)}
+  1195→                  className="w-full h-[calc(250px-32px)] bg-[#111] text-zinc-300 p-3 text-xs font-mono resize-none outline-none"
+  1196→                  spellCheck={false}
+  1197→                />
+  1198→              </motion.div>
+  1199→            )}
+  1200→          </AnimatePresence>
+  1201→        </div>
+  1202→
+  1203→        {/* ── Right Inspector Panel ───────────────────────────────────── */}
+  1204→        <div className="w-[320px] border-l border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0 overflow-y-auto">
+  1205→          {!selectedElement ? (
+  1206→            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+  1207→              <MousePointer2 size={32} className="text-zinc-500 mb-3" />
+  1208→              <p className="text-sm text-zinc-400 font-medium">Select an element</p>
+  1209→              <p className="text-xs text-zinc-500 mt-1">Click on any element in the preview to edit its properties</p>
+  1210→            </div>
+  1211→          ) : (
+  1212→            <div className="flex flex-col">
+  1213→              {/* Element header */}
+  1214→              <div className="px-3 py-2 border-b border-[#1a1a2e] bg-[#1a1a2e]/50">
+  1215→                <div className="flex items-center gap-2">
+  1216→                  <Badge className="bg-[#7c3aed]/20 text-[#7c3aed] border-[#7c3aed]/30 text-xs">{selectedElement.tag}</Badge>
+  1217→                  <span className="text-xs text-zinc-400 truncate">{selectedElement.className || selectedElement.id}</span>
+  1218→                  <div className="flex gap-1 ml-auto">
+  1219→                    <button onClick={removeElement} className="p-1 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
+  1220→                    <button onClick={() => { /* duplicate */ }} className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"><Copy size={14} /></button>
+  1221→                  </div>
+  1222→                </div>
+  1223→                <div className="text-[10px] text-zinc-600 mt-1">
+  1224→                  {Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px at ({Math.round(selectedElement.rect.left)}, {Math.round(selectedElement.rect.top)})
+  1225→                </div>
+  1226→              </div>
+  1227→
+  1228→              {/* Content editing section */}
+  1229→              <div className="px-3 py-2 border-b border-[#1a1a2e]">
+  1230→                <Label className="text-xs text-zinc-300 font-semibold mb-1 block">Content</Label>
+  1231→                <textarea
+  1232→                  value={editingContent}
+  1233→                  onChange={e => setEditingContent(e.target.value)}
+  1234→                  onBlur={() => applyContent(editingContent)}
+  1235→                  className="w-full h-20 bg-[#111] border border-[#2a2a3e] rounded text-xs text-white p-2 resize-y font-mono"
+  1236→                  placeholder="Edit element content..."
+  1237→                />
+  1238→                {/* Attribute editors for specific tags */}
+  1239→                {selectedElement.tag === 'img' && (
+  1240→                  <div className="mt-1">
+  1241→                    <Label className="text-xs text-zinc-400">Image Source</Label>
+  1242→                    <Input value={editingAttributes.src || ''} onChange={e => applyAttribute('src', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1243→                    <Label className="text-xs text-zinc-400 mt-1">Alt Text</Label>
+  1244→                    <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1245→                  </div>
+  1246→                )}
+  1247→                {selectedElement.tag === 'a' && (
+  1248→                  <div className="mt-1">
+  1249→                    <Label className="text-xs text-zinc-400">Link URL</Label>
+  1250→                    <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1251→                    <Label className="text-xs text-zinc-400 mt-1">Target</Label>
+  1252→                    <Select value={editingAttributes.target || '_self'} onValueChange={v => applyAttribute('target', v)}>
+  1253→                      <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+  1254→                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="_self" className="text-xs">Same Tab</SelectItem><SelectItem value="_blank" className="text-xs">New Tab</SelectItem></SelectContent>
+  1255→                    </Select>
+  1256→                  </div>
+  1257→                )}
+  1258→                {(selectedElement.tag === 'input' || selectedElement.tag === 'textarea') && (
+  1259→                  <div className="mt-1">
+  1260→                    <Label className="text-xs text-zinc-400">Type</Label>
+  1261→                    <Select value={editingAttributes.type || 'text'} onValueChange={v => applyAttribute('type', v)}>
+  1262→                      <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+  1263→                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+  1264→                        {['text','email','password','number','tel','url','search','date','checkbox','radio','file','submit','button'].map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+  1265→                      </SelectContent>
+  1266→                    </Select>
+  1267→                    <Label className="text-xs text-zinc-400 mt-1">Placeholder</Label>
+  1268→                    <Input value={editingAttributes.placeholder || ''} onChange={e => applyAttribute('placeholder', e.target.value)} className="h-7 text-xs bg-[#111] border-[#2a2a3e]" />
+  1269→                  </div>
+  1270→                )}
+  1271→                {selectedElement.tag === 'button' && (
+  1272→                  <div className="mt-1">
+  1273→                    <Label className="text-xs text-zinc-400">Button Type</Label>
+  1274→                    <Select value={editingAttributes.type || 'button'} onValueChange={v => applyAttribute('type', v)}>
+  1275→                      <SelectTrigger className="h-7 text-xs bg-[#111] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+  1276→                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="button" className="text-xs">Button</SelectItem><SelectItem value="submit" className="text-xs">Submit</SelectItem></SelectContent>
+  1277→                    </Select>
+  1278→                  </div>
+  1279→                )}
+  1280→              </div>
+  1281→
+  1282→              {/* CSS Property Groups */}
+  1283→              <ScrollArea className="flex-1">
+  1284→                <div className="p-3">
+  1285→                  {CSS_PROPERTY_GROUPS.map(group => (
+  1286→                    <div key={group.name} className="mb-4">
+  1287→                      <button
+  1288→                        className="flex items-center gap-2 text-xs text-zinc-300 font-semibold uppercase tracking-wider mb-2 hover:text-[#7c3aed] transition-colors"
+  1289→                        onClick={() => {/* Could toggle collapse */}}
+  1290→                      >
+  1291→                        <span>{group.name}</span>
+  1292→                        <ChevronDown size={12} className="text-zinc-500" />
+  1293→                      </button>
+  1294→                      <div className="space-y-0.5">
+  1295→                        {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+  1296→                      </div>
+  1297→                      <Separator className="bg-[#2a2a3e]/40 mt-2" />
+  1298→                    </div>
+  1299→                  ))}
+  1300→                </div>
+  1301→              </ScrollArea>
+  1302→            </div>
+  1303→          )}
+  1304→        </div>
+  1305→      </div>
+  1306→    </div>
+  1307→  )
+  1308→}
+  1309→

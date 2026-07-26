@@ -264,3 +264,83 @@ Stage Summary:
 - Editor actually loads the generated content and lets the user edit it — Layers tree, element selection, property inspector, undo/redo, page switching, and store persistence all work.
 - Each page is a full standalone HTML document with embedded CSS, real content, responsive design, animations — typically 15-25 KB per page.
 - Generation takes ~4-6 minutes total (sequential, due to API rate limiting — parallel requests return 429). The user sees real per-page progress so the wait is productive.
+
+---
+Task ID: Builder V3 — Massive Advanced Generation Options
+Agent: Main Coordinator
+Task: Rebuild BuilderPage.tsx with comprehensive advanced options panel, remove all GLM-4.7 references, expand styles from 4 to 8
+
+Work Log:
+- Completely rebuilt /src/components/builder/BuilderPage.tsx (~1890 lines) with massive advanced options panel
+- REMOVED all references to "GLM-4.7" — now says "Powered by AI" generically
+- Expanded STYLE_OPTIONS from 4 to 8: Light, Dark, Minimal, Bold, Glassmorphism, Neo-Brutalism, Retro, Gradient (each with color swatches)
+- Added comprehensive "Advanced Options" panel (collapsible/expandable) with 6 tabbed sections:
+  1. Brand & Identity: Brand Name input, Font Family selector (16 fonts), Logo Placement (left/center/right), Color Scheme editor with 6 color pickers (Primary, Accent, Background, Surface, Text, Muted) with interactive preview bar
+  2. Complexity & Length: Complexity Level (Simple/Standard/Advanced/Comprehensive), Default Page Length (Short/Medium/Long/Extended), Layout Density (Compact/Comfortable/Spacious/Ultra-Spacious), Page Configuration table (8 pages with toggle switches + length dropdowns per page)
+  3. Visual Style: Expanded 8-option style grid with color swatches, Content Tone (6 options), Layout Density (4 options)
+  4. Sections & Features: 11 toggle switches in grid layout (Hero, Features Grid, Testimonials, Pricing, FAQ, Newsletter, CTA Banner, Footer, Animations, Social Links, Contact Form)
+  5. Navigation & UX: Navigation Style (5 options), CTA Style (5 options), Animation Level (5 options), Responsive Priority (3 options)
+  6. SEO & Accessibility: SEO Level (3 options), Accessibility Level (3 options), Image Style (6 options)
+- Updated GeneratingPhase to pass all advanced options in the API request body (advancedOptions object with complexity, pageLength, layoutDensity, animationLevel, contentTone, navigationStyle, seoLevel, accessibilityLevel, imageStyle, ctaStyle, fontFamily, colorScheme, section toggles, pageConfigs)
+- Updated GeneratingPhase to dynamically filter pages based on pageConfigs enabled status
+- Updated PreviewPhase site details panel: REMOVED "AI model: GLM-4.7" line, ADDED complexity, tone, density, SEO, accessibility, sections count, font family, and color scheme swatches
+- Used shadcn/ui components: Switch, Input, Label, Separator, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Select, Badge, Progress, Button, Card
+- Created reusable GlassCard and ColorPicker sub-components
+- Fixed useAppStore.getState() calls in JSX to use reactive hook subscriptions instead
+- Fixed Grid icon reference error → changed to LayoutGrid from lucide-react
+- All lint checks pass (0 errors, 0 warnings)
+- Page compiles and loads correctly (200 status)
+
+Stage Summary:
+- Builder now has comprehensive generation configuration with ~50+ configurable parameters
+- No references to specific AI model names anywhere in the UI
+- Premium glass morphism dark theme UI with organized tabbed sections
+- All advanced options are connected to the Zustand store and persist across phases
+- Advanced options are passed to the API for the server to use in prompt construction
+
+---
+Task ID: Editor V2 — Canva-like Advanced Editor
+Agent: Main Coordinator
+Task: Rebuild EditorPage.tsx as an advanced Canva-like visual site editor with many more options, tools, and controls
+
+Work Log:
+- Completely rebuilt /src/components/editor/EditorPage.tsx (~1630 lines) as a Canva-like editor
+- Updated /src/lib/editor/components.ts: Added new component categories (CTA: 3 variants, Stats: 3 variants, Timeline: 2 variants) plus existing Accordion, Tabs, Marquee, Cookie Banner from previous subagent
+- Updated /src/lib/store.ts: Added BuilderAdvancedOptions type with 20+ configurable fields, BuilderComplexity/PageLength/LayoutDensity/AnimationLevel/ResponsivePriority/ContentTone/NavigationStyle/SEOLevel/AccessibilityLevel/ImageStyle/CTAStyle types, EditorCanvasMode/EditorZoom/editorShowGrid/editorShowGuides/editorSnapToGrid states, setBuilderAdvancedOptions/setEditorCanvasMode/setEditorZoom actions
+- Enhanced TOP TOOLBAR with:
+  * Canvas mode selector (Select, Text, Move) - like Canva
+  * Quick text formatting toolbar (Bold, Italic, Underline, Strikethrough, Align Left/Center/Right) - appears when element selected
+  * Quick color picker strip (6 preset colors + custom) for text color
+  * Grid toggle button
+  * Zoom controls (+/-, percentage display, reset)
+  * Export dialog (6 formats: HTML, React/TSX, Next.js, Vue, CSS Only, ZIP Bundle) with format selector UI
+  * Deploy button
+- Enhanced LEFT PANEL (260px) with 4 tabs (was 3):
+  * Layers: Enhanced with move up/down, duplicate, delete buttons per node
+  * Add (Components): Collapsible categories, search filter, new component types
+  * Pages: Page navigation/management - switch pages, view sizes
+  * Theme (Design Tokens): NEW - 6 theme presets (Dark Minimal, Dark Premium, Light Clean, Light Bold, Glassmorphism, Gradient), 6 color pickers (Accent, Background, Surface, Text, Muted, Border), Font Family selector (13 fonts), Border Radius Scale slider, Spacing Scale slider, Shadow Scale slider, Live preview strip, "Apply Theme Globally" button
+- Enhanced RIGHT INSPECTOR (280px) with 5 tabs (was 4):
+  * Content: Text content textarea, tag-specific attribute editors (img src/alt, a href/target, input type/placeholder, button type), all attributes editor
+  * Style: Box model visualization diagram (like Chrome DevTools: margin orange, border yellow, padding green, content purple with dimensions), collapsible CSS property groups (Colors, Typography, Spacing, Background, Border, Effects, Filters, SVG)
+  * Layout: Collapsible CSS property groups (Layout, Table, List), responsive preview section with device toggle
+  * Animate: 12 animation presets in grid (Fade In/Up/Down/Left/Right, Slide Up, Bounce In, Scale In, Rotate In, Pulse, Shake, Float), plus full Transform/Transition/Animation CSS property groups
+  * SEO: Tag-specific SEO info (h1-h3 weight, img alt accessibility, a href/rel), general element info panel
+- Enhanced iframe bridge script:
+  * Resize handles (8 handles at corners and midpoints for selected element)
+  * Grid overlay toggle (20px grid lines)
+  * Move element command (move up/down within parent)
+  * Duplicate element command (clone node)
+  * Apply theme globally command (update CSS custom properties + font-family across all elements)
+- Quick action toolbar at bottom of preview (appears when element selected): tag badge, dimensions, move up/down, duplicate, delete, link/image specific actions
+- Animation presets actually work - they inject @keyframes into iframe style tag and apply animation CSS
+- Design tokens/theme system works - changes CSS custom properties globally, preview strip shows theme live
+- All existing functionality preserved: element selection, inline text editing, CSS property editing, undo/redo, history, page switching, code panel, iframe bridge
+- Lint passes (1 false-positive warning about Image icon)
+
+Stage Summary:
+- Editor now has Canva-like features: canvas modes, quick formatting toolbar, theme editor, animation presets, box model diagram, enhanced export, design tokens, page management
+- ~50+ new controls/options added compared to previous version
+- Premium dark theme (bg-[#0a0a0f], bg-[#0d0d15], accent #7c3aed)
+- All functionality verified via Agent Browser and VLM
+- Builder page also verified with many new advanced options (6 tabs, ~50+ configurable parameters, no GLM-4.7 mention)
