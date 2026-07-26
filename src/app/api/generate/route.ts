@@ -15,6 +15,28 @@ import {
 } from '@/lib/animations';
 import type { AnimationId } from '@/lib/animations';
 
+// ─── Global fetch hardening (CRITICAL) ────────────────────────────────────
+// The z-ai-web-dev-sdk uses fetch() with NO AbortSignal. If the GLM API
+// hangs or streams very slowly, the underlying socket can stay open
+// indefinitely. We add a process-level safety net for unhandled rejections
+// so the server never crashes silently.
+//
+// Note: We previously monkey-patched global fetch to add AbortController,
+// but that interfered with the SDK's response handling. Instead, we rely
+// on Promise.race in callZaiWithTimeout to enforce the timeout.
+if (typeof process !== 'undefined' && !(process as any).__forgeRejectionPatched) {
+  (process as any).__forgeRejectionPatched = true;
+  process.on('unhandledRejection', (reason: any) => {
+    const msg = String(reason?.message || reason || '').slice(0, 200);
+    console.error('[forge] unhandledRejection (suppressed):', msg);
+  });
+  process.on('uncaughtException', (err: any) => {
+    const msg = String(err?.message || err || '').slice(0, 200);
+    console.error('[forge] uncaughtException (suppressed):', msg);
+  });
+  console.log('[forge] process-level unhandled rejection handlers installed');
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────
 
 type Industry =
@@ -1549,9 +1571,117 @@ function getUnsplashImagesForSubIndustry(subIndustry?: string): string[] {
 // ─── Single-page generation with retry ────────────────────────────────────
 
 const MAX_RETRIES = 4;
+const AI_MAX_TOKENS = 10000;           // Reduced from 16000 — 10K is enough for a complete HTML page and avoids GLM-4.7 long-generation instabilities
+const AI_REQUEST_TIMEOUT_MS = 180_000; // 3 minutes hard cap per AI call
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Read the Z.AI config from the same locations the SDK uses. We bypass the
+ * SDK because Bun + z-ai-web-dev-sdk 0.0.18 has intermittent crashes when
+ * handling large GLM-4.7 responses (the SDK calls response.json() which
+ * can OOM-crash Bun's HTTP stack on complex Persian / multilingual content
+ * with many animation keywords). Calling fetch directly with an explicit
+ * AbortSignal and parsing the response as text first (then JSON.parse)
+ * gives us full control and resilience.
+ */
+let _cachedZaiConfig: any = null;
+async function loadZaiConfig(): Promise<any> {
+  if (_cachedZaiConfig) return _cachedZaiConfig;
+  const fs = await import('fs/promises');
+  const path = await import('path');
+  const os = await import('os');
+  const candidates = [
+    path.join(process.cwd(), '.z-ai-config'),
+    path.join(os.homedir(), '.z-ai-config'),
+    '/etc/.z-ai-config',
+  ];
+  for (const p of candidates) {
+    try {
+      const txt = await fs.readFile(p, 'utf-8');
+      const cfg = JSON.parse(txt);
+      if (cfg.baseUrl && cfg.apiKey) {
+        _cachedZaiConfig = cfg;
+        return cfg;
+      }
+    } catch { /* ignore */ }
+  }
+  throw new Error('Z.AI config not found in .z-ai-config, ~/.z-ai-config, or /etc/.z-ai-config');
+}
+
+/**
+ * Direct fetch to Z.AI chat completions, bypassing the SDK. Returns the
+ * assistant message content. Throws Error with "timeout" in the message
+ * if the request exceeds AI_REQUEST_TIMEOUT_MS.
+ */
+async function callZaiDirect(
+  systemPrompt: string,
+  userPrompt: string,
+  onTick: () => void
+): Promise<string> {
+  const cfg = await loadZaiConfig();
+  const url = `${cfg.baseUrl}/chat/completions`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${cfg.apiKey}`,
+    'X-Z-AI-From': 'Z',
+  };
+  if (cfg.chatId) headers['X-Chat-Id'] = cfg.chatId;
+  if (cfg.userId) headers['X-User-Id'] = cfg.userId;
+  if (cfg.token) headers['X-Token'] = cfg.token;
+
+  const body = JSON.stringify({
+    model: 'glm-4.7',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+    temperature: 0.7,
+    max_tokens: AI_MAX_TOKENS,
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+  onTick();
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      signal: controller.signal,
+    });
+    onTick();
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API request failed with status ${response.status}: ${errorText.slice(0, 300)}`);
+    }
+
+    // Read as text FIRST, then JSON.parse. This is more resilient than
+    // response.json() because we can catch and report parse errors
+    // without crashing the Bun HTTP stack.
+    const text = await response.text();
+    onTick();
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseErr: any) {
+      throw new Error(`Failed to parse AI response as JSON (len=${text.length}): ${String(parseErr?.message || parseErr).slice(0, 200)}`);
+    }
+
+    const content = parsed?.choices?.[0]?.message?.content || '';
+    if (!content || content.length < 200) {
+      throw new Error(`AI returned empty or too-short content (len=${content.length})`);
+    }
+    return content as string;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function callGlmWithRetry(
@@ -1563,25 +1693,18 @@ async function callGlmWithRetry(
   onTick: () => void
 ): Promise<string> {
   let lastError: any = null;
+  // Build prompts ONCE — they're expensive (header/footer, industry images)
+  const systemPrompt = buildSystemPrompt();
+  const userPrompt = buildPagePrompt(req, parsed, colors, headerFooter);
+  const promptBytes = Buffer.byteLength(systemPrompt + userPrompt, 'utf8');
+  console.log(`[generate] ${req.page} prompt size: ${promptBytes} bytes (sys=${systemPrompt.length} user=${userPrompt.length})`);
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       onTick();
       const tickInterval = setInterval(onTick, 5000);
       try {
-        const completion = await zai.chat.completions.create({
-          model: 'glm-4.7',
-          messages: [
-            { role: 'system', content: buildSystemPrompt() },
-            { role: 'user', content: buildPagePrompt(req, parsed, colors, headerFooter) },
-          ],
-          thinking: { type: 'disabled' },
-          temperature: 0.7,
-          max_tokens: 16000,
-        } as any);
-        const content = completion.choices[0]?.message?.content || '';
-        if (!content || content.length < 200) {
-          throw new Error('AI returned empty or too-short content');
-        }
+        const content = await callZaiDirect(systemPrompt, userPrompt, onTick);
         return content;
       } finally {
         clearInterval(tickInterval);
@@ -1591,9 +1714,10 @@ async function callGlmWithRetry(
       const msg = String(err?.message || err);
       const is429 = msg.includes('429') || msg.includes('Too many requests') || msg.includes('rate');
       const is5xx = msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('500');
-      if (is429 || is5xx) {
+      const isTimeout = msg.includes('timeout') || msg.includes('aborted') || msg.includes('ECONNRESET') || msg.includes('socket') || msg.includes('AbortError');
+      if (is429 || is5xx || isTimeout) {
         const wait = 3000 * Math.pow(2, attempt);
-        console.log(`[generate] ${req.page} attempt ${attempt + 1} failed (${msg.slice(0, 100)}), retrying in ${wait}ms`);
+        console.log(`[generate] ${req.page} attempt ${attempt + 1} failed (${msg.slice(0, 120)}), retrying in ${wait}ms`);
         const steps = Math.ceil(wait / 2000);
         for (let s = 0; s < steps; s++) {
           onTick();
