@@ -8,6 +8,12 @@ import {
 } from '@/lib/industry';
 import { getAllCuratedImages } from '@/lib/industry/curated-library';
 import type { ImageCategory } from '@/lib/industry/types';
+import {
+  buildAnimationBundle,
+  detectAnimations,
+  ANIMATIONS,
+} from '@/lib/animations';
+import type { AnimationId } from '@/lib/animations';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -29,6 +35,7 @@ interface ParsedPrompt {
   language: SiteLanguage;
   isSinglePage: boolean;            // user asked for "single-page" or "one-page"
   detectedBrandName?: string;
+  _rawPrompt?: string;              // Phase 5: original prompt text for animation detection
 }
 
 interface GeneratePageRequest {
@@ -237,6 +244,94 @@ function extractJsFromHtml(html: string): string {
   return js.trim();
 }
 
+// ─── Phase 5: Animation Library Injection ─────────────────────────────────
+// Maps the parser's animation IDs (legacy names) to the new library IDs.
+const LEGACY_ANIM_MAP: Record<string, AnimationId> = {
+  'glassmorphism': 'glassmorphism',
+  'parallax': 'parallax',
+  'skeleton-loader': 'skeleton',
+  '360-rotate': 'rotate-360',
+  'count-up': 'count-up',
+  'shake-animation': 'shake-cart',
+};
+
+/**
+ * Build the set of animation IDs that should be injected for this prompt.
+ * Combines:
+ *   1. Animations detected by the new library's keyword matcher
+ *   2. Animations already detected by the legacy parser
+ *   3. Glassmorphism if the parser flagged it as a theme keyword
+ */
+function resolveAnimationIds(parsed: ParsedPrompt): AnimationId[] {
+  const ids = new Set<AnimationId>();
+
+  // From the new library (keyword detection against the raw prompt text)
+  for (const id of detectAnimations(parsed._rawPrompt || '')) {
+    ids.add(id);
+  }
+
+  // From the legacy parser's animation list
+  for (const legacy of parsed.animations) {
+    const mapped = LEGACY_ANIM_MAP[legacy];
+    if (mapped) ids.add(mapped);
+  }
+
+  // Glassmorphism is sometimes flagged as a theme keyword rather than an animation
+  if (parsed.themeKeywords.includes('glassmorphism')) {
+    ids.add('glassmorphism');
+  }
+
+  return Array.from(ids);
+}
+
+/**
+ * Inject the guaranteed-working animation CSS/JS bundle into the AI-generated
+ * HTML. CSS is appended inside the first <style> tag (or a new one is created).
+ * JS is inserted right before </body>.
+ *
+ * The injected CSS uses scoped class names (.forge-glass, .forge-parallax-bg,
+ * .forge-skeleton, .forge-rotate-360, [data-count-target], .forge-shake) so it
+ * never clobbers the AI's own styles. The injected JS self-initializes on
+ * DOMContentLoaded and is safe to include even if no matching elements exist.
+ */
+function injectAnimationBundle(html: string, ids: AnimationId[]): string {
+  if (ids.length === 0) return html;
+  const bundle = buildAnimationBundle(ids);
+  if (!bundle.css && !bundle.js) return html;
+
+  let out = html;
+
+  // ── Inject CSS ──
+  const cssBlock = `\n/* === FORGE ANIMATION LIBRARY (auto-injected) === */\n/* Includes: ${bundle.namesEn.join(', ')} */\n${bundle.css}\n/* === END FORGE ANIMATION LIBRARY === */\n`;
+
+  const styleMatch = out.match(/<style[^>]*>/i);
+  if (styleMatch && styleMatch.index !== undefined) {
+    // Insert right after the opening <style> tag
+    const insertAt = styleMatch.index + styleMatch[0].length;
+    out = out.slice(0, insertAt) + cssBlock + out.slice(insertAt);
+  } else {
+    // No <style> tag — inject one in the <head>
+    const headMatch = out.match(/<head[^>]*>/i);
+    if (headMatch && headMatch.index !== undefined) {
+      const insertAt = headMatch.index + headMatch[0].length;
+      out = out.slice(0, insertAt) + `\n<style id="forge-animations">${cssBlock}</style>\n` + out.slice(insertAt);
+    }
+  }
+
+  // ── Inject JS ──
+  if (bundle.js) {
+    const jsBlock = `\n<script id="forge-animations-js">\n/* === FORGE ANIMATION LIBRARY (auto-injected) === */\n/* Includes: ${bundle.namesEn.join(', ')} */\n${bundle.js}\n/* === END FORGE ANIMATION LIBRARY === */\n</script>\n`;
+    const bodyEnd = out.toLowerCase().lastIndexOf('</body>');
+    if (bodyEnd !== -1) {
+      out = out.slice(0, bodyEnd) + jsBlock + out.slice(bodyEnd);
+    } else {
+      out = out + jsBlock;
+    }
+  }
+
+  return out;
+}
+
 function extractSiteNameFromPrompt(prompt: string, industry: Industry): string {
   const patterns = [
     /(?:called|named)\s+["']?([A-Z][\w&'-]+(?:\s+[A-Z][\w&'-]+)?)/,
@@ -359,6 +454,10 @@ function parseUserPrompt(prompt: string, language: SiteLanguage = 'en'): ParsedP
   if (result.detectedBrandName === 'Studio') {
     result.detectedBrandName = undefined;
   }
+
+  // Phase 5: Stash the raw prompt so the animation library can do its own
+  // keyword detection (which is more comprehensive than the legacy parser).
+  result._rawPrompt = prompt;
 
   return result;
 }
@@ -1096,35 +1195,38 @@ function buildPagePrompt(
   }
   if (parsed.themeKeywords.includes('glassmorphism') || parsed.animations.includes('parallax')) {
     industryDefaults.push(
-      '  □ GLASSMORPHISM on header and cards: backdrop-filter: blur(12px) saturate(180%), semi-transparent background'
+      '  □ GLASSMORPHISM on header and cards: add class="forge-glass" to the element. The Forge Animation Library (auto-injected) provides the backdrop-filter, translucent background, and inner glow. Optionally use forge-glass dark or forge-glass solid modifiers.'
     );
   }
 
   // ── Animation specs ──
+  // Phase 5: All Forge animations are backed by an auto-injected library.
+  // The AI just needs to use the right class names / data attributes — the
+  // CSS and JS are guaranteed to be present.
   const animationSpecs: string[] = [];
   if (parsed.animations.includes('fade-in-up')) {
     animationSpecs.push(
       '  □ fade-in-up on scroll for all major sections: use IntersectionObserver in JS to add .visible class when section enters viewport. CSS: opacity:0; transform:translateY(30px); transition:all 600ms ease. .visible { opacity:1; transform:none; }. Add transition-delay incrementally (0ms, 100ms, 200ms...) for staggered effect.'
     );
   }
-  if (parsed.animations.includes('parallax')) {
+  if (parsed.animations.includes('parallax') || detectAnimations(parsed._rawPrompt || '').includes('parallax')) {
     animationSpecs.push(
-      '  □ PARALLAX on hero background image: use background-attachment:fixed OR transform:translateY based on scroll position via JS. Image moves slower than scroll.'
+      '  □ PARALLAX on hero background image: wrap the hero in <div class="forge-parallax"> and put the background image in a <div class="forge-parallax-bg" style="background-image:url(...)"></div>. The Forge Animation Library auto-initializes scroll-based parallax on these elements. Content sits in a sibling div with position:relative;z-index:1.'
     );
   }
-  if (parsed.animations.includes('skeleton-loader')) {
+  if (parsed.animations.includes('skeleton-loader') || detectAnimations(parsed._rawPrompt || '').includes('skeleton')) {
     animationSpecs.push(
-      '  □ SKELETON LOADER for product grid: show 6 placeholder cards with shimmer animation (linear-gradient sweeping) for 1.5 seconds, then reveal products. CSS @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }'
+      '  □ SKELETON LOADER for product grid: while products load, render placeholder cards using <div class="forge-skeleton forge-skeleton-block"></div> for the image area and <span class="forge-skeleton forge-skeleton-line"></span> for text lines. The Forge Animation Library provides the shimmer animation. After products arrive, replace the placeholders with real content.'
     );
   }
-  if (parsed.animations.includes('360-rotate')) {
+  if (parsed.animations.includes('360-rotate') || detectAnimations(parsed._rawPrompt || '').includes('rotate-360')) {
     animationSpecs.push(
-      '  □ 360 ROTATION on product image hover: transform:rotateY(360deg) over 1.5s ease on hover. Add perspective to parent.'
+      '  □ 360 ROTATION on product image hover: wrap each product image in <div class="forge-rotate-stage"> and add class="forge-rotate-360" to the <img>. The Forge Animation Library auto-rotates the image 360° on hover and once on entrance into the viewport.'
     );
   }
-  if (parsed.animations.includes('count-up')) {
+  if (parsed.animations.includes('count-up') || detectAnimations(parsed._rawPrompt || '').includes('count-up')) {
     animationSpecs.push(
-      '  □ COUNT-UP animation for stats/sales numbers: use JS requestAnimationFrame to animate from 0 to target value over 2s when section enters viewport.'
+      '  □ COUNT-UP animation for stats/sales numbers: render each stat as <div class="forge-count-up" data-count-target="12847" data-count-suffix="+">0</div>. Optional attributes: data-count-prefix="$", data-count-decimals="1", data-count-duration="2000", data-count-group="off". The Forge Animation Library auto-animates the number from 0 to target when the element scrolls into view.'
     );
   }
   if (parsed.animations.includes('ripple-effect')) {
@@ -1132,14 +1234,25 @@ function buildPagePrompt(
       '  □ RIPPLE effect on button clicks: JS adds <span class="ripple"> at click position, CSS animates scale from 0 to 4 with opacity fade.'
     );
   }
-  if (parsed.animations.includes('shake-animation')) {
+  if (parsed.animations.includes('shake-animation') || detectAnimations(parsed._rawPrompt || '').includes('shake-cart')) {
     animationSpecs.push(
-      '  □ SHAKE animation on cart when product added: cart icon gets .shake class for 400ms (cart-shake keyframes: translateX back-and-forth).'
+      '  □ SHAKE animation on cart when product added: give the cart icon an id (e.g., id="cart-icon") and add data-shake-target="#cart-icon" to every "Add to cart" button. The Forge Animation Library auto-wires these — clicking the button shakes the cart icon. You can also call window.forgeShake(el, { pop: true }) directly from any JS handler.'
     );
   }
   if (parsed.animations.includes('float-animation')) {
     animationSpecs.push(
       '  □ FLOAT animation on CTA buttons: @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } } with 3s ease-in-out infinite.'
+    );
+  }
+
+  // ── Phase 5: Animation library reminder ──
+  const detectedForgeAnims = detectAnimations(parsed._rawPrompt || '');
+  if (detectedForgeAnims.length > 0) {
+    animationSpecs.push(
+      `  □ FORGE ANIMATION LIBRARY is auto-injected for: ${detectedForgeAnims.map(id => ANIMATIONS[id].nameEn).join(', ')}.`,
+      '    The CSS and JS for these effects are GUARANTEED to be present in the final HTML.',
+      '    You MUST use the exact class names / data attributes listed above. Do NOT reinvent the CSS — just use the right markup.',
+      '    If you forget the class names, the library will still work for elements that have the data-* attributes, but visual effects (glassmorphism, parallax) require the class.'
     );
   }
 
@@ -1551,10 +1664,25 @@ async function runGenerationJob(
       }
     });
 
-    const html = extractHtmlFromResponse(content);
-    if (!html || html.length < 200) {
+    const htmlRaw = extractHtmlFromResponse(content);
+    if (!htmlRaw || htmlRaw.length < 200) {
       throw new Error(`AI returned empty or invalid HTML for ${req.page} page`);
     }
+
+    // ── Phase 5: Inject guaranteed-working animation library CSS/JS ──
+    // This runs AFTER the AI returns HTML. The injected CSS/JS uses scoped
+    // class names (.forge-glass, .forge-parallax-bg, etc.) so it never
+    // conflicts with the AI's own styles. The AI is also instructed via
+    // the prompt to use these class names, but even if it forgets, the
+    // JS auto-wires elements with [data-count-target], [data-shake-target],
+    // and .forge-parallax-bg selectors.
+    const animationIds = resolveAnimationIds(parsed);
+    let html = htmlRaw;
+    if (animationIds.length > 0) {
+      html = injectAnimationBundle(htmlRaw, animationIds);
+      console.log(`[generate] job ${jobId} phase5: injected ${animationIds.length} animation(s): ${animationIds.join(', ')}`);
+    }
+
     const css = extractCssFromHtml(html);
     const js = extractJsFromHtml(html);
     const pageMeta = PAGE_META[req.page];

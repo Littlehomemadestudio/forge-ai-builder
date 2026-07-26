@@ -22,6 +22,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
 import IndustryGallery from '@/components/industry/IndustryGallery'
+import AnimationShowcase from '@/components/animations/AnimationShowcase'
 import {
   Sparkles, Wand2, Monitor, Smartphone, Tablet, Code2, Rocket,
   Download, Eye, ArrowLeft, RefreshCw, Save, X,
@@ -2273,6 +2274,19 @@ function PreviewPhase() {
                   disableGeneration={false}
                   autoLoad={false}
                 />
+              </div>
+            </details>
+          </div>
+
+          {/* Phase 5: Animation Library — collapsible */}
+          <div className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/[0.02] overflow-hidden">
+            <details>
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-violet-200/70 uppercase tracking-wider hover:bg-violet-500/5 flex items-center gap-2">
+                <Sparkles className="w-3 h-3" />
+                {t('p5.title')}
+              </summary>
+              <div className="p-3 pt-3 border-t border-violet-500/10">
+                <AnimationShowcase compact />
               </div>
             </details>
           </div>
