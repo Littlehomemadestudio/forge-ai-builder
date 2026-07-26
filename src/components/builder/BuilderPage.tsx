@@ -61,6 +61,17 @@ const STYLE_OPTIONS: { id: BuilderStyle; label: string; icon: typeof Sun; swatch
   { id: 'gradient', label: 'Gradient', icon: Palette, swatch: { bg: '#0F172A', accent: '#6366F1', text: '#F8FAFC' } },
 ]
 
+// ─── Language options ─────────────────────────────────────────────────────
+
+const LANGUAGE_OPTIONS: { id: string; label: string; font: string; dir: string }[] = [
+  { id: 'en', label: 'English', font: 'Inter', dir: 'ltr' },
+  { id: 'fa', label: 'فارسی (Persian)', font: 'Vazirmatn', dir: 'rtl' },
+  { id: 'ar', label: 'العربية (Arabic)', font: 'Vazirmatn', dir: 'rtl' },
+  { id: 'de', label: 'Deutsch (German)', font: 'Inter', dir: 'ltr' },
+  { id: 'es', label: 'Español (Spanish)', font: 'Inter', dir: 'ltr' },
+  { id: 'fr', label: 'Français (French)', font: 'Inter', dir: 'ltr' },
+]
+
 // ─── Font family options ────────────────────────────────────────────────────
 
 const FONT_OPTIONS = [
@@ -1156,6 +1167,7 @@ function PromptPhase() {
     setBuilderPrompt, builderPrompt, startGeneration,
     builderIndustry, setBuilderIndustry,
     builderStyle, setBuilderStyle,
+    builderLanguage, setBuilderLanguage,
     builderAdvancedOptions,
   } = useAppStore()
 
@@ -1241,12 +1253,12 @@ function PromptPhase() {
           </p>
         </div>
 
-        {/* Controls row: industry + style */}
+        {/* Controls row: industry + style + language */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mb-5 grid gap-4 sm:grid-cols-2"
+          className="mb-5 grid gap-4 sm:grid-cols-3"
         >
           {/* Industry selector */}
           <GlassCard label="Industry" icon={Briefcase}>
@@ -1296,6 +1308,28 @@ function PromptPhase() {
                     </SelectItem>
                   )
                 })}
+              </SelectContent>
+            </Select>
+          </GlassCard>
+
+          {/* Language selector */}
+          <GlassCard label="Site Language" icon={Globe}>
+            <Select value={builderLanguage} onValueChange={(v) => setBuilderLanguage(v as any)}>
+              <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[#15151F] border-white/10 max-h-80">
+                {LANGUAGE_OPTIONS.map(opt => (
+                  <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-purple-400" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{opt.label}</span>
+                        <span className="text-xs text-white/40">{opt.font} · {opt.dir.toUpperCase()}</span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </GlassCard>
@@ -1417,7 +1451,7 @@ interface PageGenState {
 
 function GeneratingPhase() {
   const {
-    builderPrompt, builderIndustry, builderStyle,
+    builderPrompt, builderIndustry, builderStyle, builderLanguage,
     builderAdvancedOptions,
     setGeneratedPages, setGeneratedSiteName,
     setCurrentPreviewPage, setIsGenerating, setBuilderPhase,
@@ -1435,6 +1469,10 @@ function GeneratingPhase() {
   )
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [globalError, setGlobalError] = useState<string | null>(null)
+  const [parsedPrompt, setParsedPrompt] = useState<{
+    hexColors: string[]; themeKeywords: string[]; requiredElements: string[];
+    animations: string[]; subIndustry?: string; isSinglePage: boolean;
+  } | null>(null)
   const cancelRef = useRef(false)
 
   // Tick elapsed timer
@@ -1468,6 +1506,7 @@ function GeneratingPhase() {
             prompt: builderPrompt,
             industry: builderIndustry,
             style: builderStyle,
+            language: builderLanguage,
             page: pageInfo.id,
             siteName: builderAdvancedOptions.brandName || undefined,
             // Advanced options for the server to use in prompt construction
@@ -1520,6 +1559,10 @@ function GeneratingPhase() {
           const jobId = startData?.jobId
           if (!jobId) {
             throw new Error('Server did not return a jobId')
+          }
+          // Store parsed prompt info from the first successful response
+          if (startData.parsed && !parsedPrompt) {
+            setParsedPrompt(startData.parsed)
           }
 
           // Poll until done/error
@@ -1711,6 +1754,78 @@ function GeneratingPhase() {
             }
           </p>
         </div>
+
+        {/* Parsed prompt summary — shows what the AI detected from user's prompt */}
+        {parsedPrompt && !hasError && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left"
+          >
+            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
+              <Sparkles className="h-3 w-3 text-purple-400" />
+              Detected from your prompt
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {parsedPrompt.hexColors.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Colors</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedPrompt.hexColors.map(c => (
+                      <div key={c} className="flex items-center gap-1 rounded-md border border-white/10 bg-black/30 px-2 py-1">
+                        <div className="h-3 w-3 rounded-sm border border-white/20" style={{ background: c }} />
+                        <span className="text-[10px] font-mono text-white/70">{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {parsedPrompt.themeKeywords.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Theme</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedPrompt.themeKeywords.map(t => (
+                      <span key={t} className="rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-1 text-[10px] text-purple-300">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {parsedPrompt.requiredElements.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Required Elements</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedPrompt.requiredElements.map(e => (
+                      <span key={e} className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-300">{e}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {parsedPrompt.animations.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Animations</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedPrompt.animations.map(a => (
+                      <span key={a} className="rounded-md border border-pink-500/30 bg-pink-500/10 px-2 py-1 text-[10px] text-pink-300">{a}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {parsedPrompt.subIndustry && (
+                <div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Industry Sub-context</div>
+                  <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">{parsedPrompt.subIndustry}</span>
+                </div>
+              )}
+              {parsedPrompt.isSinglePage && (
+                <div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Mode</div>
+                  <span className="rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-[10px] text-blue-300">Single-page site</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Progress bar */}
         <div className="mb-6">

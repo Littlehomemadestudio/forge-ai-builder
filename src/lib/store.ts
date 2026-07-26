@@ -45,6 +45,8 @@ export type BuilderIndustry =
 
 export type BuilderStyle = 'light' | 'dark' | 'minimal' | 'bold' | 'glassmorphism' | 'neobrutalism' | 'retro' | 'gradient'
 
+export type BuilderLanguage = 'en' | 'fa' | 'ar' | 'de' | 'es' | 'fr'
+
 export type BuilderComplexity = 'simple' | 'standard' | 'advanced' | 'comprehensive'
 export type BuilderPageLength = 'short' | 'medium' | 'long' | 'extended'
 export type BuilderLayoutDensity = 'compact' | 'comfortable' | 'spacious' | 'ultra-spacious'
@@ -166,6 +168,7 @@ interface AppState {
   builderPrompt: string
   builderIndustry: BuilderIndustry
   builderStyle: BuilderStyle
+  builderLanguage: BuilderLanguage
   builderMode: 'ai' | 'templates'
   builderAdvancedOptions: BuilderAdvancedOptions
   generatedPages: GeneratedPage[]
@@ -220,6 +223,7 @@ interface AppState {
   setBuilderPrompt: (prompt: string) => void
   setBuilderIndustry: (industry: BuilderIndustry) => void
   setBuilderStyle: (style: BuilderStyle) => void
+  setBuilderLanguage: (language: BuilderLanguage) => void
   setBuilderMode: (mode: 'ai' | 'templates') => void
   setBuilderAdvancedOptions: (options: Partial<BuilderAdvancedOptions>) => void
   setGeneratedPages: (pages: GeneratedPage[]) => void
@@ -269,6 +273,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   builderPrompt: '',
   builderIndustry: 'portfolio',
   builderStyle: 'light',
+  builderLanguage: 'en',
   builderMode: 'ai',
   builderAdvancedOptions: {
     complexity: 'standard',
@@ -363,6 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBuilderPrompt: (prompt) => set({ builderPrompt: prompt }),
   setBuilderIndustry: (industry) => set({ builderIndustry: industry }),
   setBuilderStyle: (style) => set({ builderStyle: style }),
+  setBuilderLanguage: (language) => set({ builderLanguage: language }),
   setBuilderMode: (mode) => set({ builderMode: mode }),
   setBuilderAdvancedOptions: (options) => set((state) => ({
     builderAdvancedOptions: { ...state.builderAdvancedOptions, ...options }
