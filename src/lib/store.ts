@@ -95,6 +95,7 @@ interface BuilderAdvancedOptions {
   colorScheme: BuilderColorScheme
   fontFamily: string
   brandName: string
+  logoPlacement: 'left' | 'center' | 'right'
   pageConfigs: BuilderPageConfig[]
   includeHero: boolean
   includeFeatures: boolean
@@ -319,6 +320,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     colorScheme: { primary: '#E3A830', accent: '#B87333', background: '#FAF6F0', surface: '#FFFFFF', text: '#2D1B0E', muted: '#7A6A5A' },
     fontFamily: 'Inter',
     brandName: '',
+    logoPlacement: 'left',
     pageConfigs: [
       { id: 'home', name: 'Home', enabled: true, length: 'long' },
       { id: 'about', name: 'About', enabled: true, length: 'medium' },

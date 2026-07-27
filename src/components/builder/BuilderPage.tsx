@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAppStore, type BuilderStyle, type BuilderComplexity, type BuilderPageLength, type BuilderLayoutDensity, type BuilderAnimationLevel, type BuilderResponsivePriority, type BuilderContentTone, type BuilderNavigationStyle, type BuilderSEOLevel, type BuilderAccessibilityLevel, type BuilderImageStyle, type BuilderCTAStyle } from '@/lib/store'
+import { useAppStore, type BuilderStyle, type BuilderComplexity, type BuilderPageLength, type BuilderLayoutDensity, type BuilderAnimationLevel, type BuilderResponsivePriority, type BuilderContentTone, type BuilderNavigationStyle, type BuilderSEOLevel, type BuilderAccessibilityLevel, type BuilderImageStyle, type BuilderCTAStyle, type BuilderAdvancedOptions } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -662,14 +662,14 @@ function AdvancedOptionsPanel() {
                     <div className="flex gap-2">
                       {LOGO_PLACEMENT_OPTIONS.map(opt => {
                         const Icon = opt.icon
-                        const isActive = (builderAdvancedOptions as any).logoPlacement === opt.id
+                        const isActive = builderAdvancedOptions.logoPlacement === opt.id
                         // Default to 'left' if not set
-                        const currentPlacement = (builderAdvancedOptions as any).logoPlacement || 'left'
+                        const currentPlacement = builderAdvancedOptions.logoPlacement || 'left'
                         const isSelected = currentPlacement === opt.id
                         return (
                           <button
                             key={opt.id}
-                            onClick={() => setBuilderAdvancedOptions({ logoPlacement: opt.id } as any)}
+                            onClick={() => setBuilderAdvancedOptions({ logoPlacement: opt.id })}
                             className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all ${
                               isSelected
                                 ? 'bg-violet-50 text-violet-600 border border-violet-200'
@@ -909,7 +909,7 @@ function AdvancedOptionsPanel() {
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {SECTION_TOGGLE_ITEMS.map(item => {
                         const Icon = item.icon
-                        const isEnabled = (builderAdvancedOptions as any)[item.key] as boolean
+                        const isEnabled = (builderAdvancedOptions[item.key as keyof BuilderAdvancedOptions] as boolean) ?? false
                         return (
                           <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2.5">
                             <div className="flex items-center gap-2 min-w-0">
@@ -1772,7 +1772,7 @@ function GeneratingPhase() {
             fontFamily: builderAdvancedOptions.fontFamily,
             colorScheme: builderAdvancedOptions.colorScheme,
             brandName: builderAdvancedOptions.brandName,
-            logoPlacement: (builderAdvancedOptions as any).logoPlacement || 'left',
+            logoPlacement: builderAdvancedOptions.logoPlacement,
             includeHero: builderAdvancedOptions.includeHero,
             includeFeatures: builderAdvancedOptions.includeFeatures,
             includeTestimonials: builderAdvancedOptions.includeTestimonials,
@@ -2351,7 +2351,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
   const accessibilityLabel = ACCESSIBILITY_LEVEL_OPTIONS.find(o => o.id === builderAdvancedOptions.accessibilityLevel)?.label || 'Enhanced'
 
   // Count enabled sections
-  const enabledSectionsCount = SECTION_TOGGLE_ITEMS.filter(item => (builderAdvancedOptions as any)[item.key]).length
+  const enabledSectionsCount = SECTION_TOGGLE_ITEMS.filter(item => (builderAdvancedOptions[item.key as keyof BuilderAdvancedOptions] as boolean) ?? false).length
 
   if (!currentPage) {
     return (

@@ -14,6 +14,7 @@ import {
   ANIMATIONS,
 } from '@/lib/animations';
 import type { AnimationId } from '@/lib/animations';
+import { ALL_PALETTES, type ThemePalette } from '@/lib/palettes';
 
 // ─── Global fetch hardening (CRITICAL) ────────────────────────────────────
 // The z-ai-web-dev-sdk uses fetch() with NO AbortSignal. If the GLM API
@@ -249,6 +250,56 @@ const STYLE_PRESETS: Record<StyleMode, { label: string; colors: { bg: string; su
     mood: 'rich gradient backgrounds flowing between sections, modern and colorful with smooth transitions, vivid hero areas',
   },
 };
+
+// ─── Resolve any style/palette ID into a usable preset ──────────────────────
+// The builderStyle can be any palette ID (e.g. 'saffron', 'persian-carpet')
+// which is NOT in STYLE_PRESETS. This function resolves it by:
+// 1. Checking STYLE_PRESETS first (for the 8 core styles)
+// 2. Looking up ALL_PALETTES and constructing a synthetic preset from palette data
+// 3. Falling back to the 'dark' preset if neither found
+
+type ResolvedStylePreset = {
+  label: string;
+  colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string };
+  fontStack: string;
+  mood: string;
+  paletteId?: string; // track the palette ID for advanced options color override
+};
+
+function resolveStylePreset(styleId: string): ResolvedStylePreset {
+  // 1. Direct match in STYLE_PRESETS
+  if (STYLE_PRESETS[styleId]) {
+    return { ...STYLE_PRESETS[styleId], paletteId: styleId };
+  }
+
+  // 2. Look up in ALL_PALETTES
+  const palette = ALL_PALETTES.find(p => p.id === styleId);
+  if (palette) {
+    // Determine a border color from the palette (derive if not explicit)
+    const border = palette.colors.muted || '#E2E8F0';
+    const fontStack = palette.fontSuggestion
+      ? `'${palette.fontSuggestion}', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`
+      : "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+
+    return {
+      label: `${palette.name} — ${palette.mood}`,
+      colors: {
+        bg: palette.colors.background,
+        surface: palette.colors.surface,
+        text: palette.colors.text,
+        muted: palette.colors.muted,
+        accent: palette.colors.primary,
+        border,
+      },
+      fontStack,
+      mood: palette.mood,
+      paletteId: styleId,
+    };
+  }
+
+  // 3. Fallback to dark
+  return { ...STYLE_PRESETS.dark, paletteId: styleId };
+}
 
 // ─── Page definitions ─────────────────────────────────────────────────────
 
@@ -1381,7 +1432,7 @@ function buildPagePrompt(
   advancedOptions?: GeneratePageRequest['advancedOptions']
 ): string {
   const meta = INDUSTRY_META[req.industry || 'portfolio'];
-  const stylePreset = STYLE_PRESETS[req.style || 'dark'];
+  const stylePreset = resolveStylePreset(req.style || 'dark');
   const pageMeta = PAGE_META[req.page];
   const siteName = req.siteName || meta.defaultSiteName;
   const language = req.language || 'en';
@@ -1968,7 +2019,7 @@ async function runGenerationJob(
     const parsed = parseUserPrompt(req.prompt, req.language || 'en');
 
     // ── Apply user-specified colors (override style preset + advanced options) ──
-    const styleFallback = STYLE_PRESETS[req.style || 'dark']?.colors || STYLE_PRESETS.dark.colors;
+    const styleFallback = resolveStylePreset(req.style || 'dark').colors;
     const baseColors = { ...styleFallback };
     // Advanced options color scheme overrides style preset
     if (req.advancedOptions?.colorScheme) {
