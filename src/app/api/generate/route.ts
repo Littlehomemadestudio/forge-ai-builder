@@ -43,7 +43,7 @@ type Industry =
   | 'portfolio' | 'saas' | 'restaurant' | 'ecommerce'
   | 'blog' | 'agency' | 'event' | 'personal';
 
-type StyleMode = 'light' | 'dark' | 'minimal' | 'bold' | 'glassmorphism' | 'neobrutalism' | 'retro' | 'gradient';
+type StyleMode = string; // Now supports any palette ID — falls back to 'dark' for unknown values
 
 type SiteLanguage = 'en' | 'fa' | 'de' | 'es' | 'fr' | 'ar';
 

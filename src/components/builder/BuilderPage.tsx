@@ -32,10 +32,11 @@ import {
   Sun, Moon, Minimize, Flame, Sliders, Paintbrush, Shield, Accessibility,
   Image, Navigation, Megaphone, Clock, DollarSign, HelpCircle,
   MessageSquare, Share2, Phone, Columns, Grip, Tag, AlignLeft, AlignCenter, AlignRight, LayoutGrid,
-  FileText, Maximize2, Trash2, Plus,
+  FileText, Maximize2, Trash2, Plus, Check,
 } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { useTranslation } from '@/lib/useTranslation'
+import { ALL_PALETTES, PALETTE_CATEGORIES, type ThemePalette } from '@/lib/palettes'
 
 // ─── Industry metadata ──────────────────────────────────────────────────────
 
@@ -50,19 +51,6 @@ const INDUSTRY_OPTIONS: { id: Industry; label: string; icon: typeof Briefcase; h
   { id: 'agency', label: 'Agency / Studio', icon: Building2, hint: 'Services, case studies, team' },
   { id: 'event', label: 'Event / Conference', icon: Calendar, hint: 'Schedules, speakers, registration' },
   { id: 'personal', label: 'Personal / Resume', icon: User, hint: 'Bio, experience, projects' },
-]
-
-// ─── Style presets (expanded from 4 to 8) ────────────────────────────────────
-
-const STYLE_OPTIONS: { id: BuilderStyle; label: string; icon: typeof Sun; swatch: { bg: string; accent: string; text: string } }[] = [
-  { id: 'light', label: 'Light', icon: Sun, swatch: { bg: '#FFFFFF', accent: '#6366F1', text: '#0F172A' } },
-  { id: 'dark', label: 'Dark', icon: Moon, swatch: { bg: '#0A0A0F', accent: '#A855F7', text: '#F8FAFC' } },
-  { id: 'minimal', label: 'Minimal', icon: Minimize, swatch: { bg: '#FAFAF9', accent: '#1C1917', text: '#1C1917' } },
-  { id: 'bold', label: 'Bold', icon: Flame, swatch: { bg: '#FFFBEB', accent: '#F59E0B', text: '#1F2937' } },
-  { id: 'glassmorphism', label: 'Glass', icon: Sparkles, swatch: { bg: '#1a1a2e', accent: '#a855f7', text: '#f8fafc' } },
-  { id: 'neobrutalism', label: 'Neo-Brutal', icon: Zap, swatch: { bg: '#FFF000', accent: '#000000', text: '#000000' } },
-  { id: 'retro', label: 'Retro', icon: Clock, swatch: { bg: '#F5E6D3', accent: '#D2691E', text: '#3C2415' } },
-  { id: 'gradient', label: 'Gradient', icon: Palette, swatch: { bg: '#0F172A', accent: '#6366F1', text: '#F8FAFC' } },
 ]
 
 // ─── Language options ─────────────────────────────────────────────────────
@@ -855,36 +843,9 @@ function AdvancedOptionsPanel() {
 
                 {/* ─── Visual Style Tab ──────────────────────────────── */}
                 <TabsContent value="visual" className="mt-0">
-                  {/* Expanded Style Grid (8 options with swatches) */}
+                  {/* Expanded Palette Grid with category filtering */}
                   <GlassCard label={t('builder.adv.visualStyle')} icon={Palette}>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      {STYLE_OPTIONS.map(opt => {
-                        const Icon = opt.icon
-                        const isSelected = builderStyle === opt.id
-                        return (
-                          <button
-                            key={opt.id}
-                            onClick={() => setBuilderStyle(opt.id)}
-                            className={`group flex flex-col items-center gap-2 rounded-xl px-3 py-3 transition-all ${
-                              isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30 shadow-lg shadow-purple-500/10'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
-                            }`}
-                          >
-                            <Icon className={`h-5 w-5 ${isSelected ? 'text-purple-300' : 'text-white/40'}`} />
-                            <span className={`text-xs font-medium ${isSelected ? 'text-purple-300' : 'text-white/50'}`}>
-                              {opt.label}
-                            </span>
-                            {/* Color swatches */}
-                            <div className="flex gap-1">
-                              <div className="h-4 w-4 rounded border border-white/20 transition-transform group-hover:scale-125" style={{ background: opt.swatch.bg }} />
-                              <div className="h-4 w-4 rounded border border-white/20 transition-transform group-hover:scale-125" style={{ background: opt.swatch.accent }} />
-                              <div className="h-4 w-4 rounded border border-white/20 transition-transform group-hover:scale-125" style={{ background: opt.swatch.text }} />
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <PaletteAdvancedSelect />
                   </GlassCard>
 
                   {/* Content Tone */}
@@ -1177,6 +1138,248 @@ function AdvancedOptionsPanel() {
   )
 }
 
+// ─── Palette Quick Select (inline in prompt phase) ──────────────────────────
+
+function PaletteQuickSelect() {
+  const { builderStyle, setBuilderStyle, setBuilderAdvancedOptions, builderAdvancedOptions } = useAppStore()
+  const [categoryFilter, setCategoryFilter] = useState('All')
+  const [search, setSearch] = useState('')
+  const t = useTranslation()
+
+  const filtered = categoryFilter === 'All'
+    ? ALL_PALETTES
+    : ALL_PALETTES.filter(p => p.category === categoryFilter)
+
+  const searched = search.trim()
+    ? filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()))
+    : filtered
+
+  const handleSelect = (palette: ThemePalette) => {
+    setBuilderStyle(palette.id)
+    // Also update the color scheme in advanced options
+    setBuilderAdvancedOptions({
+      colorScheme: {
+        primary: palette.colors.primary,
+        accent: palette.colors.accent,
+        background: palette.colors.background,
+        surface: palette.colors.surface,
+        text: palette.colors.text,
+        muted: palette.colors.muted,
+      },
+      fontFamily: palette.fontSuggestion,
+    })
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Category dropdown + search */}
+      <div className="flex gap-2">
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10 w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-[#15151F] border-white/10 max-h-60">
+            <SelectItem value="All" className="text-white focus:bg-purple-500/20 focus:text-white">All ({ALL_PALETTES.length})</SelectItem>
+            {PALETTE_CATEGORIES.map(cat => (
+              <SelectItem key={cat} value={cat} className="text-white focus:bg-purple-500/20 focus:text-white">
+                {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search palettes..."
+          className="border-white/10 bg-white/5 text-white placeholder:text-white/25 h-9"
+        />
+      </div>
+
+      {/* Palette grid */}
+      <div className="max-h-[280px] overflow-y-auto rounded-xl border border-white/5 bg-black/20 p-2 grid grid-cols-2 sm:grid-cols-3 gap-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+        {searched.slice(0, 60).map(palette => {
+          const isSelected = builderStyle === palette.id
+          return (
+            <motion.button
+              key={palette.id}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleSelect(palette)}
+              className={`group relative rounded-lg overflow-hidden transition-all ${
+                isSelected
+                  ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20'
+                  : 'hover:ring-1 hover:ring-white/20'
+              }`}
+            >
+              {/* Gradient thumbnail */}
+              <div className="h-10 w-full" style={{ background: palette.thumbnailGradient }} />
+              {/* Color strip */}
+              <div className="flex h-2">
+                <div className="flex-1" style={{ background: palette.colors.background }} />
+                <div className="flex-1" style={{ background: palette.colors.primary }} />
+                <div className="flex-1" style={{ background: palette.colors.accent }} />
+                <div className="flex-1" style={{ background: palette.colors.surface }} />
+                <div className="flex-1" style={{ background: palette.colors.text }} />
+              </div>
+              {/* Name */}
+              <div className="bg-white/5 px-2 py-1.5">
+                <p className={`text-[10px] font-medium truncate ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                  {palette.name}
+                </p>
+                <p className="text-[9px] text-white/30 truncate">{palette.category}</p>
+              </div>
+              {isSelected && (
+                <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-purple-500 shadow-md shadow-purple-500/40 flex items-center justify-center">
+                  <Check className="w-2 h-2 text-white" />
+                </div>
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
+
+      {/* Currently selected info */}
+      {builderStyle && (
+        <div className="text-[10px] text-white/30 text-center">
+          {ALL_PALETTES.find(p => p.id === builderStyle)?.description || ''}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Palette Advanced Select (in unlocked advanced options) ──────────────────
+
+function PaletteAdvancedSelect() {
+  const { builderStyle, setBuilderStyle, setBuilderAdvancedOptions, builderAdvancedOptions } = useAppStore()
+  const [categoryFilter, setCategoryFilter] = useState('All')
+  const [search, setSearch] = useState('')
+  const t = useTranslation()
+
+  const filtered = categoryFilter === 'All'
+    ? ALL_PALETTES
+    : ALL_PALETTES.filter(p => p.category === categoryFilter)
+
+  const searched = search.trim()
+    ? filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()) || (p.nameFa && p.nameFa.includes(search)))
+    : filtered
+
+  const handleSelect = (palette: ThemePalette) => {
+    setBuilderStyle(palette.id)
+    setBuilderAdvancedOptions({
+      colorScheme: {
+        primary: palette.colors.primary,
+        accent: palette.colors.accent,
+        background: palette.colors.background,
+        surface: palette.colors.surface,
+        text: palette.colors.text,
+        muted: palette.colors.muted,
+      },
+      fontFamily: palette.fontSuggestion,
+    })
+  }
+
+  const selectedPalette = ALL_PALETTES.find(p => p.id === builderStyle)
+
+  return (
+    <div className="space-y-3">
+      {/* Selected palette info */}
+      {selectedPalette && (
+        <div className="rounded-xl p-3 bg-purple-500/10 border border-purple-500/20">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-16 rounded-lg" style={{ background: selectedPalette.thumbnailGradient }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-purple-300 truncate">{selectedPalette.name}</p>
+              <p className="text-[10px] text-white/40 truncate">{selectedPalette.category} · {selectedPalette.layoutStyle}</p>
+              {selectedPalette.nameFa && <p className="text-[10px] text-white/30 truncate">{selectedPalette.nameFa}</p>}
+            </div>
+            <div className="flex gap-1">
+              {Object.values(selectedPalette.colors).map((c, i) => (
+                <div key={i} className="h-5 w-5 rounded border border-white/20" style={{ background: c }} />
+              ))}
+            </div>
+          </div>
+          <p className="text-[10px] text-white/30 mt-1">{selectedPalette.mood}</p>
+        </div>
+      )}
+
+      {/* Category filter pills */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <button
+          onClick={() => setCategoryFilter('All')}
+          className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${
+            categoryFilter === 'All' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+          }`}
+        >
+          All ({ALL_PALETTES.length})
+        </button>
+        {PALETTE_CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(cat)}
+            className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${
+              categoryFilter === cat ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+            }`}
+          >
+            {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <Input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search palettes..."
+        className="border-white/10 bg-white/5 text-white placeholder:text-white/25 h-9 text-xs"
+      />
+
+      {/* Palette grid — scrollable, max height */}
+      <div className="max-h-[360px] overflow-y-auto rounded-xl border border-white/5 bg-black/20 p-2 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+        {searched.map(palette => {
+          const isSelected = builderStyle === palette.id
+          return (
+            <motion.button
+              key={palette.id}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleSelect(palette)}
+              className={`group relative rounded-lg overflow-hidden transition-all ${
+                isSelected
+                  ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20'
+                  : 'hover:ring-1 hover:ring-white/20'
+              }`}
+            >
+              {/* Gradient thumbnail */}
+              <div className="h-12 w-full" style={{ background: palette.thumbnailGradient }} />
+              {/* Color strip */}
+              <div className="flex h-2.5">
+                <div className="flex-1" style={{ background: palette.colors.background }} />
+                <div className="flex-1" style={{ background: palette.colors.primary }} />
+                <div className="flex-1" style={{ background: palette.colors.accent }} />
+                <div className="flex-1" style={{ background: palette.colors.surface }} />
+                <div className="flex-1" style={{ background: palette.colors.text }} />
+              </div>
+              {/* Name + layout */}
+              <div className="bg-white/5 px-2 py-1.5">
+                <p className={`text-[10px] font-medium truncate ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                  {palette.name}
+                </p>
+                <p className="text-[8px] text-white/25 truncate">{palette.layoutStyle}</p>
+              </div>
+              {isSelected && (
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-500 shadow-md shadow-purple-500/40 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-white" />
+                </div>
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Prompt Phase ───────────────────────────────────────────────────────────
 
 function PromptPhase() {
@@ -1320,31 +1523,9 @@ function PromptPhase() {
             </Select>
           </GlassCard>
 
-          {/* Style selector */}
+          {/* Palette selector */}
           <GlassCard label={t('builder.style')} icon={Palette}>
-            <Select value={builderStyle} onValueChange={(v) => setBuilderStyle(v as BuilderStyle)}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#15151F] border-white/10 max-h-80">
-                {STYLE_OPTIONS.map(opt => {
-                  const Icon = opt.icon
-                  return (
-                    <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-purple-400" />
-                        <span className="text-sm font-medium">{opt.label}</span>
-                        <div className="ml-2 rtl:ml-0 rtl:mr-2 flex gap-1">
-                          <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.bg }} />
-                          <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.accent }} />
-                          <div className="h-4 w-4 rounded border border-white/20" style={{ background: opt.swatch.text }} />
-                        </div>
-                      </div>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
+            <PaletteQuickSelect />
           </GlassCard>
 
           {/* Language selector (generated site's language, NOT UI language) */}

@@ -48,7 +48,7 @@ export type BuilderIndustry =
   | 'event'
   | 'personal'
 
-export type BuilderStyle = 'light' | 'dark' | 'minimal' | 'bold' | 'glassmorphism' | 'neobrutalism' | 'retro' | 'gradient'
+export type BuilderStyle = string
 
 export type BuilderLanguage = 'en' | 'fa' | 'ar' | 'de' | 'es' | 'fr'
 
