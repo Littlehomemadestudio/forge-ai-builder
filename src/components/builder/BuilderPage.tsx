@@ -552,7 +552,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
 // ─── Advanced Options Panel ─────────────────────────────────────────────────
 
 function AdvancedOptionsPanel() {
-  const { builderAdvancedOptions, setBuilderAdvancedOptions, builderStyle, setBuilderStyle } = useAppStore()
+  const { builderAdvancedOptions, setBuilderAdvancedOptions, builderStyle, setBuilderStyle, builderAdvancedUnlocked, setBuilderAdvancedUnlocked } = useAppStore()
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [activeTab, setActiveTab] = useState('brand')
   const t = useTranslation()
@@ -582,19 +582,29 @@ function AdvancedOptionsPanel() {
       transition={{ delay: 0.55 }}
       className="mb-6"
     >
-      {/* Toggle button */}
-      <button
-        onClick={() => setShowAdvanced(!showAdvanced)}
-        className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/50 transition-all hover:bg-white/[0.06] hover:text-white/70 hover:border-white/20"
-      >
-        <Sliders className="h-4 w-4" />
-        <span>{t('builder.advancedOptions')}</span>
-        {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
+      {/* Toggle / Unlock button */}
+      {!builderAdvancedUnlocked ? (
+        <button
+          onClick={() => setBuilderAdvancedUnlocked(true)}
+          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/40 transition-all hover:bg-white/[0.06] hover:text-white/60 hover:border-white/20"
+        >
+          <Lock className="h-4 w-4" />
+          <span>{t('builder.advancedOptions')} — unlock to customize</span>
+        </button>
+      ) : (
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/50 transition-all hover:bg-white/[0.06] hover:text-white/70 hover:border-white/20"
+        >
+          <Sliders className="h-4 w-4" />
+          <span>{t('builder.advancedOptions')}</span>
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      )}
 
       {/* Collapsible content */}
       <AnimatePresence>
-        {showAdvanced && (
+        {showAdvanced && builderAdvancedUnlocked && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -1477,7 +1487,7 @@ interface PageGenState {
 function GeneratingPhase() {
   const {
     builderPrompt, builderIndustry, builderStyle, builderLanguage,
-    builderAdvancedOptions,
+    builderAdvancedOptions, builderAdvancedUnlocked,
     setGeneratedPages, setGeneratedSiteName,
     setCurrentPreviewPage, setIsGenerating, setBuilderPhase,
     setGenerationProgress, setGenerationStatus,
@@ -1528,45 +1538,47 @@ function GeneratingPhase() {
         setGenerationProgress(Math.round((i / pagesToGenerate.length) * 100))
 
         try {
-          // Build request body with advanced options
+          // Build request body — only include advanced options if the user explicitly unlocked them
+          // When locked, we send NO advanced options so the AI doesn't get confused by default values
+          const advancedOpts = builderAdvancedUnlocked ? {
+            complexity: builderAdvancedOptions.complexity,
+            pageLength: builderAdvancedOptions.pageConfigs.find(p => p.id === pageInfo.id)?.length || builderAdvancedOptions.pageLength,
+            layoutDensity: builderAdvancedOptions.layoutDensity,
+            animationLevel: builderAdvancedOptions.animationLevel,
+            responsivePriority: builderAdvancedOptions.responsivePriority,
+            contentTone: builderAdvancedOptions.contentTone,
+            navigationStyle: builderAdvancedOptions.navigationStyle,
+            seoLevel: builderAdvancedOptions.seoLevel,
+            accessibilityLevel: builderAdvancedOptions.accessibilityLevel,
+            imageStyle: builderAdvancedOptions.imageStyle,
+            ctaStyle: builderAdvancedOptions.ctaStyle,
+            fontFamily: builderAdvancedOptions.fontFamily,
+            colorScheme: builderAdvancedOptions.colorScheme,
+            brandName: builderAdvancedOptions.brandName,
+            logoPlacement: (builderAdvancedOptions as any).logoPlacement || 'left',
+            includeHero: builderAdvancedOptions.includeHero,
+            includeFeatures: builderAdvancedOptions.includeFeatures,
+            includeTestimonials: builderAdvancedOptions.includeTestimonials,
+            includePricing: builderAdvancedOptions.includePricing,
+            includeFAQ: builderAdvancedOptions.includeFAQ,
+            includeNewsletter: builderAdvancedOptions.includeNewsletter,
+            includeCTA: builderAdvancedOptions.includeCTA,
+            includeFooter: builderAdvancedOptions.includeFooter,
+            includeAnimations: builderAdvancedOptions.includeAnimations,
+            includeSocialLinks: builderAdvancedOptions.includeSocialLinks,
+            includeContactForm: builderAdvancedOptions.includeContactForm,
+            pageConfigs: builderAdvancedOptions.pageConfigs,
+          } : undefined;
+
           const requestBody = {
             prompt: builderPrompt,
             industry: builderIndustry,
             style: builderStyle,
             language: builderLanguage,
             page: pageInfo.id,
-            siteName: builderAdvancedOptions.brandName || undefined,
-            // Advanced options for the server to use in prompt construction
-            advancedOptions: {
-              complexity: builderAdvancedOptions.complexity,
-              pageLength: builderAdvancedOptions.pageConfigs.find(p => p.id === pageInfo.id)?.length || builderAdvancedOptions.pageLength,
-              layoutDensity: builderAdvancedOptions.layoutDensity,
-              animationLevel: builderAdvancedOptions.animationLevel,
-              responsivePriority: builderAdvancedOptions.responsivePriority,
-              contentTone: builderAdvancedOptions.contentTone,
-              navigationStyle: builderAdvancedOptions.navigationStyle,
-              seoLevel: builderAdvancedOptions.seoLevel,
-              accessibilityLevel: builderAdvancedOptions.accessibilityLevel,
-              imageStyle: builderAdvancedOptions.imageStyle,
-              ctaStyle: builderAdvancedOptions.ctaStyle,
-              fontFamily: builderAdvancedOptions.fontFamily,
-              colorScheme: builderAdvancedOptions.colorScheme,
-              logoPlacement: (builderAdvancedOptions as any).logoPlacement || 'left',
-              // Section toggles
-              includeHero: builderAdvancedOptions.includeHero,
-              includeFeatures: builderAdvancedOptions.includeFeatures,
-              includeTestimonials: builderAdvancedOptions.includeTestimonials,
-              includePricing: builderAdvancedOptions.includePricing,
-              includeFAQ: builderAdvancedOptions.includeFAQ,
-              includeNewsletter: builderAdvancedOptions.includeNewsletter,
-              includeCTA: builderAdvancedOptions.includeCTA,
-              includeFooter: builderAdvancedOptions.includeFooter,
-              includeAnimations: builderAdvancedOptions.includeAnimations,
-              includeSocialLinks: builderAdvancedOptions.includeSocialLinks,
-              includeContactForm: builderAdvancedOptions.includeContactForm,
-              // All page configs for context
-              pageConfigs: builderAdvancedOptions.pageConfigs,
-            },
+            siteName: builderAdvancedUnlocked && builderAdvancedOptions.brandName ? builderAdvancedOptions.brandName : undefined,
+            // Advanced options only included if user explicitly unlocked them
+            advancedOptions: advancedOpts,
           }
 
           const startRes = await fetch('/api/generate', {

@@ -184,6 +184,7 @@ interface AppState {
   builderLanguage: BuilderLanguage
   builderMode: 'ai' | 'templates'
   builderAdvancedOptions: BuilderAdvancedOptions
+  builderAdvancedUnlocked: boolean
   generatedPages: GeneratedPage[]
   generatedSiteName: string
   currentPreviewPage: string
@@ -246,6 +247,7 @@ interface AppState {
   setBuilderLanguage: (language: BuilderLanguage) => void
   setBuilderMode: (mode: 'ai' | 'templates') => void
   setBuilderAdvancedOptions: (options: Partial<BuilderAdvancedOptions>) => void
+  setBuilderAdvancedUnlocked: (unlocked: boolean) => void
   setGeneratedPages: (pages: GeneratedPage[]) => void
   setGeneratedSiteName: (name: string) => void
   updateGeneratedPage: (pageId: string, updates: Partial<GeneratedPage>) => void
@@ -301,6 +303,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   builderStyle: 'light',
   builderLanguage: 'en',
   builderMode: 'ai',
+  builderAdvancedUnlocked: false,
   builderAdvancedOptions: {
     complexity: 'standard',
     pageLength: 'medium',
@@ -407,6 +410,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBuilderAdvancedOptions: (options) => set((state) => ({
     builderAdvancedOptions: { ...state.builderAdvancedOptions, ...options }
   })),
+  setBuilderAdvancedUnlocked: (unlocked) => set({ builderAdvancedUnlocked: unlocked }),
   setGeneratedPages: (pages) => set({ generatedPages: pages }),
   setGeneratedSiteName: (name) => set({ generatedSiteName: name }),
   updateGeneratedPage: (pageId, updates) => set((state) => ({

@@ -298,7 +298,7 @@ export default function LandingPage() {
               </Badge>
 
               {/* One-line headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mt-6 whitespace-nowrap overflow-hidden">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mt-6">
                 {t('hero.title.pre')} <span className="gradient-text">{t('hero.title.highlight')}</span>
               </h1>
 

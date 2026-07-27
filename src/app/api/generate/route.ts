@@ -43,7 +43,7 @@ type Industry =
   | 'portfolio' | 'saas' | 'restaurant' | 'ecommerce'
   | 'blog' | 'agency' | 'event' | 'personal';
 
-type StyleMode = 'light' | 'dark' | 'minimal' | 'bold';
+type StyleMode = 'light' | 'dark' | 'minimal' | 'bold' | 'glassmorphism' | 'neobrutalism' | 'retro' | 'gradient';
 
 type SiteLanguage = 'en' | 'fa' | 'de' | 'es' | 'fr' | 'ar';
 
@@ -70,6 +70,35 @@ interface GeneratePageRequest {
   industryContext?: string;
   language?: SiteLanguage;
   userId?: string;
+  advancedOptions?: {
+    complexity?: string;
+    pageLength?: string;
+    layoutDensity?: string;
+    animationLevel?: string;
+    responsivePriority?: string;
+    contentTone?: string;
+    navigationStyle?: string;
+    seoLevel?: string;
+    accessibilityLevel?: string;
+    imageStyle?: string;
+    ctaStyle?: string;
+    fontFamily?: string;
+    colorScheme?: { primary?: string; accent?: string; background?: string; surface?: string; text?: string; muted?: string };
+    brandName?: string;
+    logoPlacement?: string;
+    includeHero?: boolean;
+    includeFeatures?: boolean;
+    includeTestimonials?: boolean;
+    includePricing?: boolean;
+    includeFAQ?: boolean;
+    includeNewsletter?: boolean;
+    includeCTA?: boolean;
+    includeFooter?: boolean;
+    includeAnimations?: boolean;
+    includeSocialLinks?: boolean;
+    includeContactForm?: boolean;
+    pageConfigs?: { id: string; name: string; enabled: boolean; length: string }[];
+  };
 }
 
 // ─── In-memory job store (persists across hot reloads via globalThis) ──────
@@ -194,6 +223,30 @@ const STYLE_PRESETS: Record<StyleMode, { label: string; colors: { bg: string; su
     colors: { bg: '#FFFBEB', surface: '#FFFFFF', text: '#1F2937', muted: '#6B7280', accent: '#F59E0B', border: '#FCD34D' },
     fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     mood: 'expressive, with strong typography, vibrant accent colors, and confident layouts',
+  },
+  glassmorphism: {
+    label: 'glassmorphism, frosted, translucent',
+    colors: { bg: '#1a1a2e', surface: 'rgba(255,255,255,0.08)', text: '#f8fafc', muted: '#94a3b8', accent: '#a855f7', border: 'rgba(255,255,255,0.12)' },
+    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    mood: 'frosted glass cards over a gradient background, translucent surfaces, blurred overlays, neon accent glows',
+  },
+  neobrutalism: {
+    label: 'neo-brutalism, raw, high-contrast',
+    colors: { bg: '#FFF000', surface: '#FFFFFF', text: '#000000', muted: '#555555', accent: '#000000', border: '#000000' },
+    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    mood: 'raw brutalist design, thick black borders, solid bright backgrounds, no gradients, no rounded corners, high contrast',
+  },
+  retro: {
+    label: 'retro, vintage, warm',
+    colors: { bg: '#F5E6D3', surface: '#EDE0CC', text: '#3C2415', muted: '#8B7355', accent: '#D2691E', border: '#C4A87C' },
+    fontStack: "'Georgia', 'Playfair Display', serif",
+    mood: 'warm vintage aesthetic, serif typography, earthy tones, decorative borders, nostalgic feel',
+  },
+  gradient: {
+    label: 'gradient, fluid, colorful',
+    colors: { bg: '#0F172A', surface: '#1E293B', text: '#F8FAFC', muted: '#94A3B8', accent: '#6366F1', border: '#334155' },
+    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    mood: 'rich gradient backgrounds flowing between sections, modern and colorful with smooth transitions, vivid hero areas',
   },
 };
 
@@ -1158,13 +1211,174 @@ function darkenColor(hex: string, percent: number): string {
   return '#' + [nr, ng, nb].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
+// ─── Build advanced options block for prompt injection ────────────────────────
+
+function buildAdvancedOptionsBlock(opts?: GeneratePageRequest['advancedOptions']): string {
+  if (!opts) return '';
+
+  const lines: string[] = [];
+  lines.push('═══ ADVANCED CONFIGURATION (USER EXPLICITLY SET THESE — OBEY EVERY ONE) ══════════════════');
+
+  // Brand
+  if (opts.brandName) {
+    lines.push(`- Brand name: "${opts.brandName}" — use this as the site title, logo text, and in all hero headings.`);
+  }
+  if (opts.fontFamily) {
+    lines.push(`- Font family: "${opts.fontFamily}" — use this for ALL body text and headings. Include it via Google Fonts in <head>.`);
+  }
+  if (opts.logoPlacement) {
+    lines.push(`- Logo placement in header: ${opts.logoPlacement}`);
+  }
+
+  // Color scheme override
+  if (opts.colorScheme) {
+    const cs = opts.colorScheme;
+    lines.push('- CUSTOM COLOR SCHEME (overrides style preset — use these EXACT values):');
+    if (cs.primary) lines.push(`  Primary/accent color: ${cs.primary}`);
+    if (cs.accent) lines.push(`  Secondary accent: ${cs.accent}`);
+    if (cs.background) lines.push(`  Background: ${cs.background}`);
+    if (cs.surface) lines.push(`  Surface/cards: ${cs.surface}`);
+    if (cs.text) lines.push(`  Text color: ${cs.text}`);
+    if (cs.muted) lines.push(`  Muted/secondary text: ${cs.muted}`);
+    lines.push('  Map these to CSS custom properties (:root { --accent, --bg, --surface, --text, --muted }) and use them throughout ALL elements.');
+  }
+
+  // Layout & complexity
+  if (opts.complexity) {
+    const descriptions: Record<string, string> = {
+      simple: 'Minimal sections, basic layout, quick generation',
+      standard: 'Balanced layout with key sections',
+      advanced: 'Rich layout, multiple sections, detailed content',
+      comprehensive: 'Full-featured site with every section fleshed out',
+    };
+    lines.push(`- Complexity level: ${opts.complexity} — ${descriptions[opts.complexity] || 'Balanced layout'}`);
+  }
+  if (opts.pageLength) {
+    const descriptions: Record<string, string> = {
+      short: '1-2 sections, minimal scroll',
+      medium: '3-4 sections, balanced content',
+      long: '5-7 sections, detailed content',
+      extended: '8+ sections, comprehensive coverage',
+    };
+    lines.push(`- Page length: ${opts.pageLength} — ${descriptions[opts.pageLength] || 'Balanced content'}`);
+  }
+  if (opts.layoutDensity) {
+    const descriptions: Record<string, string> = {
+      compact: 'Tight spacing, dense layout, smaller fonts',
+      comfortable: 'Normal spacing, readable, balanced',
+      spacious: 'Generous whitespace, larger typography',
+      'ultra-spacious': 'Maximum whitespace, premium feel',
+    };
+    lines.push(`- Layout density: ${opts.layoutDensity} — ${descriptions[opts.layoutDensity] || 'Normal spacing'}`);
+  }
+  if (opts.contentTone) {
+    const descriptions: Record<string, string> = {
+      professional: 'Formal, business-like, authoritative language',
+      casual: 'Friendly, conversational, approachable',
+      playful: 'Fun, quirky, lighthearted',
+      elegant: 'Sophisticated, refined, graceful',
+      technical: 'Precise, detailed, factual',
+      warm: 'Caring, empathetic, welcoming',
+    };
+    lines.push(`- Content tone: ${opts.contentTone} — ${descriptions[opts.contentTone] || 'Professional language'}. Write ALL headings, descriptions, and copy in this tone.`);
+  }
+
+  // Sections — EXPLICIT toggles
+  const sectionToggles: { key: string; label: string }[] = [
+    { key: 'includeHero', label: 'Hero section' },
+    { key: 'includeFeatures', label: 'Features/Services section' },
+    { key: 'includeTestimonials', label: 'Testimonials section' },
+    { key: 'includePricing', label: 'Pricing section' },
+    { key: 'includeFAQ', label: 'FAQ section' },
+    { key: 'includeNewsletter', label: 'Newsletter signup' },
+    { key: 'includeCTA', label: 'Call-to-action (CTA) section' },
+    { key: 'includeFooter', label: 'Footer' },
+    { key: 'includeAnimations', label: 'Animations' },
+    { key: 'includeSocialLinks', label: 'Social media links' },
+    { key: 'includeContactForm', label: 'Contact form' },
+  ];
+  const enabledSections = sectionToggles.filter(s => opts[s.key as keyof typeof opts] === true).map(s => s.label);
+  const disabledSections = sectionToggles.filter(s => opts[s.key as keyof typeof opts] === false).map(s => s.label);
+  if (enabledSections.length > 0) {
+    lines.push(`- INCLUDE these sections: ${enabledSections.join(', ')}`);
+  }
+  if (disabledSections.length > 0) {
+    lines.push(`- EXCLUDE these sections (DO NOT generate them at all): ${disabledSections.join(', ')}`);
+  }
+
+  // UX preferences
+  if (opts.navigationStyle) {
+    const descriptions: Record<string, string> = {
+      top: 'Standard top navigation bar',
+      sticky: 'Sticky/fixed header that stays visible on scroll',
+      sidebar: 'Sidebar navigation (common for dashboards)',
+      centered: 'Centered navigation links',
+      minimal: 'Minimal navigation, few links',
+    };
+    lines.push(`- Navigation style: ${opts.navigationStyle} — ${descriptions[opts.navigationStyle] || 'Standard'}`);
+  }
+  if (opts.ctaStyle) {
+    const descriptions: Record<string, string> = {
+      button: 'Standard button CTAs',
+      pill: 'Rounded pill-shaped CTAs',
+      link: 'Simple text link CTAs',
+      gradient: 'Gradient background CTAs',
+      outlined: 'Outlined/bordered CTAs',
+    };
+    lines.push(`- CTA button style: ${opts.ctaStyle} — ${descriptions[opts.ctaStyle] || 'Standard buttons'}`);
+  }
+  if (opts.animationLevel) {
+    const descriptions: Record<string, string> = {
+      none: 'No animations at all — static page',
+      subtle: 'Subtle hover effects and gentle fade-ins',
+      moderate: 'Noticeable transitions, scroll animations',
+      energetic: 'Vivid animations, parallax, bold hover effects',
+      immersive: 'Full parallax, complex scroll animations, micro-interactions everywhere',
+    };
+    lines.push(`- Animation level: ${opts.animationLevel} — ${descriptions[opts.animationLevel] || 'Subtle effects'}`);
+  }
+  if (opts.responsivePriority) {
+    const descriptions: Record<string, string> = {
+      'mobile-first': 'Design primarily for mobile, then scale up',
+      'desktop-first': 'Design primarily for desktop, then adapt for mobile',
+      universal: 'Equally prioritize all screen sizes',
+    };
+    lines.push(`- Responsive priority: ${opts.responsivePriority} — ${descriptions[opts.responsivePriority] || 'All screen sizes'}`);
+  }
+  if (opts.imageStyle) {
+    const descriptions: Record<string, string> = {
+      illustrations: 'Use SVG illustrations instead of photos',
+      photos: 'Use real photographs',
+      icons: 'Use icon-based visuals',
+      abstract: 'Use abstract/geometric patterns',
+      mixed: 'Mix photos and illustrations',
+      none: 'No images — pure text/layout',
+    };
+    lines.push(`- Image style: ${opts.imageStyle} — ${descriptions[opts.imageStyle] || 'Mixed visuals'}`);
+  }
+
+  // SEO & accessibility
+  if (opts.seoLevel) {
+    lines.push(`- SEO level: ${opts.seoLevel}${opts.seoLevel === 'advanced' ? ' — include meta description, Open Graph tags, structured data, semantic headings hierarchy' : opts.seoLevel === 'standard' ? ' — include meta description and semantic headings' : ''}`);
+  }
+  if (opts.accessibilityLevel) {
+    lines.push(`- Accessibility level: ${opts.accessibilityLevel}${opts.accessibilityLevel === 'maximum' ? ' — WCAG AAA compliance, ARIA labels everywhere, skip links, focus indicators' : opts.accessibilityLevel === 'enhanced' ? ' — WCAG AA compliance, proper alt text, ARIA labels on interactive elements' : ''}`);
+  }
+
+  lines.push('');
+  lines.push('IMPORTANT: These advanced settings were explicitly set by the user. They OVERRIDE defaults. You MUST respect every setting above. If a section is marked EXCLUDE, do NOT include it even if it seems natural for the industry. If a color scheme is given, use those EXACT colors. If content tone is specified, write in that tone throughout.');
+
+  return lines.join('\n');
+}
+
 // ─── Build page-specific prompt with parsed spec + shared header/footer ────
 
 function buildPagePrompt(
   req: GeneratePageRequest,
   parsed: ParsedPrompt,
   colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string; neonPink?: string },
-  headerFooter: { headerHtml: string; footerHtml: string; cssForHeaderFooter: string }
+  headerFooter: { headerHtml: string; footerHtml: string; cssForHeaderFooter: string },
+  advancedOptions?: GeneratePageRequest['advancedOptions']
 ): string {
   const meta = INDUSTRY_META[req.industry || 'portfolio'];
   const stylePreset = STYLE_PRESETS[req.style || 'dark'];
@@ -1453,6 +1667,7 @@ ${pageMeta.purpose}
 CONTENT GUIDANCE:
 ${meta.contentHint}
 
+${buildAdvancedOptionsBlock(advancedOptions)}
 ═══ FINAL REQUIREMENTS ═════════════════════════════════════════════════════
 1. Return ONLY the complete ${pageMeta.name} page HTML, starting with <!DOCTYPE html>.
 2. <html> tag must have lang="${language}" dir="${langFont.dir}".
@@ -1633,7 +1848,7 @@ async function callZaiDirect(
   if (cfg.token) headers['X-Token'] = cfg.token;
 
   const body = JSON.stringify({
-    model: 'glm-4.7',
+    model: 'glm-4.5-flash',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -1695,7 +1910,7 @@ async function callGlmWithRetry(
   let lastError: any = null;
   // Build prompts ONCE — they're expensive (header/footer, industry images)
   const systemPrompt = buildSystemPrompt();
-  const userPrompt = buildPagePrompt(req, parsed, colors, headerFooter);
+  const userPrompt = buildPagePrompt(req, parsed, colors, headerFooter, req.advancedOptions);
   const promptBytes = Buffer.byteLength(systemPrompt + userPrompt, 'utf8');
   console.log(`[generate] ${req.page} prompt size: ${promptBytes} bytes (sys=${systemPrompt.length} user=${userPrompt.length})`);
 
@@ -1743,7 +1958,8 @@ async function runGenerationJob(
   if (!job) return;
 
   try {
-    const zai = await ZAI.create();
+    // ZAI SDK init is no longer needed — we use direct fetch via callZaiDirect
+    // which reads config from .z-ai-config file
     job.status = 'generating';
     job.updatedAt = Date.now();
     JOBS.set(jobId, job);
@@ -1751,8 +1967,19 @@ async function runGenerationJob(
     // ── Parse user prompt ──
     const parsed = parseUserPrompt(req.prompt, req.language || 'en');
 
-    // ── Apply user-specified colors (override style preset) ──
-    const baseColors = STYLE_PRESETS[req.style || 'dark'].colors;
+    // ── Apply user-specified colors (override style preset + advanced options) ──
+    const styleFallback = STYLE_PRESETS[req.style || 'dark']?.colors || STYLE_PRESETS.dark.colors;
+    const baseColors = { ...styleFallback };
+    // Advanced options color scheme overrides style preset
+    if (req.advancedOptions?.colorScheme) {
+      const cs = req.advancedOptions.colorScheme;
+      if (cs.background) baseColors.bg = cs.background;
+      if (cs.surface) baseColors.surface = cs.surface;
+      if (cs.text) baseColors.text = cs.text;
+      if (cs.muted) baseColors.muted = cs.muted;
+      if (cs.primary) baseColors.accent = cs.primary;
+      if (cs.accent && !cs.primary) baseColors.accent = cs.accent;
+    }
     const colors = applyUserColors(baseColors, parsed);
 
     // ── Build shared header/footer (consistent across all pages) ──
@@ -1779,7 +2006,7 @@ async function runGenerationJob(
       JOBS.set(jobId, job);
     }
 
-    const content = await callGlmWithRetry(zai, req, parsed, colors, headerFooter, () => {
+    const content = await callGlmWithRetry(null as any, req, parsed, colors, headerFooter, () => {
       const j = JOBS.get(jobId);
       if (j) {
         j.heartbeats++;
@@ -1890,6 +2117,7 @@ export async function POST(request: NextRequest) {
       page,
       siteName,
       language = 'en',
+      advancedOptions,
     } = body as GeneratePageRequest;
 
     if (!prompt || typeof prompt !== 'string') {
@@ -1905,7 +2133,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolvedSiteName = siteName || extractSiteNameFromPrompt(prompt, industry);
+    const resolvedSiteName = siteName || advancedOptions?.brandName || extractSiteNameFromPrompt(prompt, industry);
     const userId = body.userId;
 
     // Pre-parse the prompt so we can return useful info to the client immediately
@@ -1929,6 +2157,7 @@ export async function POST(request: NextRequest) {
       page,
       siteName: resolvedSiteName,
       language,
+      advancedOptions,
     }, resolvedSiteName, userId).catch(err => {
       console.error(`[generate] unhandled error in job ${jobId}:`, err);
       const j = JOBS.get(jobId);
