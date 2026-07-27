@@ -1,4 +1,9 @@
 import { create } from 'zustand'
+import type { UiLanguage } from '@/lib/i18n'
+import { saveUiLanguage, applyHtmlDirLang } from '@/lib/i18n'
+
+// Re-export so callers can import from either location
+export type { UiLanguage } from '@/lib/i18n'
 
 export type AppView = 
   | 'landing'
@@ -44,6 +49,8 @@ export type BuilderIndustry =
   | 'personal'
 
 export type BuilderStyle = 'light' | 'dark' | 'minimal' | 'bold' | 'glassmorphism' | 'neobrutalism' | 'retro' | 'gradient'
+
+export type BuilderLanguage = 'en' | 'fa' | 'ar' | 'de' | 'es' | 'fr'
 
 export type BuilderComplexity = 'simple' | 'standard' | 'advanced' | 'comprehensive'
 export type BuilderPageLength = 'short' | 'medium' | 'long' | 'extended'
@@ -166,6 +173,7 @@ interface AppState {
   builderPrompt: string
   builderIndustry: BuilderIndustry
   builderStyle: BuilderStyle
+  builderLanguage: BuilderLanguage
   builderMode: 'ai' | 'templates'
   builderAdvancedOptions: BuilderAdvancedOptions
   generatedPages: GeneratedPage[]
@@ -192,6 +200,9 @@ interface AppState {
   
   // Theme
   themeMode: ThemeMode
+  
+  // UI Language (separate from builderLanguage — controls the BUILDER UI itself, not the generated site)
+  uiLanguage: UiLanguage
   
   // UI
   showCommandPalette: boolean
@@ -220,6 +231,7 @@ interface AppState {
   setBuilderPrompt: (prompt: string) => void
   setBuilderIndustry: (industry: BuilderIndustry) => void
   setBuilderStyle: (style: BuilderStyle) => void
+  setBuilderLanguage: (language: BuilderLanguage) => void
   setBuilderMode: (mode: 'ai' | 'templates') => void
   setBuilderAdvancedOptions: (options: Partial<BuilderAdvancedOptions>) => void
   setGeneratedPages: (pages: GeneratedPage[]) => void
@@ -247,6 +259,9 @@ interface AppState {
   // Actions - Theme
   setThemeMode: (mode: ThemeMode) => void
   
+  // Actions - UI Language
+  setUiLanguage: (lang: UiLanguage) => void
+  
   // Actions - UI
   toggleCommandPalette: () => void
   setContextMenu: (show: boolean, position?: { x: number; y: number }) => void
@@ -269,6 +284,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   builderPrompt: '',
   builderIndustry: 'portfolio',
   builderStyle: 'light',
+  builderLanguage: 'en',
   builderMode: 'ai',
   builderAdvancedOptions: {
     complexity: 'standard',
@@ -330,6 +346,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   themeMode: 'light',
   
+  // UI Language — initialized to 'en' (SSR-safe).
+  // HtmlDirLangSync component will read localStorage/URL on mount and call setUiLanguage
+  // to apply the user's actual preference after hydration. This avoids hydration mismatch
+  // (server renders 'en' = "Forge", client initially hydrates with 'en' = "Forge" too).
+  uiLanguage: 'en',
+  
   showCommandPalette: false,
   showContextMenu: false,
   contextMenuPosition: { x: 0, y: 0 },
@@ -363,6 +385,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBuilderPrompt: (prompt) => set({ builderPrompt: prompt }),
   setBuilderIndustry: (industry) => set({ builderIndustry: industry }),
   setBuilderStyle: (style) => set({ builderStyle: style }),
+  setBuilderLanguage: (language) => set({ builderLanguage: language }),
   setBuilderMode: (mode) => set({ builderMode: mode }),
   setBuilderAdvancedOptions: (options) => set((state) => ({
     builderAdvancedOptions: { ...state.builderAdvancedOptions, ...options }
@@ -408,6 +431,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Theme
   setThemeMode: (mode) => set({ themeMode: mode }),
+  
+  // UI Language — persists to localStorage AND applies <html lang/dir> immediately
+  setUiLanguage: (lang) => {
+    saveUiLanguage(lang)
+    applyHtmlDirLang(lang)
+    // Update URL ?lang= without a full reload so the link is shareable
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.set('lang', lang)
+        window.history.replaceState({}, '', url.toString())
+      } catch {}
+    }
+    set({ uiLanguage: lang })
+  },
   
   // UI
   toggleCommandPalette: () => set((state) => ({ showCommandPalette: !state.showCommandPalette })),

@@ -4,8 +4,10 @@ import React, { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wand2, RotateCcw, CheckCircle2, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/lib/useTranslation'
 
 export function AIDemo({ isDark }: { isDark: boolean }) {
+  const t = useTranslation()
   const [isGenerating, setIsGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [stage, setStage] = useState<'idle' | 'navbar' | 'hero' | 'features' | 'footer' | 'done'>('idle')
@@ -55,13 +57,13 @@ export function AIDemo({ isDark }: { isDark: boolean }) {
           <Button onClick={handleGenerate} disabled={isGenerating}
             className="text-xs bg-[oklch(0.55_0.25_270)] text-white hover:bg-[oklch(0.5_0.22_270)] border-0 shadow-lg shadow-[oklch(0.55_0.25_270)_/_20]"
           >
-            <Wand2 className="w-3.5 h-3.5 mr-1.5" />{isGenerating ? 'Generating...' : 'Watch AI Build'}
+            <Wand2 className="w-3.5 h-3.5 mr-1.5 rtl:ml-1.5 rtl:mr-0" />{isGenerating ? t('aidemo.generating') : t('aidemo.watch')}
           </Button>
         </motion.div>
         {stage === 'done' && (
           <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
             <Button size="sm" variant="outline" onClick={handleGenerate} className={`text-xs ${outlineBtnClass}`}>
-              <RotateCcw className="w-3 h-3 mr-1" /> Regenerate
+              <RotateCcw className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('aidemo.regenerate')}
             </Button>
           </motion.div>
         )}
@@ -77,11 +79,11 @@ export function AIDemo({ isDark }: { isDark: boolean }) {
 
       {isGenerating && (
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`text-[10px] ${statusColor} font-mono`}>
-          {stage === 'idle' && 'Initializing AI model...'}
-          {stage === 'navbar' && 'Generating navigation component...'}
-          {stage === 'hero' && 'Building hero section with content...'}
-          {stage === 'features' && 'Creating feature grid layout...'}
-          {stage === 'footer' && 'Assembling footer and final touches...'}
+          {stage === 'idle' && t('aidemo.stage.idle')}
+          {stage === 'navbar' && t('aidemo.stage.navbar')}
+          {stage === 'hero' && t('aidemo.stage.hero')}
+          {stage === 'features' && t('aidemo.stage.features')}
+          {stage === 'footer' && t('aidemo.stage.footer')}
         </motion.p>
       )}
 
@@ -120,7 +122,7 @@ export function AIDemo({ isDark }: { isDark: boolean }) {
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.3, delay: 0.8 }}
                 className="inline-block px-2.5 py-1 rounded-full text-[8px] font-medium text-white bg-[oklch(0.55_0.25_270)]"
               >
-                Get Started
+                {t('aidemo.cta')}
               </motion.div>
             </motion.div>
           )}
@@ -163,7 +165,7 @@ export function AIDemo({ isDark }: { isDark: boolean }) {
           {stage === 'done' && !isGenerating && (
             <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[oklch(0.6_0.2_160)] flex items-center justify-center"
+              className="absolute top-2 right-2 rtl:right-auto rtl:left-2 w-5 h-5 rounded-full bg-[oklch(0.6_0.2_160)] flex items-center justify-center"
             >
               <CheckCircle2 className="w-3 h-3 text-white" />
             </motion.div>
@@ -173,7 +175,7 @@ export function AIDemo({ isDark }: { isDark: boolean }) {
         {stage === 'idle' && !isGenerating && (
           <div className={`flex flex-col items-center justify-center h-48 ${emptyTextColor}`}>
             <Wand2 className={`w-8 h-8 mb-2 ${emptyIconColor}`} />
-            <p className="text-xs">Click &quot;Watch AI Build&quot; to see the magic</p>
+            <p className="text-xs">{t('aidemo.empty')}</p>
           </div>
         )}
       </div>

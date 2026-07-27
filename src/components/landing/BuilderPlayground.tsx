@@ -15,10 +15,11 @@ import {
   LayoutGrid,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/lib/useTranslation'
 
 interface PlaygroundBlock {
   id: string
-  label: string
+  labelKey: string
   icon: React.ElementType
   color: string
   bgGradient: string
@@ -26,15 +27,16 @@ interface PlaygroundBlock {
 }
 
 const BLOCK_TYPES: PlaygroundBlock[] = [
-  { id: 'hero', label: 'Hero', icon: Layout, color: 'oklch(0.55 0.25 270)', bgGradient: 'linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.45 0.2 290))', height: 'h-12' },
-  { id: 'features', label: 'Features', icon: Columns3, color: 'oklch(0.6 0.2 180)', bgGradient: 'linear-gradient(135deg, oklch(0.6 0.2 180), oklch(0.5 0.15 160))', height: 'h-10' },
-  { id: 'pricing', label: 'Pricing', icon: DollarSign, color: 'oklch(0.65 0.2 80)', bgGradient: 'linear-gradient(135deg, oklch(0.65 0.2 80), oklch(0.55 0.18 60))', height: 'h-10' },
-  { id: 'testimonials', label: 'Testimonials', icon: Star, color: 'oklch(0.6 0.2 160)', bgGradient: 'linear-gradient(135deg, oklch(0.6 0.2 160), oklch(0.5 0.15 140))', height: 'h-10' },
-  { id: 'cta', label: 'CTA', icon: MessageSquare, color: 'oklch(0.55 0.25 270)', bgGradient: 'linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.5 0.2 290))', height: 'h-8' },
-  { id: 'footer', label: 'Footer', icon: Type, color: 'oklch(0.5 0.15 260)', bgGradient: 'linear-gradient(135deg, oklch(0.5 0.15 260), oklch(0.4 0.1 260))', height: 'h-6' },
+  { id: 'hero', labelKey: 'playground.block.hero', icon: Layout, color: 'oklch(0.55 0.25 270)', bgGradient: 'linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.45 0.2 290))', height: 'h-12' },
+  { id: 'features', labelKey: 'playground.block.features', icon: Columns3, color: 'oklch(0.6 0.2 180)', bgGradient: 'linear-gradient(135deg, oklch(0.6 0.2 180), oklch(0.5 0.15 160))', height: 'h-10' },
+  { id: 'pricing', labelKey: 'playground.block.pricing', icon: DollarSign, color: 'oklch(0.65 0.2 80)', bgGradient: 'linear-gradient(135deg, oklch(0.65 0.2 80), oklch(0.55 0.18 60))', height: 'h-10' },
+  { id: 'testimonials', labelKey: 'playground.block.testimonials', icon: Star, color: 'oklch(0.6 0.2 160)', bgGradient: 'linear-gradient(135deg, oklch(0.6 0.2 160), oklch(0.5 0.15 140))', height: 'h-10' },
+  { id: 'cta', labelKey: 'playground.block.cta', icon: MessageSquare, color: 'oklch(0.55 0.25 270)', bgGradient: 'linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.5 0.2 290))', height: 'h-8' },
+  { id: 'footer', labelKey: 'playground.block.footer', icon: Type, color: 'oklch(0.5 0.15 260)', bgGradient: 'linear-gradient(135deg, oklch(0.5 0.15 260), oklch(0.4 0.1 260))', height: 'h-6' },
 ]
 
 export function BuilderPlayground({ isDark }: { isDark: boolean }) {
+  const t = useTranslation()
   const [placedBlocks, setPlacedBlocks] = useState<PlaygroundBlock[]>([])
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
@@ -92,7 +94,7 @@ export function BuilderPlayground({ isDark }: { isDark: boolean }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div>
-        <p className={`text-xs ${mutedColor} mb-3 font-medium uppercase tracking-wider`}>Drag blocks to build</p>
+        <p className={`text-xs ${mutedColor} mb-3 font-medium uppercase tracking-wider`}>{t('playground.dragBlocksToBuild')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {BLOCK_TYPES.map((block) => {
             const Icon = block.icon
@@ -105,24 +107,24 @@ export function BuilderPlayground({ isDark }: { isDark: boolean }) {
                 <div className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0" style={{ background: block.bgGradient }}>
                   <Icon className="w-3.5 h-3.5 text-white" />
                 </div>
-                <span className={`text-xs font-medium ${labelColor}`}>{block.label}</span>
-                <GripVertical className={`w-3 h-3 ${mutedColor} ml-auto`} />
+                <span className={`text-xs font-medium ${labelColor}`}>{t(block.labelKey)}</span>
+                <GripVertical className={`w-3 h-3 ${mutedColor} ml-auto rtl:ml-0 rtl:mr-auto`} />
               </motion.div>
             )
           })}
         </div>
         <div className="flex gap-2 mt-4">
           <Button size="sm" variant="outline" onClick={handleShuffle} disabled={placedBlocks.length < 2} className={`text-xs ${btnClass}`}>
-            <Shuffle className="w-3 h-3 mr-1" /> Shuffle
+            <Shuffle className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('playground.shuffle')}
           </Button>
           <Button size="sm" variant="outline" onClick={handleClear} disabled={placedBlocks.length === 0} className={`text-xs ${btnClass}`}>
-            <Trash2 className="w-3 h-3 mr-1" /> Clear
+            <Trash2 className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" /> {t('playground.clear')}
           </Button>
         </div>
       </div>
 
       <div>
-        <p className={`text-xs ${mutedColor} mb-3 font-medium uppercase tracking-wider`}>Live preview</p>
+        <p className={`text-xs ${mutedColor} mb-3 font-medium uppercase tracking-wider`}>{t('playground.livePreview')}</p>
         <div ref={canvasRef} onDrop={handleCanvasDrop} onDragOver={handleCanvasDragOver} onDragLeave={() => setDragOverIndex(null)}
           className={`min-h-[280px] rounded-xl border ${canvasBorder} ${canvasBg} p-3 relative overflow-hidden`}
           style={{ backgroundImage: `radial-gradient(circle at 1px 1px, ${dotPattern} 1px, transparent 0)`, backgroundSize: '20px 20px' }}
@@ -150,8 +152,8 @@ export function BuilderPlayground({ isDark }: { isDark: boolean }) {
                     onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.9' }}
                   >
                     <Icon className="w-3 h-3 text-white/80" />
-                    <span className="text-[10px] font-medium text-white/80">{block.label}</span>
-                    <button onClick={() => handleRemoveBlock(block.id)} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 rounded-full bg-black/30 flex items-center justify-center">
+                    <span className="text-[10px] font-medium text-white/80">{t(block.labelKey)}</span>
+                    <button onClick={() => handleRemoveBlock(block.id)} className="ml-auto rtl:ml-0 rtl:mr-auto opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 rounded-full bg-black/30 flex items-center justify-center">
                       <span className="text-white/60 text-[8px] leading-none">✕</span>
                     </button>
                   </div>
@@ -164,7 +166,7 @@ export function BuilderPlayground({ isDark }: { isDark: boolean }) {
           {placedBlocks.length === 0 && (
             <div className={`flex flex-col items-center justify-center h-48 ${emptyTextColor}`}>
               <LayoutGrid className={`w-8 h-8 mb-2 ${emptyIconColor}`} />
-              <p className="text-xs">Drag blocks here to build your site</p>
+              <p className="text-xs">{t('playground.empty')}</p>
             </div>
           )}
         </div>
