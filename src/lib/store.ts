@@ -300,7 +300,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   builderPhase: 'prompt',
   builderPrompt: '',
   builderIndustry: 'portfolio',
-  builderStyle: 'light',
+  builderStyle: 'saffron',
   builderLanguage: 'en',
   builderMode: 'ai',
   builderAdvancedUnlocked: false,
@@ -316,7 +316,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     accessibilityLevel: 'enhanced',
     imageStyle: 'mixed',
     ctaStyle: 'button',
-    colorScheme: { primary: '#7c3aed', accent: '#2dd4bf', background: '#0a0a0f', surface: '#1a1a2e', text: '#ffffff', muted: '#94a3b8' },
+    colorScheme: { primary: '#E3A830', accent: '#B87333', background: '#FAF6F0', surface: '#FFFFFF', text: '#2D1B0E', muted: '#7A6A5A' },
     fontFamily: 'Inter',
     brandName: '',
     pageConfigs: [

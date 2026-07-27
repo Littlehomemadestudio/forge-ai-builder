@@ -322,27 +322,27 @@ function TemplatePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] bg-[#0c0c14] border-white/10 text-white p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] bg-white border-gray-200 text-gray-900 p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-3">
-          <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
-            <Eye className="h-5 w-5 text-purple-400" />
+          <DialogTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Eye className="h-5 w-5 text-violet-500" />
             {template.name}
           </DialogTitle>
-          <DialogDescription className="text-white/40">
+          <DialogDescription className="text-gray-500">
             {template.description}
           </DialogDescription>
         </DialogHeader>
         <div className="px-6 flex-1 overflow-auto">
           {/* Browser chrome for iframe */}
-          <div className="flex items-center gap-2 bg-[#1a1a24] px-3 py-2 rounded-t-lg border border-white/5">
+          <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-t-lg border border-gray-200">
             <div className="flex gap-1.5">
               <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
               <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
               <div className="h-3 w-3 rounded-full bg-[#28c840]" />
             </div>
             <div className="flex-1 mx-4">
-              <div className="flex items-center gap-1 rounded-md bg-white/5 px-3 py-1">
-                <span className="text-xs text-white/30 truncate">
+              <div className="flex items-center gap-1 rounded-md bg-gray-50 px-3 py-1">
+                <span className="text-xs text-gray-400 truncate">
                   {template.name.toLowerCase().replace(/\s+/g, '-')}.app
                 </span>
               </div>
@@ -356,11 +356,11 @@ function TemplatePreviewDialog({
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
         </div>
-        <DialogFooter className="px-6 py-4 flex gap-3 border-t border-white/5">
+        <DialogFooter className="px-6 py-4 flex gap-3 border-t border-gray-200">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+            className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
           >
             {t('builder.closePreview')}
           </Button>
@@ -405,30 +405,30 @@ function TemplatesSection() {
     >
       {/* Divider */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <span className="text-white/30 text-xs uppercase tracking-widest">or</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+        <span className="text-gray-400 text-xs uppercase tracking-widest">or</span>
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
       </div>
 
       {/* Section header */}
       <div className="mb-6 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm backdrop-blur-md mb-3">
-          <FileText className="h-4 w-4 text-emerald-400" />
-          <span className="text-white/60">{t('builder.adv.readyMade')}</span>
+        <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm mb-3">
+          <FileText className="h-4 w-4 text-emerald-600" />
+          <span className="text-gray-600">{t('builder.adv.readyMade')}</span>
         </div>
-        <h2 className="text-3xl font-bold tracking-tight text-white mb-2">{t('builder.adv.startFromTemplate')}</h2>
-        <p className="text-white/40">{t('builder.adv.pickTemplate')}</p>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">{t('builder.adv.startFromTemplate')}</h2>
+        <p className="text-gray-500">{t('builder.adv.pickTemplate')}</p>
       </div>
 
       {/* Category dropdown */}
       <div className="mb-6 flex justify-center">
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[200px] border-white/10 bg-white/5 text-white hover:bg-white/10">
+          <SelectTrigger className="w-[200px] border-gray-200 bg-white text-gray-700 hover:bg-gray-50">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-[#15151F] border-white/10">
+          <SelectContent className="bg-white border-gray-200">
             {TEMPLATE_CATEGORIES.map(cat => (
-              <SelectItem key={cat} value={cat} className="text-white focus:bg-purple-500/20 focus:text-white">
+              <SelectItem key={cat} value={cat} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
                 {cat === 'All' ? '🌐 All Categories' : cat}
               </SelectItem>
             ))}
@@ -446,7 +446,7 @@ function TemplatesSection() {
             transition={{ delay: 0.9 + i * 0.05, duration: 0.4 }}
           >
             <Card
-              className="cursor-pointer group border-white/8 bg-white/[0.02] backdrop-blur-md transition-all duration-300 hover:border-purple-500/30 hover:bg-white/[0.05] hover:-translate-y-2 hover:shadow-lg hover:shadow-purple-500/10 overflow-hidden"
+              className="cursor-pointer group border-gray-200 bg-white transition-all duration-300 hover:border-violet-200 hover:shadow-md hover:-translate-y-1 overflow-hidden"
               onClick={() => handleTemplateClick(template)}
             >
               {/* Thumbnail */}
@@ -464,24 +464,24 @@ function TemplatesSection() {
                   </span>
                 </div>
                 {/* Hover overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
                   <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100" />
                 </div>
               </div>
 
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-sm font-semibold text-white/80 group-hover:text-white transition-colors">
+                  <h3 className="text-sm font-semibold text-gray-800 group-hover:text-gray-900 transition-colors">
                     {template.name}
                   </h3>
                   <Badge
                     variant="secondary"
-                    className="ml-auto border-white/10 bg-white/5 text-xs text-emerald-300"
+                    className="ml-auto border-gray-200 bg-gray-100 text-xs text-gray-500"
                   >
                     {template.category}
                   </Badge>
                 </div>
-                <p className="text-xs text-white/40 line-clamp-2 group-hover:text-white/50 transition-colors">
+                <p className="text-xs text-gray-500 line-clamp-2 group-hover:text-gray-600 transition-colors">
                   {template.description}
                 </p>
               </CardContent>
@@ -505,9 +505,9 @@ function TemplatesSection() {
 function GlassCard({ label, icon, children, className = '' }: { label: string; icon: typeof Sparkles; children: React.ReactNode; className?: string }) {
   const Icon = icon
   return (
-    <div className={`rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 ${className}`}>
-      <label className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
-        <Icon className="h-3.5 w-3.5" /> {label}
+    <div className={`rounded-xl border border-gray-200 bg-white shadow-sm p-4 ${className}`}>
+      <label className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+        <Icon className="h-3.5 w-3.5 text-gray-400" /> {label}
       </label>
       {children}
     </div>
@@ -519,18 +519,18 @@ function GlassCard({ label, icon, children, className = '' }: { label: string; i
 function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-2">
-      <Label className="text-xs text-white/40 min-w-[60px]">{label}</Label>
+      <Label className="text-xs text-gray-500 min-w-[60px]">{label}</Label>
       <div className="relative flex items-center gap-1.5">
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-7 rounded-md border border-white/20 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-md"
+          className="h-7 w-7 rounded-md border border-gray-200 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-md"
         />
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-[80px] text-xs border-white/10 bg-white/5 text-white/70 px-2"
+          className="h-7 w-[80px] text-xs border-gray-200 bg-gray-50 text-gray-700 px-2"
         />
       </div>
     </div>
@@ -574,7 +574,7 @@ function AdvancedOptionsPanel() {
       {!builderAdvancedUnlocked ? (
         <button
           onClick={() => setBuilderAdvancedUnlocked(true)}
-          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/40 transition-all hover:bg-white/[0.06] hover:text-white/60 hover:border-white/20"
+          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-400 transition-all hover:bg-gray-50 hover:text-gray-600 hover:border-gray-300 shadow-sm"
         >
           <Lock className="h-4 w-4" />
           <span>{t('builder.advancedOptions')} — unlock to customize</span>
@@ -582,7 +582,7 @@ function AdvancedOptionsPanel() {
       ) : (
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/50 transition-all hover:bg-white/[0.06] hover:text-white/70 hover:border-white/20"
+          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-500 transition-all hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 shadow-sm"
         >
           <Sliders className="h-4 w-4" />
           <span>{t('builder.advancedOptions')}</span>
@@ -603,23 +603,23 @@ function AdvancedOptionsPanel() {
             <div className="mt-4">
               {/* Tab navigation */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="w-full bg-white/[0.03] border border-white/10 rounded-xl h-auto p-1 mb-4 flex-wrap">
-                  <TabsTrigger value="brand" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                <TabsList className="w-full bg-gray-50 border border-gray-200 rounded-xl h-auto p-1 mb-4 flex-wrap">
+                  <TabsTrigger value="brand" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
                     <Paintbrush className="h-3 w-3 mr-1" /> Brand
                   </TabsTrigger>
-                  <TabsTrigger value="complexity" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="complexity" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
                     <Layers className="h-3 w-3 mr-1" /> Length
                   </TabsTrigger>
-                  <TabsTrigger value="visual" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="visual" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
                     <Palette className="h-3 w-3 mr-1" /> Style
                   </TabsTrigger>
-                  <TabsTrigger value="sections" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="sections" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
                     <Layout className="h-3 w-3 mr-1" /> Sections
                   </TabsTrigger>
-                  <TabsTrigger value="navigation" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="navigation" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
                     <Navigation className="h-3 w-3 mr-1" /> UX
                   </TabsTrigger>
-                  <TabsTrigger value="seo" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-white/40 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="seo" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
                     <Shield className="h-3 w-3 mr-1" /> SEO
                   </TabsTrigger>
                 </TabsList>
@@ -633,7 +633,7 @@ function AdvancedOptionsPanel() {
                         value={builderAdvancedOptions.brandName}
                         onChange={(e) => setBuilderAdvancedOptions({ brandName: e.target.value })}
                         placeholder="Enter your brand name..."
-                        className="border-white/10 bg-white/5 text-white placeholder:text-white/25 h-9"
+                        className="border-gray-200 bg-gray-50 text-gray-700 placeholder:text-gray-400 h-9"
                       />
                     </GlassCard>
 
@@ -643,12 +643,12 @@ function AdvancedOptionsPanel() {
                         value={builderAdvancedOptions.fontFamily}
                         onValueChange={(v) => setBuilderAdvancedOptions({ fontFamily: v })}
                       >
-                        <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10 h-9">
+                        <SelectTrigger className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 h-9">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#15151F] border-white/10 max-h-60">
+                        <SelectContent className="bg-white border-gray-200 max-h-60">
                           {FONT_OPTIONS.map(font => (
-                            <SelectItem key={font} value={font} className="text-white focus:bg-purple-500/20 focus:text-white">
+                            <SelectItem key={font} value={font} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
                               <span style={{ fontFamily: font }} className="text-sm">{font}</span>
                             </SelectItem>
                           ))}
@@ -672,8 +672,8 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ logoPlacement: opt.id } as any)}
                             className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60'
+                                ? 'bg-violet-50 text-violet-600 border border-violet-200'
+                                : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5" />
@@ -705,7 +705,7 @@ function AdvancedOptionsPanel() {
                                 style={{ backgroundColor: color }}
                               />
                             </TooltipTrigger>
-                            <TooltipContent className="bg-[#15151F] border-white/10 text-xs text-white/70">
+                            <TooltipContent className="bg-white border-gray-200 text-xs text-gray-700">
                               {key}: {color}
                             </TooltipContent>
                           </Tooltip>
@@ -728,14 +728,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ complexity: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -755,14 +755,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ pageLength: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -782,14 +782,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ layoutDensity: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -806,32 +806,32 @@ function AdvancedOptionsPanel() {
                         if (!config) return null
                         const Icon = pageItem.icon
                         return (
-                          <div key={pageItem.id} className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
-                            <Icon className="h-4 w-4 text-white/30" />
-                            <span className="text-sm text-white/60 min-w-[80px]">{config.name}</span>
+                          <div key={pageItem.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2">
+                            <Icon className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600 min-w-[80px]">{config.name}</span>
                             <Switch
                               checked={config.enabled}
                               onCheckedChange={(v) => updatePageConfig(pageItem.id, 'enabled', v)}
-                              className="data-[state=checked]:bg-purple-500"
+                              className="data-[state=checked]:bg-violet-500"
                             />
                             {config.enabled && (
                               <Select
                                 value={config.length}
                                 onValueChange={(v) => updatePageConfig(pageItem.id, 'length', v as BuilderPageLength)}
                               >
-                                <SelectTrigger className="h-7 w-[100px] text-xs border-white/10 bg-white/5 text-white/70">
+                                <SelectTrigger className="h-7 w-[100px] text-xs border-gray-200 bg-gray-50 text-gray-700">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#15151F] border-white/10">
+                                <SelectContent className="bg-white border-gray-200">
                                   {PAGE_LENGTH_OPTIONS.map(opt => (
-                                    <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white text-xs">
+                                    <SelectItem key={opt.id} value={opt.id} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900 text-xs">
                                       {opt.label}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             )}
-                            <Badge variant="secondary" className={`ml-auto text-xs border ${config.enabled ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/30'}`}>
+                            <Badge variant="secondary" className={`ml-auto text-xs border ${config.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-100 text-gray-400'}`}>
                               {config.enabled ? 'On' : 'Off'}
                             </Badge>
                           </div>
@@ -859,14 +859,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ contentTone: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -886,14 +886,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ layoutDensity: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -911,18 +911,18 @@ function AdvancedOptionsPanel() {
                         const Icon = item.icon
                         const isEnabled = (builderAdvancedOptions as any)[item.key] as boolean
                         return (
-                          <div key={item.key} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2.5">
+                          <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2.5">
                             <div className="flex items-center gap-2 min-w-0">
-                              <Icon className="h-4 w-4 text-white/30 flex-shrink-0" />
+                              <Icon className="h-4 w-4 text-gray-400 flex-shrink-0" />
                               <div className="min-w-0">
-                                <span className="text-sm text-white/60 truncate block">{item.label}</span>
-                                <span className="text-xs text-white/25 truncate block">{item.desc}</span>
+                                <span className="text-sm text-gray-600 truncate block">{item.label}</span>
+                                <span className="text-xs text-gray-300 truncate block">{item.desc}</span>
                               </div>
                             </div>
                             <Switch
                               checked={isEnabled}
                               onCheckedChange={(v) => updateSectionToggle(item.key, v)}
-                              className="data-[state=checked]:bg-purple-500 flex-shrink-0"
+                              className="data-[state=checked]:bg-violet-500 flex-shrink-0"
                             />
                           </div>
                         )
@@ -945,14 +945,14 @@ function AdvancedOptionsPanel() {
                               onClick={() => setBuilderAdvancedOptions({ navigationStyle: opt.id })}
                               className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-purple-500/20 border border-purple-500/30'
-                                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                  ? 'bg-violet-50 border border-violet-200'
+                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -972,14 +972,14 @@ function AdvancedOptionsPanel() {
                               onClick={() => setBuilderAdvancedOptions({ ctaStyle: opt.id })}
                               className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-purple-500/20 border border-purple-500/30'
-                                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                  ? 'bg-violet-50 border border-violet-200'
+                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -1000,14 +1000,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ animationLevel: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -1027,14 +1027,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ responsivePriority: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -1058,14 +1058,14 @@ function AdvancedOptionsPanel() {
                               onClick={() => setBuilderAdvancedOptions({ seoLevel: opt.id })}
                               className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-purple-500/20 border border-purple-500/30'
-                                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                  ? 'bg-violet-50 border border-violet-200'
+                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -1085,14 +1085,14 @@ function AdvancedOptionsPanel() {
                               onClick={() => setBuilderAdvancedOptions({ accessibilityLevel: opt.id })}
                               className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                  ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -1113,14 +1113,14 @@ function AdvancedOptionsPanel() {
                             onClick={() => setBuilderAdvancedOptions({ imageStyle: opt.id })}
                             className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
                               isSelected
-                                ? 'bg-purple-500/20 border border-purple-500/30'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                ? 'bg-violet-50 border border-violet-200'
+                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-purple-300/60' : 'text-white/30'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -1151,7 +1151,7 @@ function PaletteQuickSelect() {
     : ALL_PALETTES.filter(p => p.category === categoryFilter)
 
   const searched = search.trim()
-    ? filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()))
+    ? filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()) || (p.nameFa && p.nameFa.includes(search)))
     : filtered
 
   const handleSelect = (palette: ThemePalette) => {
@@ -1170,80 +1170,107 @@ function PaletteQuickSelect() {
     })
   }
 
+  const selectedPalette = ALL_PALETTES.find(p => p.id === builderStyle)
+
   return (
     <div className="space-y-3">
-      {/* Category dropdown + search */}
-      <div className="flex gap-2">
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10 w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-[#15151F] border-white/10 max-h-60">
-            <SelectItem value="All" className="text-white focus:bg-purple-500/20 focus:text-white">All ({ALL_PALETTES.length})</SelectItem>
-            {PALETTE_CATEGORIES.map(cat => (
-              <SelectItem key={cat} value={cat} className="text-white focus:bg-purple-500/20 focus:text-white">
-                {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Selected palette info bar — shown prominently at the top */}
+      {selectedPalette && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50 p-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-20 rounded-md shadow-sm" style={{ background: selectedPalette.thumbnailGradient }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-violet-700">{selectedPalette.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Badge variant="secondary" className="text-[10px] bg-violet-100 text-violet-600 border-violet-200 px-1.5 py-0">{selectedPalette.category}</Badge>
+                <span className="text-xs text-gray-500">{selectedPalette.layoutStyle}</span>
+              </div>
+              {selectedPalette.nameFa && <p className="text-xs text-gray-400 mt-0.5">{selectedPalette.nameFa}</p>}
+            </div>
+            <div className="flex gap-1">
+              {Object.values(selectedPalette.colors).map((c, i) => (
+                <div key={i} className="h-6 w-6 rounded-md border border-gray-200 shadow-sm" style={{ background: c }} />
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5">{selectedPalette.mood}</p>
+        </div>
+      )}
+
+      {/* Category filter pills + search */}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <button
+            onClick={() => setCategoryFilter('All')}
+            className={`text-xs px-3 py-1.5 rounded-md whitespace-nowrap transition-all font-medium ${
+              categoryFilter === 'All' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+          >
+            All ({ALL_PALETTES.length})
+          </button>
+          {PALETTE_CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`text-xs px-3 py-1.5 rounded-md whitespace-nowrap transition-all font-medium ${
+                categoryFilter === cat ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+              }`}
+            >
+              {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
+            </button>
+          ))}
+        </div>
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search palettes..."
-          className="border-white/10 bg-white/5 text-white placeholder:text-white/25 h-9"
+          className="border-gray-200 bg-gray-50 text-gray-700 placeholder:text-gray-400 h-9 text-xs"
         />
       </div>
 
-      {/* Palette grid */}
-      <div className="max-h-[280px] overflow-y-auto rounded-xl border border-white/5 bg-black/20 p-2 grid grid-cols-2 sm:grid-cols-3 gap-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-        {searched.slice(0, 60).map(palette => {
+      {/* Palette grid — scrollable, shows ALL matching palettes */}
+      <div className="max-h-[480px] overflow-y-auto rounded-lg border border-gray-100 bg-white p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+        {searched.map(palette => {
           const isSelected = builderStyle === palette.id
           return (
             <motion.button
               key={palette.id}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handleSelect(palette)}
-              className={`group relative rounded-lg overflow-hidden transition-all ${
+              className={`group relative rounded-lg overflow-hidden transition-all shadow-sm ${
                 isSelected
-                  ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20'
-                  : 'hover:ring-1 hover:ring-white/20'
+                  ? 'ring-2 ring-violet-500 shadow-md'
+                  : 'hover:ring-1 hover:ring-gray-300 hover:shadow-md'
               }`}
             >
               {/* Gradient thumbnail */}
-              <div className="h-10 w-full" style={{ background: palette.thumbnailGradient }} />
-              {/* Color strip */}
-              <div className="flex h-2">
-                <div className="flex-1" style={{ background: palette.colors.background }} />
-                <div className="flex-1" style={{ background: palette.colors.primary }} />
-                <div className="flex-1" style={{ background: palette.colors.accent }} />
-                <div className="flex-1" style={{ background: palette.colors.surface }} />
-                <div className="flex-1" style={{ background: palette.colors.text }} />
+              <div className="h-14 w-full" style={{ background: palette.thumbnailGradient }} />
+              {/* Color swatches row */}
+              <div className="flex gap-0 px-2 pt-1.5 pb-1">
+                {Object.values(palette.colors).map((c, i) => (
+                  <div key={i} className="h-4 w-4 rounded-sm border border-gray-200/50" style={{ background: c }} />
+                ))}
               </div>
-              {/* Name */}
-              <div className="bg-white/5 px-2 py-1.5">
-                <p className={`text-[10px] font-medium truncate ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+              {/* Name + info */}
+              <div className="bg-white px-2 pb-2 pt-0.5">
+                <p className={`text-xs font-medium leading-tight ${isSelected ? 'text-violet-700' : 'text-gray-700'}`}>
                   {palette.name}
                 </p>
-                <p className="text-[9px] text-white/30 truncate">{palette.category}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Badge variant="secondary" className="text-[9px] bg-gray-100 text-gray-500 border-gray-200 px-1 py-0">{palette.category}</Badge>
+                  <span className="text-[10px] text-gray-400">{palette.layoutStyle}</span>
+                </div>
               </div>
               {isSelected && (
-                <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-purple-500 shadow-md shadow-purple-500/40 flex items-center justify-center">
-                  <Check className="w-2 h-2 text-white" />
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-violet-500 shadow-md flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
             </motion.button>
           )
         })}
       </div>
-
-      {/* Currently selected info */}
-      {builderStyle && (
-        <div className="text-[10px] text-white/30 text-center">
-          {ALL_PALETTES.find(p => p.id === builderStyle)?.description || ''}
-        </div>
-      )}
     </div>
   )
 }
@@ -1285,30 +1312,34 @@ function PaletteAdvancedSelect() {
     <div className="space-y-3">
       {/* Selected palette info */}
       {selectedPalette && (
-        <div className="rounded-xl p-3 bg-purple-500/10 border border-purple-500/20">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-16 rounded-lg" style={{ background: selectedPalette.thumbnailGradient }} />
+        <div className="rounded-lg p-3 bg-violet-50 border border-violet-200">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-20 rounded-md shadow-sm" style={{ background: selectedPalette.thumbnailGradient }} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-purple-300 truncate">{selectedPalette.name}</p>
-              <p className="text-[10px] text-white/40 truncate">{selectedPalette.category} · {selectedPalette.layoutStyle}</p>
-              {selectedPalette.nameFa && <p className="text-[10px] text-white/30 truncate">{selectedPalette.nameFa}</p>}
+              <p className="text-sm font-semibold text-violet-700">{selectedPalette.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Badge variant="secondary" className="text-[10px] bg-violet-100 text-violet-600 border-violet-200 px-1.5 py-0">{selectedPalette.category}</Badge>
+                <span className="text-xs text-gray-500">{selectedPalette.layoutStyle}</span>
+              </div>
+              {selectedPalette.nameFa && <p className="text-xs text-gray-400 mt-0.5">{selectedPalette.nameFa}</p>}
             </div>
             <div className="flex gap-1">
               {Object.values(selectedPalette.colors).map((c, i) => (
-                <div key={i} className="h-5 w-5 rounded border border-white/20" style={{ background: c }} />
+                <div key={i} className="h-5 w-5 rounded-md border border-gray-200 shadow-sm" style={{ background: c }} />
               ))}
             </div>
           </div>
-          <p className="text-[10px] text-white/30 mt-1">{selectedPalette.mood}</p>
+          <p className="text-xs text-gray-500 mt-1">{selectedPalette.mood}</p>
+          {selectedPalette.description && <p className="text-xs text-gray-400 mt-0.5">{selectedPalette.description}</p>}
         </div>
       )}
 
       {/* Category filter pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
         <button
           onClick={() => setCategoryFilter('All')}
-          className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${
-            categoryFilter === 'All' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+          className={`text-[10px] px-2.5 py-1 rounded-md whitespace-nowrap transition-all font-medium ${
+            categoryFilter === 'All' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
           }`}
         >
           All ({ALL_PALETTES.length})
@@ -1317,8 +1348,8 @@ function PaletteAdvancedSelect() {
           <button
             key={cat}
             onClick={() => setCategoryFilter(cat)}
-            className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${
-              categoryFilter === cat ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+            className={`text-[10px] px-2.5 py-1 rounded-md whitespace-nowrap transition-all font-medium ${
+              categoryFilter === cat ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
             }`}
           >
             {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
@@ -1331,44 +1362,42 @@ function PaletteAdvancedSelect() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search palettes..."
-        className="border-white/10 bg-white/5 text-white placeholder:text-white/25 h-9 text-xs"
+        className="border-gray-200 bg-gray-50 text-gray-700 placeholder:text-gray-400 h-9 text-xs"
       />
 
-      {/* Palette grid — scrollable, max height */}
-      <div className="max-h-[360px] overflow-y-auto rounded-xl border border-white/5 bg-black/20 p-2 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+      {/* Palette grid — scrollable, shows ALL matching palettes */}
+      <div className="max-h-[420px] overflow-y-auto rounded-lg border border-gray-100 bg-white p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
         {searched.map(palette => {
           const isSelected = builderStyle === palette.id
           return (
             <motion.button
               key={palette.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => handleSelect(palette)}
-              className={`group relative rounded-lg overflow-hidden transition-all ${
+              className={`group relative rounded-lg overflow-hidden transition-all shadow-sm ${
                 isSelected
-                  ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20'
-                  : 'hover:ring-1 hover:ring-white/20'
+                  ? 'ring-2 ring-violet-500 shadow-md'
+                  : 'hover:ring-1 hover:ring-gray-300 hover:shadow-md'
               }`}
             >
               {/* Gradient thumbnail */}
               <div className="h-12 w-full" style={{ background: palette.thumbnailGradient }} />
-              {/* Color strip */}
-              <div className="flex h-2.5">
-                <div className="flex-1" style={{ background: palette.colors.background }} />
-                <div className="flex-1" style={{ background: palette.colors.primary }} />
-                <div className="flex-1" style={{ background: palette.colors.accent }} />
-                <div className="flex-1" style={{ background: palette.colors.surface }} />
-                <div className="flex-1" style={{ background: palette.colors.text }} />
+              {/* Color swatches */}
+              <div className="flex gap-0 px-2 pt-1 pb-0.5">
+                {Object.values(palette.colors).map((c, i) => (
+                  <div key={i} className="h-3.5 w-3.5 rounded-sm border border-gray-200/50" style={{ background: c }} />
+                ))}
               </div>
               {/* Name + layout */}
-              <div className="bg-white/5 px-2 py-1.5">
-                <p className={`text-[10px] font-medium truncate ${isSelected ? 'text-purple-300' : 'text-white/60'}`}>
+              <div className="bg-white px-2 pb-1.5 pt-0.5">
+                <p className={`text-[10px] font-medium leading-tight ${isSelected ? 'text-violet-700' : 'text-gray-700'}`}>
                   {palette.name}
                 </p>
-                <p className="text-[8px] text-white/25 truncate">{palette.layoutStyle}</p>
+                <p className="text-[9px] text-gray-400">{palette.layoutStyle}</p>
               </div>
               {isSelected && (
-                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-500 shadow-md shadow-purple-500/40 flex items-center justify-center">
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-violet-500 shadow-md flex items-center justify-center">
                   <Check className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
@@ -1422,30 +1451,30 @@ function PromptPhase() {
   const totalEnabledPages = builderAdvancedOptions.pageConfigs.filter(p => p.enabled).length
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12">
-      {/* Background floating elements */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12 bg-gradient-to-b from-white to-slate-50">
+      {/* Background floating elements — subtle light gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute -top-20 -left-20 rtl:-left-auto rtl:-right-20 h-80 w-80 rounded-full bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-3xl"
+          className="absolute -top-20 -left-20 rtl:-left-auto rtl:-right-20 h-80 w-80 rounded-full bg-gradient-to-br from-violet-200/20 to-pink-200/20 blur-3xl"
           animate={{ y: [0, 30, 0], x: [0, 20, 0] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute -bottom-40 -right-20 rtl:-right-auto rtl:-left-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/10 blur-3xl"
+          className="absolute -bottom-40 -right-20 rtl:-right-auto rtl:-left-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-200/20 to-teal-200/20 blur-3xl"
           animate={{ y: [0, -40, 0], x: [0, -30, 0] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute top-1/3 right-1/4 rtl:right-auto rtl:left-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-orange-500/8 to-amber-500/8 blur-3xl"
+          className="absolute top-1/3 right-1/4 rtl:right-auto rtl:left-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-orange-200/15 to-amber-200/15 blur-3xl"
           animate={{ y: [0, 20, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
 
-      {/* Grid pattern */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-        backgroundSize: '60px 60px',
+      {/* Subtle dot grid pattern */}
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
+        backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.15) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
       }} />
 
       {/* Top-right language switcher + back button */}
@@ -1454,7 +1483,7 @@ function PromptPhase() {
           variant="ghost"
           size="sm"
           onClick={() => navigate('landing')}
-          className="text-white/60 hover:text-white hover:bg-white/5 text-xs"
+          className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 text-xs"
         >
           <ArrowLeft className="h-3.5 w-3.5 mr-1 rtl:ml-1 rtl:mr-0 rtl:rotate-180" />
           {t('builder.backToHome')}
@@ -1477,43 +1506,43 @@ function PromptPhase() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm backdrop-blur-md"
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm"
           >
-            <Sparkles className="h-4 w-4 text-purple-400" />
-            <span className="text-white/60">{t('builder.poweredBy', { n: totalEnabledPages })}</span>
+            <Sparkles className="h-4 w-4 text-violet-500" />
+            <span className="text-gray-600">{t('builder.poweredBy', { n: totalEnabledPages })}</span>
           </motion.div>
 
-          <h1 className="mb-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
+          <h1 className="mb-3 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
             {t('builder.title')}
           </h1>
-          <p className="text-lg text-white/40">
+          <p className="text-lg text-gray-500">
             {t('builder.subtitle')}
           </p>
         </div>
 
-        {/* Controls row: industry + style + language */}
+        {/* Controls row: industry + language */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mb-5 grid gap-4 sm:grid-cols-3"
+          className="mb-5 grid gap-4 sm:grid-cols-2"
         >
           {/* Industry selector */}
           <GlassCard label={t('builder.industry')} icon={Briefcase}>
             <Select value={builderIndustry} onValueChange={(v) => setBuilderIndustry(v as Industry)}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
+              <SelectTrigger className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#15151F] border-white/10 max-h-80">
+              <SelectContent className="bg-white border-gray-200 max-h-80">
                 {INDUSTRY_OPTIONS.map(opt => {
                   const Icon = opt.icon
                   return (
-                    <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white">
+                    <SelectItem key={opt.id} value={opt.id} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-purple-400" />
+                        <Icon className="h-4 w-4 text-violet-500" />
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">{opt.label}</span>
-                          <span className="text-xs text-white/40">{opt.hint}</span>
+                          <span className="text-xs text-gray-500">{opt.hint}</span>
                         </div>
                       </div>
                     </SelectItem>
@@ -1523,31 +1552,38 @@ function PromptPhase() {
             </Select>
           </GlassCard>
 
-          {/* Palette selector */}
-          <GlassCard label={t('builder.style')} icon={Palette}>
-            <PaletteQuickSelect />
-          </GlassCard>
-
           {/* Language selector (generated site's language, NOT UI language) */}
           <GlassCard label={t('builder.siteLanguage')} icon={Globe}>
             <Select value={builderLanguage} onValueChange={(v) => setBuilderLanguage(v as any)}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white hover:bg-white/10">
+              <SelectTrigger className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#15151F] border-white/10 max-h-80">
+              <SelectContent className="bg-white border-gray-200 max-h-80">
                 {LANGUAGE_OPTIONS.map(opt => (
-                  <SelectItem key={opt.id} value={opt.id} className="text-white focus:bg-purple-500/20 focus:text-white">
+                  <SelectItem key={opt.id} value={opt.id} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
                     <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-purple-400" />
+                      <Globe className="h-4 w-4 text-violet-500" />
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{opt.label}</span>
-                        <span className="text-xs text-white/40" dir="ltr">{opt.font} · {opt.dir.toUpperCase()}</span>
+                        <span className="text-xs text-gray-500" dir="ltr">{opt.font} · {opt.dir.toUpperCase()}</span>
                       </div>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </GlassCard>
+        </motion.div>
+
+        {/* Palette selector — full width */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="mb-5"
+        >
+          <GlassCard label={t('builder.style')} icon={Palette}>
+            <PaletteQuickSelect />
           </GlassCard>
         </motion.div>
 
@@ -1558,14 +1594,14 @@ function PromptPhase() {
           transition={{ delay: 0.4 }}
           className="relative mb-6"
         >
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/5 to-transparent" />
+          <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-gray-50/50 to-transparent" />
             <Textarea
               ref={textareaRef}
               value={builderPrompt}
               onChange={(e) => setBuilderPrompt(e.target.value)}
               placeholder={t('builder.placeholder')}
-              className="relative min-h-[160px] resize-none border-0 bg-transparent p-6 text-base text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
+              className="relative min-h-[160px] resize-none border-0 bg-transparent p-6 text-base text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
@@ -1574,14 +1610,14 @@ function PromptPhase() {
               }}
             />
             {builderPrompt.length === 0 && cursorVisible && (
-              <div className="absolute left-6 rtl:left-auto rtl:right-6 top-[88px] h-5 w-0.5 animate-pulse bg-purple-400" />
+              <div className="absolute left-6 rtl:left-auto rtl:right-6 top-[88px] h-5 w-0.5 animate-pulse bg-violet-500" />
             )}
             {/* Footer of textarea */}
-            <div className="flex items-center justify-between border-t border-white/5 bg-black/20 px-6 py-2.5">
-              <span className="text-xs text-white/30" dir="ltr">
+            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-6 py-2.5">
+              <span className="text-xs text-gray-400" dir="ltr">
                 {t('builder.chars', { n: builderPrompt.length })}
               </span>
-              <span className="text-xs text-white/40">
+              <span className="text-xs text-gray-500">
                 {t('builder.pageCount', { enabled: enabledPages.length, total: totalEnabledPages })}
               </span>
             </div>
@@ -1617,7 +1653,7 @@ function PromptPhase() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          <p className="mb-4 text-center text-sm text-white/30">{t('builder.tryExample')}</p>
+          <p className="mb-4 text-center text-sm text-gray-400">{t('builder.tryExample')}</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PROMPT_SUGGESTIONS.map((suggestion, i) => (
               <motion.div
@@ -1627,17 +1663,17 @@ function PromptPhase() {
                 transition={{ delay: 0.7 + i * 0.06 }}
               >
                 <Card
-                  className="cursor-pointer border-white/8 bg-white/[0.02] backdrop-blur-md transition-all duration-300 hover:border-purple-500/30 hover:bg-white/[0.05] hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10"
+                  className="cursor-pointer border-gray-200 bg-white transition-all duration-300 hover:border-violet-200 hover:shadow-md hover:-translate-y-1"
                   onClick={() => handleSuggestionClick(suggestion.text, suggestion.industry)}
                 >
                   <CardContent className="flex h-full flex-col gap-2 p-4">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">{suggestion.icon}</span>
-                      <Badge variant="secondary" className="ml-auto border-white/10 bg-white/5 text-xs text-white/40">
+                      <Badge variant="secondary" className="ml-auto border-gray-200 bg-gray-100 text-xs text-gray-500">
                         {INDUSTRY_OPTIONS.find(o => o.id === suggestion.industry)?.label.split(' ')[0]}
                       </Badge>
                     </div>
-                    <span className="text-sm leading-relaxed text-white/70 line-clamp-3">{suggestion.text}</span>
+                    <span className="text-sm leading-relaxed text-gray-700 line-clamp-3">{suggestion.text}</span>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1924,21 +1960,21 @@ function GeneratingPhase() {
   const hasError = pageStates.some(p => p.status === 'error')
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
-      {/* Animated gradient orbs */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 bg-gradient-to-b from-white to-slate-50">
+      {/* Subtle animated gradient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute left-1/4 top-1/4 h-60 w-60 rounded-full bg-purple-500/20 blur-[100px]"
-          animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
+          className="absolute left-1/4 top-1/4 h-60 w-60 rounded-full bg-violet-200/30 blur-[100px]"
+          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute right-1/4 bottom-1/4 h-60 w-60 rounded-full bg-pink-500/20 blur-[100px]"
-          animate={{ scale: [1.5, 1, 1.5], opacity: [0.3, 0.2, 0.3] }}
+          className="absolute right-1/4 bottom-1/4 h-60 w-60 rounded-full bg-pink-200/30 blur-[100px]"
+          animate={{ scale: [1.5, 1, 1.5], opacity: [0.4, 0.3, 0.4] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute left-1/2 top-1/2 h-40 w-40 rounded-full bg-emerald-500/15 blur-[80px]"
+          className="absolute left-1/2 top-1/2 h-40 w-40 rounded-full bg-emerald-200/20 blur-[80px]"
           animate={{ scale: [1, 1.3, 1], x: [0, 40, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -1957,25 +1993,25 @@ function GeneratingPhase() {
             animate={{ rotate: hasError ? 0 : 360 }}
             transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
           >
-            <div className="absolute inset-0 rounded-full border-2 border-purple-500/30" />
-            <div className="absolute inset-2 rounded-full border-2 border-pink-500/20" style={{ animationDirection: 'reverse' }} />
-            <div className="absolute inset-4 rounded-full border-2 border-emerald-500/20" />
+            <div className="absolute inset-0 rounded-full border-2 border-violet-300/40" />
+            <div className="absolute inset-2 rounded-full border-2 border-pink-300/30" style={{ animationDirection: 'reverse' }} />
+            <div className="absolute inset-4 rounded-full border-2 border-emerald-300/30" />
             <motion.div
               className="absolute inset-0 flex items-center justify-center"
               animate={{ rotate: hasError ? 0 : -360 }}
               transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
             >
-              {hasError ? <AlertCircle className="h-8 w-8 text-red-400" /> : <Sparkles className="h-8 w-8 text-purple-400" />}
+              {hasError ? <AlertCircle className="h-8 w-8 text-red-400" /> : <Sparkles className="h-8 w-8 text-violet-500" />}
             </motion.div>
           </motion.div>
         </div>
 
         {/* Title */}
         <div className="mb-8 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-white">
+          <h2 className="mb-2 text-2xl font-bold text-gray-900">
             {hasError ? 'Generation hit an error' : 'Generating your website'}
           </h2>
-          <p className="text-sm text-white/40">
+          <p className="text-sm text-gray-500">
             {hasError
               ? 'One of the pages failed. You can retry from the prompt, or cancel.'
               : `AI is crafting ${pagesToGenerate.length} complete pages sequentially — this takes ~4-6 minutes total`
@@ -1989,21 +2025,21 @@ function GeneratingPhase() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left"
+            className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm"
           >
-            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-white/50">
-              <Sparkles className="h-3 w-3 text-purple-400" />
+            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+              <Sparkles className="h-3 w-3 text-violet-500" />
               Detected from your prompt
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {parsedPrompt.hexColors.length > 0 && (
                 <div>
-                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Colors</div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Colors</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.hexColors.map(c => (
-                      <div key={c} className="flex items-center gap-1 rounded-md border border-white/10 bg-black/30 px-2 py-1">
-                        <div className="h-3 w-3 rounded-sm border border-white/20" style={{ background: c }} />
-                        <span className="text-[10px] font-mono text-white/70">{c}</span>
+                      <div key={c} className="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1">
+                        <div className="h-3 w-3 rounded-sm border border-gray-300" style={{ background: c }} />
+                        <span className="text-[10px] font-mono text-gray-700">{c}</span>
                       </div>
                     ))}
                   </div>
@@ -2011,44 +2047,44 @@ function GeneratingPhase() {
               )}
               {parsedPrompt.themeKeywords.length > 0 && (
                 <div>
-                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Theme</div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Theme</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.themeKeywords.map(t => (
-                      <span key={t} className="rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-1 text-[10px] text-purple-300">{t}</span>
+                      <span key={t} className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] text-violet-600">{t}</span>
                     ))}
                   </div>
                 </div>
               )}
               {parsedPrompt.requiredElements.length > 0 && (
                 <div>
-                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Required Elements</div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Required Elements</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.requiredElements.map(e => (
-                      <span key={e} className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-300">{e}</span>
+                      <span key={e} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] text-emerald-700">{e}</span>
                     ))}
                   </div>
                 </div>
               )}
               {parsedPrompt.animations.length > 0 && (
                 <div>
-                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Animations</div>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Animations</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.animations.map(a => (
-                      <span key={a} className="rounded-md border border-pink-500/30 bg-pink-500/10 px-2 py-1 text-[10px] text-pink-300">{a}</span>
+                      <span key={a} className="rounded-md border border-pink-200 bg-pink-50 px-2 py-1 text-[10px] text-pink-700">{a}</span>
                     ))}
                   </div>
                 </div>
               )}
               {parsedPrompt.subIndustry && (
                 <div>
-                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Industry Sub-context</div>
-                  <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">{parsedPrompt.subIndustry}</span>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Industry Sub-context</div>
+                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] text-amber-700">{parsedPrompt.subIndustry}</span>
                 </div>
               )}
               {parsedPrompt.isSinglePage && (
                 <div>
-                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Mode</div>
-                  <span className="rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-[10px] text-blue-300">Single-page site</span>
+                  <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Mode</div>
+                  <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Single-page site</span>
                 </div>
               )}
             </div>
@@ -2059,9 +2095,9 @@ function GeneratingPhase() {
         <div className="mb-6">
           <Progress
             value={hasError ? 100 : (doneCount / pagesToGenerate.length) * 100}
-            className={`h-2 bg-white/10 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-purple-500 [&>[data-slot=progress-indicator]]:via-pink-500 [&>[data-slot=progress-indicator]]:to-emerald-500 ${hasError ? '[&>[data-slot=progress-indicator]]:from-red-500 [&>[data-slot=progress-indicator]]:via-red-500 [&>[data-slot=progress-indicator]]:to-red-500' : ''}`}
+            className={`h-2 bg-gray-100 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-violet-500 [&>[data-slot=progress-indicator]]:via-pink-500 [&>[data-slot=progress-indicator]]:to-emerald-500 ${hasError ? '[&>[data-slot=progress-indicator]]:from-red-500 [&>[data-slot=progress-indicator]]:via-red-500 [&>[data-slot=progress-indicator]]:to-red-500' : ''}`}
           />
-          <div className="mt-2 flex justify-between text-xs text-white/40">
+          <div className="mt-2 flex justify-between text-xs text-gray-500">
             <span>{doneCount}/{pagesToGenerate.length} pages done</span>
             <span>{formatTime(elapsedSeconds)} elapsed</span>
           </div>
@@ -2084,19 +2120,19 @@ function GeneratingPhase() {
                 transition={{ delay: i * 0.1 }}
                 className={`flex items-center gap-3 rounded-lg border p-3 transition-all duration-500 ${
                   isError
-                    ? 'border-red-500/30 bg-red-500/10'
+                    ? 'border-red-300 bg-red-50'
                     : isDone
-                    ? 'border-emerald-500/20 bg-emerald-500/5'
+                    ? 'border-emerald-200 bg-emerald-50'
                     : isGenerating
-                    ? 'border-purple-500/30 bg-purple-500/10'
-                    : 'border-white/5 bg-white/[0.02]'
+                    ? 'border-violet-200 bg-violet-50'
+                    : 'border-gray-200 bg-gray-50'
                 }`}
               >
                 <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                  isError ? 'bg-red-500/20 text-red-400'
-                  : isDone ? 'bg-emerald-500/20 text-emerald-400'
-                  : isGenerating ? 'bg-purple-500/20 text-purple-400'
-                  : 'bg-white/5 text-white/20'
+                  isError ? 'bg-red-100 text-red-600'
+                  : isDone ? 'bg-emerald-100 text-emerald-600'
+                  : isGenerating ? 'bg-violet-100 text-violet-600'
+                  : 'bg-gray-100 text-gray-400'
                 }`}>
                   {isDone ? (
                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300 }}>
@@ -2112,27 +2148,27 @@ function GeneratingPhase() {
                 </div>
                 <div className="flex-1">
                   <span className={`text-sm font-medium ${
-                    isError ? 'text-red-300'
-                    : isDone ? 'text-emerald-300'
-                    : isGenerating ? 'text-white'
-                    : 'text-white/30'
+                    isError ? 'text-red-700'
+                    : isDone ? 'text-emerald-700'
+                    : isGenerating ? 'text-gray-900'
+                    : 'text-gray-400'
                   }`}>
                     {page.name}{t('builder.pageSuffix')}
                   </span>
                   {isError && page.error && (
-                    <p className="text-xs text-red-400/70 mt-0.5 line-clamp-1">{page.error}</p>
+                    <p className="text-xs text-red-500/70 mt-0.5 line-clamp-1">{page.error}</p>
                   )}
                   {isGenerating && (
-                    <p className="text-xs text-purple-300/70 mt-0.5">{t('builder.aiWriting')}</p>
+                    <p className="text-xs text-violet-600/70 mt-0.5">{t('builder.aiWriting')}</p>
                   )}
                   {isDone && (
-                    <p className="text-xs text-emerald-400/70 mt-0.5">
+                    <p className="text-xs text-emerald-600/70 mt-0.5">
                       {page.html ? t('builder.kbGenerated', { n: (page.html.length / 1024).toFixed(1) }) : t('builder.ready')}
                     </p>
                   )}
                 </div>
                 {isDone && (
-                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-emerald-400">✓</motion.span>
+                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-emerald-600">✓</motion.span>
                 )}
               </motion.div>
             )
@@ -2149,7 +2185,7 @@ function GeneratingPhase() {
           <Button
             variant="ghost"
             onClick={handleCancel}
-            className="text-white/30 hover:text-white/60 hover:bg-white/5"
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100"
           >
             <X className="mr-2 h-4 w-4" />
             {t('builder.cancelGeneration')}
@@ -2158,7 +2194,7 @@ function GeneratingPhase() {
 
         {/* Live status line */}
         {!hasError && (
-          <p className="mt-6 text-center text-xs text-white/30">
+          <p className="mt-6 text-center text-xs text-gray-400">
             {generationStatus || t('builder.initializing')}
           </p>
         )}
@@ -2192,27 +2228,28 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
   } = useAppStore()
   const t = useTranslation()
 
-  // Theme helpers
-  const isLight = builderStyle === 'light' || builderStyle === 'minimal'
+  // Builder UI is always light theme — the preview iframe content has its own styling
+  // isLight controls the builder chrome (toolbar, sidebar, etc.), not the generated site
+  const isLight = true
 
-  // Dynamic classes based on builder style
+  // Dynamic classes — always light theme for builder UI
   const th = {
-    bg: isLight ? 'bg-background' : 'bg-[#0a0a0f]',
-    bgAlt: isLight ? 'bg-secondary/30' : 'bg-[#0c0c14]',
-    bgAlt2: isLight ? 'bg-secondary/20' : 'bg-[#1a1a24]',
-    text: isLight ? 'text-foreground' : 'text-white',
-    textMuted: isLight ? 'text-muted-foreground' : 'text-white/40',
-    textDim: isLight ? 'text-muted-foreground/60' : 'text-white/30',
-    textBright: isLight ? 'text-foreground' : 'text-white/80',
-    textSub: isLight ? 'text-muted-foreground/40' : 'text-white/20',
-    border: isLight ? 'border-border/40' : 'border-white/8',
-    borderSub: isLight ? 'border-border/20' : 'border-white/5',
-    hover: isLight ? 'hover:bg-secondary/50' : 'hover:bg-white/5',
-    hoverText: isLight ? 'hover:text-foreground' : 'hover:text-white/60',
-    activeBg: isLight ? 'bg-primary/10' : 'bg-purple-500/10',
-    activeBorder: isLight ? 'border-primary/20' : 'border-purple-500/20',
-    activeText: isLight ? 'text-primary' : 'text-purple-300',
-    separator: isLight ? 'bg-border/30' : 'bg-white/5',
+    bg: 'bg-white',
+    bgAlt: 'bg-slate-50',
+    bgAlt2: 'bg-gray-100',
+    text: 'text-gray-900',
+    textMuted: 'text-gray-500',
+    textDim: 'text-gray-400',
+    textBright: 'text-gray-800',
+    textSub: 'text-gray-300',
+    border: 'border-gray-200',
+    borderSub: 'border-gray-100',
+    hover: 'hover:bg-gray-50',
+    hoverText: 'hover:text-gray-700',
+    activeBg: 'bg-violet-50',
+    activeBorder: 'border-violet-200',
+    activeText: 'text-violet-600',
+    separator: 'bg-gray-200',
   }
 
   const [deviceSize, setDeviceSize] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
@@ -2329,7 +2366,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
       {/* Top toolbar */}
       <div className={`flex items-center justify-between border-b ${th.border} ${th.bgAlt} px-4 py-3`}>
         <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+          <Badge variant="secondary" className="border-emerald-200 bg-emerald-50 text-emerald-700">
             <CheckCircle2 className="mr-1 h-3 w-3" />
             {t('common.ready')}
           </Badge>
@@ -2338,7 +2375,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
         </div>
 
         {/* Device toggle */}
-        <div className={`flex items-center gap-1 rounded-lg border ${th.border} ${isLight ? 'bg-secondary/20' : 'bg-white/[0.03]'} p-1`}>
+        <div className={`flex items-center gap-1 rounded-lg border ${th.border} bg-slate-50 p-1`}>
           {(Object.entries(DEVICE_SIZES) as [keyof typeof DEVICE_SIZES, typeof DEVICE_SIZES[keyof typeof DEVICE_SIZES]][]).map(([key, config]) => {
             const Icon = config.icon
             return (
@@ -2347,7 +2384,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
                 variant={deviceSize === key ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => setDeviceSize(key)}
-                className={`h-8 px-2 ${deviceSize === key ? `${isLight ? 'bg-secondary text-foreground' : 'bg-white/10 text-white'}` : `${th.textDim} ${th.hoverText}`}`}
+                className={`h-8 px-2 ${deviceSize === key ? 'bg-white text-gray-900 shadow-sm' : `${th.textDim} ${th.hoverText}`}`}
               >
                 <Icon className="h-4 w-4" />
               </Button>
@@ -2369,7 +2406,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             <Download className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.export')}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleExportAll} className="text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/5">
+          <Button variant="ghost" size="sm" onClick={handleExportAll} className="text-emerald-600/60 hover:text-emerald-700 hover:bg-emerald-50">
             <Rocket className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.exportAll')}</span>
           </Button>
@@ -2416,7 +2453,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             </div>
           </div>
 
-          <div className={`mt-6 rounded-lg border ${th.border} ${isLight ? 'bg-secondary/20' : 'bg-white/[0.02]'} p-3`}>
+          <div className={`mt-6 rounded-lg border ${th.border} bg-slate-50 p-3`}>
             <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.siteDetails')}</p>
             <div className={`space-y-2 text-xs ${th.textMuted}`}>
               <div className="flex justify-between">
@@ -2480,9 +2517,9 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
                   <TooltipProvider key={key}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className={`h-5 w-5 rounded ${isLight ? 'border border-border/60' : 'border border-white/15'} cursor-pointer`} style={{ backgroundColor: color }} />
+                        <div className={`h-5 w-5 rounded border border-gray-300 cursor-pointer`} style={{ backgroundColor: color }} />
                       </TooltipTrigger>
-                      <TooltipContent className={`${isLight ? '' : 'bg-[#15151F] border-white/10'} text-xs ${th.textMuted}`}>
+                      <TooltipContent className="bg-white border-gray-200 text-xs text-gray-500">
                         {key}
                       </TooltipContent>
                     </Tooltip>
@@ -2492,19 +2529,19 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             </div>
           </div>
 
-          <div className={`mt-4 rounded-lg border ${isLight ? 'border-primary/20 bg-primary/[0.02]' : 'border-white/8 bg-white/[0.02]'} p-3`}>
+          <div className={`mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3`}>
             <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.prompt')}</p>
             <p className={`text-xs ${th.textMuted} leading-relaxed line-clamp-6`}>{builderPrompt}</p>
           </div>
 
           {/* Phase 4: Industry Image Library — collapsible */}
-          <div className={`mt-4 rounded-lg border ${isLight ? 'border-primary/20 bg-primary/[0.02]' : 'border-purple-500/20 bg-purple-500/[0.02]'} overflow-hidden`}>
+          <div className={`mt-4 rounded-lg border border-violet-200 bg-violet-50 overflow-hidden`}>
             <details>
-              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium ${isLight ? 'text-primary/70' : 'text-purple-200/70'} uppercase tracking-wider ${isLight ? 'hover:bg-primary/5' : 'hover:bg-purple-500/5'} flex items-center gap-2`}>
+              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium text-violet-600/70 uppercase tracking-wider hover:bg-violet-100 flex items-center gap-2`}>
                 <Layers className="w-3 h-3" />
                 {t('p4.title')}
               </summary>
-              <div className={`p-3 pt-2 border-t ${isLight ? 'border-primary/10' : 'border-purple-500/10'}`}>
+              <div className={`p-3 pt-2 border-t border-gray-200`}>
                 <IndustryGallery
                   compact
                   disableGeneration={false}
@@ -2515,13 +2552,13 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
           </div>
 
           {/* Phase 5: Animation Library — collapsible */}
-          <div className={`mt-3 rounded-lg border ${isLight ? 'border-violet-500/20 bg-violet-500/[0.02]' : 'border-violet-500/20 bg-violet-500/[0.02]'} overflow-hidden`}>
+          <div className={`mt-3 rounded-lg border border-violet-200 bg-violet-50 overflow-hidden`}>
             <details>
-              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium ${isLight ? 'text-violet-600/70' : 'text-violet-200/70'} uppercase tracking-wider ${isLight ? 'hover:bg-violet-500/5' : 'hover:bg-violet-500/5'} flex items-center gap-2`}>
+              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium text-violet-600/70 uppercase tracking-wider hover:bg-violet-100 flex items-center gap-2`}>
                 <Sparkles className="w-3 h-3" />
                 {t('p5.title')}
               </summary>
-              <div className={`p-3 pt-3 border-t ${isLight ? 'border-violet-500/10' : 'border-violet-500/10'}`}>
+              <div className={`p-3 pt-3 border-t border-gray-200`}>
                 <AnimationShowcase compact />
               </div>
             </details>
@@ -2529,10 +2566,10 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
         </div>
 
         {/* Preview area */}
-        <div className={`flex flex-1 items-center justify-center ${isLight ? 'bg-secondary/10' : 'bg-[#0a0a0f]'} p-4 overflow-auto`}>
+        <div className={`flex flex-1 items-center justify-center bg-slate-50 p-4 overflow-auto`}>
           <motion.div
             layout
-            className={`relative overflow-hidden rounded-xl border ${isLight ? 'border-border/60 shadow-lg' : 'border-white/10 shadow-2xl shadow-black/40'}`}
+            className={`relative overflow-hidden rounded-xl border border-gray-300 shadow-lg`}
             style={{ width: iframeWidth, maxWidth: '100%', height: deviceSize === 'mobile' ? '667px' : deviceSize === 'tablet' ? '1024px' : 'calc(100vh - 120px)' }}
           >
             {/* Browser chrome */}
@@ -2543,7 +2580,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
                 <div className="h-3 w-3 rounded-full bg-[#28c840]" />
               </div>
               <div className="flex-1 mx-4">
-                <div className={`flex items-center gap-1 rounded-md ${isLight ? 'bg-secondary/50' : 'bg-white/5'} px-3 py-1`}>
+                <div className={`flex items-center gap-1 rounded-md bg-gray-100 px-3 py-1`}>
                   <Lock className={`h-3 w-3 ${th.textSub}`} />
                   <span className={`text-xs ${th.textDim} truncate`}>
                     {siteName.toLowerCase().replace(/\s+/g, '-')}.app{currentPage.route === '/' ? '' : currentPage.route}
@@ -2579,19 +2616,19 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
   const builderStyle = useAppStore((s) => s.builderStyle)
   const t = useTranslation()
 
-  const isLight = builderStyle === 'light' || builderStyle === 'minimal'
-  const bgClass = isLight ? 'bg-background border-border/60' : 'bg-[#0c0c14] border-white/8'
-  const textClass = isLight ? 'text-foreground' : 'text-white'
-  const mutedClass = isLight ? 'text-muted-foreground' : 'text-white/40'
-  const hoverClass = isLight ? 'hover:bg-secondary/50' : 'hover:bg-white/5'
-  const activeClass = isLight ? 'bg-primary/10 text-primary' : 'bg-purple-500/10 text-purple-300'
+  // Builder UI is always light theme
+  const bgClass = 'bg-white border-gray-200'
+  const textClass = 'text-gray-900'
+  const mutedClass = 'text-gray-500'
+  const hoverClass = 'hover:bg-gray-50'
+  const activeClass = 'bg-violet-50 text-violet-700'
 
   return (
     <>
       {/* Toggle button (always visible, positioned on the left edge) */}
       <button
         onClick={onToggle}
-        className={`fixed top-3 left-3 z-50 h-8 w-8 rounded-lg border ${isLight ? 'border-border/60 bg-background' : 'border-white/10 bg-[#0c0c14]'} ${textClass} flex items-center justify-center transition-all hover:opacity-80`}
+        className={`fixed top-3 left-3 z-50 h-8 w-8 rounded-lg border border-gray-200 bg-white ${textClass} flex items-center justify-center transition-all hover:opacity-80`}
         title={isOpen ? t('builder.closeSidebar') : t('builder.openSidebar')}
       >
         <MessageSquare className="h-4 w-4" />
@@ -2608,7 +2645,7 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
             className={`fixed inset-y-0 left-0 z-40 w-[260px] ${bgClass} border-r flex flex-col`}
           >
             {/* Header */}
-            <div className={`flex items-center justify-between px-4 py-3 border-b ${isLight ? 'border-border/40' : 'border-white/8'}`}>
+            <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-200`}>
               <div className="flex items-center gap-2">
                 <MessageSquare className={`h-4 w-4 ${mutedClass}`} />
                 <span className={`text-sm font-semibold ${textClass}`}>{t('builder.chatHistory')}</span>
@@ -2652,10 +2689,10 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
                       <span className={`text-sm font-medium truncate ${activeChatId === chat.id ? '' : mutedClass}`}>
                         {chat.title}
                       </span>
-                      <span className={`text-xs mt-0.5 truncate ${isLight ? 'text-muted-foreground/60' : 'text-white/25'}`}>
+                      <span className={`text-xs mt-0.5 truncate text-gray-400`}>
                         {chat.prompt.slice(0, 60)}{chat.prompt.length > 60 ? '...' : ''}
                       </span>
-                      <span className={`text-[10px] mt-1 ${isLight ? 'text-muted-foreground/40' : 'text-white/20'}`}>
+                      <span className={`text-[10px] mt-1 text-gray-300`}>
                         {new Date(chat.timestamp).toLocaleDateString()} · {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </button>
@@ -2665,16 +2702,14 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
             </div>
 
             {/* New chat button */}
-            <div className={`px-3 py-3 border-t ${isLight ? 'border-border/40' : 'border-white/8'}`}>
+            <div className={`px-3 py-3 border-t border-gray-200`}>
               <button
                 onClick={() => {
                   useAppStore.getState().setBuilderPhase('prompt')
                   useAppStore.getState().setBuilderPrompt('')
                   setActiveChatId(null)
                 }}
-                className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-                  isLight ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
-                }`}
+                className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium transition-all bg-violet-500 text-white hover:bg-violet-600`}
               >
                 <Plus className="h-4 w-4" />
                 {t('builder.newChat')}
@@ -2694,13 +2729,8 @@ export default function BuilderPage() {
   const t = useTranslation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Determine if builder should use light theme
-  const isLightBuilder = builderStyle === 'light' || builderStyle === 'minimal'
-
-  // Theme-dependent classes for the main wrapper
-  const wrapperBg = isLightBuilder && builderPhase === 'preview'
-    ? 'min-h-screen bg-background'
-    : 'min-h-screen bg-[#0a0a0f]'
+  // Builder UI is always light theme
+  const wrapperBg = 'min-h-screen bg-slate-50'
 
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
@@ -2722,10 +2752,10 @@ export default function BuilderPage() {
           {builderPhase === 'generating' && <GeneratingPhase />}
           {builderPhase === 'preview' && <PreviewPhase sidebarOpen={sidebarOpen} />}
           {builderPhase === 'edit' && (
-            <div className="flex min-h-screen items-center justify-center">
+            <div className="flex min-h-screen items-center justify-center bg-slate-50">
               <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-purple-400 mx-auto mb-4" />
-                <p className="text-white/60">{t('builder.transitioning')}</p>
+                <Loader2 className="h-8 w-8 animate-spin text-violet-500 mx-auto mb-4" />
+                <p className="text-gray-600">{t('builder.transitioning')}</p>
               </div>
             </div>
           )}
