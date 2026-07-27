@@ -45,6 +45,15 @@ export function BuilderPlayground({ isDark }: { isDark: boolean }) {
   const handleDragStart = useCallback((blockId: string) => { setDraggedBlock(blockId) }, [])
   const handleDragEnd = useCallback(() => { setDraggedBlock(null); setDragOverIndex(null) }, [])
 
+  // Tap-to-add: clicking a palette block adds it to canvas (mobile fallback for drag)
+  const handleTapAdd = useCallback((blockId: string) => {
+    const block = BLOCK_TYPES.find(b => b.id === blockId)
+    if (block) {
+      const newBlock = { ...block, id: `${block.id}-${Date.now()}` }
+      setPlacedBlocks(prev => [...prev, newBlock])
+    }
+  }, [])
+
   const handleCanvasDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     if (!draggedBlock) return
@@ -100,8 +109,9 @@ export function BuilderPlayground({ isDark }: { isDark: boolean }) {
             const Icon = block.icon
             return (
               <motion.div key={block.id} draggable onDragStart={() => handleDragStart(block.id)} onDragEnd={handleDragEnd}
+                onClick={() => handleTapAdd(block.id)}
                 whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-grab active:cursor-grabbing transition-shadow"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-grab active:cursor-grabbing transition-shadow focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 style={{ background: isDark ? `${block.color}15` : `${block.color}10`, border: `1px solid ${block.color}25` }}
               >
                 <div className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0" style={{ background: block.bgGradient }}>
