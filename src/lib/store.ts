@@ -110,6 +110,14 @@ interface BuilderAdvancedOptions {
 }
 
 export type EditorPanel = 'layers' | 'components' | 'design-library' | 'design-tokens' | 'pages' | 'assets'
+
+export interface ChatEntry {
+  id: string
+  title: string
+  prompt: string
+  timestamp: number
+  projectId?: string
+}
 export type InspectorTab = 'style' | 'layout' | 'animation' | 'seo' | 'responsive' | 'content'
 export type EditorCanvasMode = 'select' | 'text' | 'move' | 'draw'
 
@@ -184,6 +192,10 @@ interface AppState {
   generationStatus: string
   selectedTemplateHtml: string
   
+  // Chat History (ChatGPT-like sidebar)
+  chatHistory: ChatEntry[]
+  activeChatId: string | null
+  
   // Editor
   editorPanel: EditorPanel
   inspectorTab: InspectorTab
@@ -243,6 +255,9 @@ interface AppState {
   setGenerationStatus: (status: string) => void
   startGeneration: (prompt: string) => void
   setSelectedTemplateHtml: (html: string) => void
+  addChatEntry: (entry: ChatEntry) => void
+  setActiveChatId: (id: string | null) => void
+  clearChatHistory: () => void
   
   // Actions - Editor
   setEditorPanel: (panel: EditorPanel) => void
@@ -330,6 +345,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   generationProgress: 0,
   generationStatus: '',
   selectedTemplateHtml: '',
+  chatHistory: [],
+  activeChatId: null,
   
   editorPanel: 'components',
   inspectorTab: 'style',
@@ -409,6 +426,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     generationStatus: 'Initializing…'
   }),
   setSelectedTemplateHtml: (html) => set({ selectedTemplateHtml: html }),
+  addChatEntry: (entry) => set((state) => ({ chatHistory: [...state.chatHistory, entry], activeChatId: entry.id })),
+  setActiveChatId: (id) => set({ activeChatId: id }),
+  clearChatHistory: () => set({ chatHistory: [], activeChatId: null }),
   
   // Editor
   setEditorPanel: (panel) => set({ editorPanel: panel }),

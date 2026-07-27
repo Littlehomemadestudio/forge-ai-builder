@@ -1,9 +1,11 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useSession, signIn } from 'next-auth/react'
 import { useAppStore } from '@/lib/store'
 import dynamic from 'next/dynamic'
+import { AuthProvider } from '@/components/auth/AuthProvider'
 
 // Static import for landing page (first thing user sees)
 import LandingPage from '@/components/landing/LandingPage'
@@ -16,8 +18,41 @@ const DashboardPage = dynamic(() => import('@/components/dashboard/DashboardPage
 const BuilderPage = dynamic(() => import('@/components/builder/BuilderPage'), { ssr: false })
 const EditorPage = dynamic(() => import('@/components/editor/EditorPage'), { ssr: false })
 
-export default function Home() {
+// Protected views that require authentication
+const PROTECTED_VIEWS = ['builder', 'dashboard', 'editor'] as const
+
+function AppRouter() {
   const currentView = useAppStore((s) => s.currentView)
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated)
+  const navigate = useAppStore((s) => s.navigate)
+  const login = useAppStore((s) => s.login)
+  const { data: session, status } = useSession()
+
+  // When NextAuth session loads, sync it to the Zustand store
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user && !isAuthenticated) {
+      login({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        avatarUrl: session.user.image,
+        aiCredits: session.user.aiCredits,
+        plan: session.user.plan,
+      })
+      // If user is on landing or login, redirect to dashboard
+      const current = useAppStore.getState().currentView
+      if (current === 'landing' || current === 'login' || current === 'register' || current === 'forgot-password') {
+        navigate('dashboard')
+      }
+    }
+  }, [status, session, isAuthenticated, login, navigate])
+
+  // Auth gating: redirect to login if trying to access protected views without auth
+  useEffect(() => {
+    if (PROTECTED_VIEWS.includes(currentView as any) && !isAuthenticated && status !== 'loading') {
+      navigate('login')
+    }
+  }, [currentView, isAuthenticated, status, navigate])
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -51,5 +86,13 @@ export default function Home() {
         </motion.div>
       </AnimatePresence>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
   )
 }

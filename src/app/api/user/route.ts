@@ -6,9 +6,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'demo-user';
+    const email = searchParams.get('userIdByEmail');
+
+    // Support looking up by email (for post-login user fetch)
+    const whereClause = email ? { email } : { id: userId };
 
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: whereClause,
       include: {
         _count: {
           select: { projects: true },

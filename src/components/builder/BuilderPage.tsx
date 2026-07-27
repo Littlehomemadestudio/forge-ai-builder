@@ -32,7 +32,7 @@ import {
   Sun, Moon, Minimize, Flame, Sliders, Paintbrush, Shield, Accessibility,
   Image, Navigation, Megaphone, Clock, DollarSign, HelpCircle,
   MessageSquare, Share2, Phone, Columns, Grip, Tag, AlignLeft, AlignCenter, AlignRight, LayoutGrid,
-  FileText, Maximize2,
+  FileText, Maximize2, Trash2, Plus,
 } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { useTranslation } from '@/lib/useTranslation'
@@ -1482,6 +1482,7 @@ function GeneratingPhase() {
     setCurrentPreviewPage, setIsGenerating, setBuilderPhase,
     setGenerationProgress, setGenerationStatus,
     generationStatus,
+    addChatEntry,
   } = useAppStore()
   const t = useTranslation()
 
@@ -1692,6 +1693,14 @@ function GeneratingPhase() {
       setGenerationStatus('Done!')
       setIsGenerating(false)
       setBuilderPhase('preview')
+      // Add chat entry for this generation
+      const siteNameFinal = siteName || builderAdvancedOptions.brandName || 'Untitled Site'
+      addChatEntry({
+        id: `chat-${Date.now()}`,
+        title: siteNameFinal,
+        prompt: builderPrompt,
+        timestamp: Date.now(),
+      })
     }
 
     generateAll()
@@ -1977,7 +1986,7 @@ function LockIcon() {
 }
 const Lock = LockIcon
 
-function PreviewPhase() {
+function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
   const {
     generatedPages, generatedSiteName,
     currentPreviewPage, setCurrentPreviewPage,
@@ -1986,8 +1995,32 @@ function PreviewPhase() {
     builderIndustry, builderStyle,
     builderAdvancedOptions,
     builderMode, selectedTemplateHtml,
+    addChatEntry,
   } = useAppStore()
   const t = useTranslation()
+
+  // Theme helpers
+  const isLight = builderStyle === 'light' || builderStyle === 'minimal'
+
+  // Dynamic classes based on builder style
+  const th = {
+    bg: isLight ? 'bg-background' : 'bg-[#0a0a0f]',
+    bgAlt: isLight ? 'bg-secondary/30' : 'bg-[#0c0c14]',
+    bgAlt2: isLight ? 'bg-secondary/20' : 'bg-[#1a1a24]',
+    text: isLight ? 'text-foreground' : 'text-white',
+    textMuted: isLight ? 'text-muted-foreground' : 'text-white/40',
+    textDim: isLight ? 'text-muted-foreground/60' : 'text-white/30',
+    textBright: isLight ? 'text-foreground' : 'text-white/80',
+    textSub: isLight ? 'text-muted-foreground/40' : 'text-white/20',
+    border: isLight ? 'border-border/40' : 'border-white/8',
+    borderSub: isLight ? 'border-border/20' : 'border-white/5',
+    hover: isLight ? 'hover:bg-secondary/50' : 'hover:bg-white/5',
+    hoverText: isLight ? 'hover:text-foreground' : 'hover:text-white/60',
+    activeBg: isLight ? 'bg-primary/10' : 'bg-purple-500/10',
+    activeBorder: isLight ? 'border-primary/20' : 'border-purple-500/20',
+    activeText: isLight ? 'text-primary' : 'text-purple-300',
+    separator: isLight ? 'bg-border/30' : 'bg-white/5',
+  }
 
   const [deviceSize, setDeviceSize] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -2008,6 +2041,16 @@ function PreviewPhase() {
   }, [currentPreviewPage, currentPage])
 
   const handleSaveProject = () => {
+    // Create a chat entry for this generation
+    const chatId = `chat-${Date.now()}`
+    addChatEntry({
+      id: chatId,
+      title: siteName,
+      prompt: builderPrompt,
+      timestamp: Date.now(),
+      projectId: undefined,
+    })
+
     const project = {
       id: `proj-${Date.now()}`,
       name: siteName,
@@ -2082,27 +2125,27 @@ function PreviewPhase() {
 
   if (!currentPage) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] text-white/60">
+      <div className={`flex min-h-screen items-center justify-center ${th.bg} ${th.textMuted}`}>
         {t('builder.noPages')}
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#0a0a0f]">
+    <div className={`flex h-screen flex-col ${th.bg}`}>
       {/* Top toolbar */}
-      <div className="flex items-center justify-between border-b border-white/8 bg-[#0c0c14] px-4 py-3">
+      <div className={`flex items-center justify-between border-b ${th.border} ${th.bgAlt} px-4 py-3`}>
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
             <CheckCircle2 className="mr-1 h-3 w-3" />
             {t('common.ready')}
           </Badge>
-          <span className="text-sm font-semibold text-white/80">{siteName}</span>
-          <span className="hidden text-xs text-white/30 sm:inline">· {generatedPages.length} {t('builder.preview.pagesCount')} · {industryLabel} · {styleLabel}</span>
+          <span className={`text-sm font-semibold ${th.textBright}`}>{siteName}</span>
+          <span className={`hidden text-xs ${th.textDim} sm:inline`}>· {generatedPages.length} {t('builder.preview.pagesCount')} · {industryLabel} · {styleLabel}</span>
         </div>
 
         {/* Device toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-white/8 bg-white/[0.03] p-1">
+        <div className={`flex items-center gap-1 rounded-lg border ${th.border} ${isLight ? 'bg-secondary/20' : 'bg-white/[0.03]'} p-1`}>
           {(Object.entries(DEVICE_SIZES) as [keyof typeof DEVICE_SIZES, typeof DEVICE_SIZES[keyof typeof DEVICE_SIZES]][]).map(([key, config]) => {
             const Icon = config.icon
             return (
@@ -2111,7 +2154,7 @@ function PreviewPhase() {
                 variant={deviceSize === key ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => setDeviceSize(key)}
-                className={`h-8 px-2 ${deviceSize === key ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+                className={`h-8 px-2 ${deviceSize === key ? `${isLight ? 'bg-secondary text-foreground' : 'bg-white/10 text-white'}` : `${th.textDim} ${th.hoverText}`}`}
               >
                 <Icon className="h-4 w-4" />
               </Button>
@@ -2121,15 +2164,15 @@ function PreviewPhase() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleRegenerate} className="text-white/30 hover:text-white/60 hover:bg-white/5">
+          <Button variant="ghost" size="sm" onClick={handleRegenerate} className={`${th.textDim} ${th.hoverText} ${th.hover}`}>
             <RefreshCw className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.regenerate')}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleSaveProject} className="text-white/30 hover:text-white/60 hover:bg-white/5">
+          <Button variant="ghost" size="sm" onClick={handleSaveProject} className={`${th.textDim} ${th.hoverText} ${th.hover}`}>
             <Save className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.save')}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleExport} className="text-white/30 hover:text-white/60 hover:bg-white/5">
+          <Button variant="ghost" size="sm" onClick={handleExport} className={`${th.textDim} ${th.hoverText} ${th.hover}`}>
             <Download className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.export')}</span>
           </Button>
@@ -2147,9 +2190,9 @@ function PreviewPhase() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Page navigation */}
-        <div className="w-64 border-r border-white/8 bg-[#0c0c14] p-4 overflow-y-auto max-h-screen">
+        <div className={`w-64 border-r ${th.border} ${th.bgAlt} p-4 overflow-y-auto max-h-screen`}>
           <div className="mb-4">
-            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.pages')}</p>
+            <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.pages')}</p>
             <div className="space-y-1">
               {generatedPages.map((page, i) => {
                 const pageMeta = CORE_PAGE_ORDER[i]
@@ -2162,17 +2205,17 @@ function PreviewPhase() {
                     onClick={() => setCurrentPreviewPage(page.id)}
                     className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-all ${
                       isActive
-                        ? 'bg-purple-500/10 text-white border border-purple-500/20'
-                        : 'text-white/40 hover:bg-white/5 hover:text-white/60'
+                        ? `${th.activeBg} ${th.text} border ${th.activeBorder}`
+                        : `${th.textMuted} ${th.hover} ${th.hoverText}`
                     }`}
                   >
                     <Icon className="h-4 w-4" />
                     <div className="flex-1">
                       <div className="font-medium">{page.name}</div>
-                      <div className="text-xs text-white/30">{page.route}</div>
+                      <div className={`text-xs ${th.textDim}`}>{page.route}</div>
                     </div>
                     {page.html && (
-                      <span className="text-xs text-white/20">{(page.html.length / 1024).toFixed(1)}K</span>
+                      <span className={`text-xs ${th.textSub}`}>{(page.html.length / 1024).toFixed(1)}K</span>
                     )}
                   </motion.button>
                 )
@@ -2180,73 +2223,73 @@ function PreviewPhase() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-lg border border-white/8 bg-white/[0.02] p-3">
-            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.siteDetails')}</p>
-            <div className="space-y-2 text-xs text-white/40">
+          <div className={`mt-6 rounded-lg border ${th.border} ${isLight ? 'bg-secondary/20' : 'bg-white/[0.02]'} p-3`}>
+            <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.siteDetails')}</p>
+            <div className={`space-y-2 text-xs ${th.textMuted}`}>
               <div className="flex justify-between">
                 <span>{t('builder.preview.siteName')}</span>
-                <span className="text-white/60 truncate ml-2 max-w-32" title={siteName}>{siteName}</span>
+                <span className={`${th.textBright} truncate ml-2 max-w-32`} title={siteName}>{siteName}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.industry')}</span>
-                <span className="text-white/60">{industryLabel}</span>
+                <span className={th.textBright}>{industryLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.style')}</span>
-                <span className="text-white/60">{styleLabel}</span>
+                <span className={th.textBright}>{styleLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.pagesCount')}</span>
-                <span className="text-white/60">{generatedPages.length}</span>
+                <span className={th.textBright}>{generatedPages.length}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.totalSize')}</span>
-                <span className="text-white/60">
+                <span className={th.textBright}>
                   {(generatedPages.reduce((sum, p) => sum + (p.html?.length || 0), 0) / 1024).toFixed(1)} KB
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.framework')}</span>
-                <span className="text-white/60">HTML/CSS</span>
+                <span className={th.textBright}>HTML/CSS</span>
               </div>
-              <Separator className="bg-white/5 my-2" />
+              <Separator className={`${th.separator} my-2`} />
               <div className="flex justify-between">
                 <span>{t('builder.preview.complexity')}</span>
-                <span className="text-white/60">{complexityLabel}</span>
+                <span className={th.textBright}>{complexityLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.tone')}</span>
-                <span className="text-white/60">{toneLabel}</span>
+                <span className={th.textBright}>{toneLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.density')}</span>
-                <span className="text-white/60">{densityLabel}</span>
+                <span className={th.textBright}>{densityLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.seo')}</span>
-                <span className="text-white/60">{seoLabel}</span>
+                <span className={th.textBright}>{seoLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.accessibility')}</span>
-                <span className="text-white/60">{accessibilityLabel}</span>
+                <span className={th.textBright}>{accessibilityLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.sections')}</span>
-                <span className="text-white/60">{enabledSectionsCount}/{SECTION_TOGGLE_ITEMS.length}</span>
+                <span className={th.textBright}>{enabledSectionsCount}/{SECTION_TOGGLE_ITEMS.length}</span>
               </div>
               <div className="flex justify-between">
                 <span>{t('builder.preview.font')}</span>
-                <span className="text-white/60 truncate ml-2 max-w-32">{builderAdvancedOptions.fontFamily}</span>
+                <span className={`${th.textBright} truncate ml-2 max-w-32`}>{builderAdvancedOptions.fontFamily}</span>
               </div>
-              <Separator className="bg-white/5 my-2" />
+              <Separator className={`${th.separator} my-2`} />
               <div className="flex gap-1.5 mt-1">
                 {Object.entries(builderAdvancedOptions.colorScheme).map(([key, color]) => (
                   <TooltipProvider key={key}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="h-5 w-5 rounded border border-white/15 cursor-pointer" style={{ backgroundColor: color }} />
+                        <div className={`h-5 w-5 rounded ${isLight ? 'border border-border/60' : 'border border-white/15'} cursor-pointer`} style={{ backgroundColor: color }} />
                       </TooltipTrigger>
-                      <TooltipContent className="bg-[#15151F] border-white/10 text-xs text-white/70">
+                      <TooltipContent className={`${isLight ? '' : 'bg-[#15151F] border-white/10'} text-xs ${th.textMuted}`}>
                         {key}
                       </TooltipContent>
                     </Tooltip>
@@ -2256,19 +2299,19 @@ function PreviewPhase() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-lg border border-white/8 bg-white/[0.02] p-3">
-            <p className="mb-2 text-xs font-medium text-white/30 uppercase tracking-wider">{t('builder.preview.prompt')}</p>
-            <p className="text-xs text-white/40 leading-relaxed line-clamp-6">{builderPrompt}</p>
+          <div className={`mt-4 rounded-lg border ${isLight ? 'border-primary/20 bg-primary/[0.02]' : 'border-white/8 bg-white/[0.02]'} p-3`}>
+            <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.prompt')}</p>
+            <p className={`text-xs ${th.textMuted} leading-relaxed line-clamp-6`}>{builderPrompt}</p>
           </div>
 
           {/* Phase 4: Industry Image Library — collapsible */}
-          <div className="mt-4 rounded-lg border border-purple-500/20 bg-purple-500/[0.02] overflow-hidden">
+          <div className={`mt-4 rounded-lg border ${isLight ? 'border-primary/20 bg-primary/[0.02]' : 'border-purple-500/20 bg-purple-500/[0.02]'} overflow-hidden`}>
             <details>
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-purple-200/70 uppercase tracking-wider hover:bg-purple-500/5 flex items-center gap-2">
+              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium ${isLight ? 'text-primary/70' : 'text-purple-200/70'} uppercase tracking-wider ${isLight ? 'hover:bg-primary/5' : 'hover:bg-purple-500/5'} flex items-center gap-2`}>
                 <Layers className="w-3 h-3" />
                 {t('p4.title')}
               </summary>
-              <div className="p-3 pt-2 border-t border-purple-500/10">
+              <div className={`p-3 pt-2 border-t ${isLight ? 'border-primary/10' : 'border-purple-500/10'}`}>
                 <IndustryGallery
                   compact
                   disableGeneration={false}
@@ -2279,13 +2322,13 @@ function PreviewPhase() {
           </div>
 
           {/* Phase 5: Animation Library — collapsible */}
-          <div className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/[0.02] overflow-hidden">
+          <div className={`mt-3 rounded-lg border ${isLight ? 'border-violet-500/20 bg-violet-500/[0.02]' : 'border-violet-500/20 bg-violet-500/[0.02]'} overflow-hidden`}>
             <details>
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-violet-200/70 uppercase tracking-wider hover:bg-violet-500/5 flex items-center gap-2">
+              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium ${isLight ? 'text-violet-600/70' : 'text-violet-200/70'} uppercase tracking-wider ${isLight ? 'hover:bg-violet-500/5' : 'hover:bg-violet-500/5'} flex items-center gap-2`}>
                 <Sparkles className="w-3 h-3" />
                 {t('p5.title')}
               </summary>
-              <div className="p-3 pt-3 border-t border-violet-500/10">
+              <div className={`p-3 pt-3 border-t ${isLight ? 'border-violet-500/10' : 'border-violet-500/10'}`}>
                 <AnimationShowcase compact />
               </div>
             </details>
@@ -2293,28 +2336,28 @@ function PreviewPhase() {
         </div>
 
         {/* Preview area */}
-        <div className="flex flex-1 items-center justify-center bg-[#0a0a0f] p-4 overflow-auto">
+        <div className={`flex flex-1 items-center justify-center ${isLight ? 'bg-secondary/10' : 'bg-[#0a0a0f]'} p-4 overflow-auto`}>
           <motion.div
             layout
-            className="relative overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/40"
+            className={`relative overflow-hidden rounded-xl border ${isLight ? 'border-border/60 shadow-lg' : 'border-white/10 shadow-2xl shadow-black/40'}`}
             style={{ width: iframeWidth, maxWidth: '100%', height: deviceSize === 'mobile' ? '667px' : deviceSize === 'tablet' ? '1024px' : 'calc(100vh - 120px)' }}
           >
             {/* Browser chrome */}
-            <div className="flex items-center gap-2 bg-[#1a1a24] px-3 py-2 border-b border-white/5">
+            <div className={`flex items-center gap-2 ${th.bgAlt2} px-3 py-2 border-b ${th.borderSub}`}>
               <div className="flex gap-1.5">
                 <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
                 <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
                 <div className="h-3 w-3 rounded-full bg-[#28c840]" />
               </div>
               <div className="flex-1 mx-4">
-                <div className="flex items-center gap-1 rounded-md bg-white/5 px-3 py-1">
-                  <Lock className="h-3 w-3 text-white/20" />
-                  <span className="text-xs text-white/30 truncate">
+                <div className={`flex items-center gap-1 rounded-md ${isLight ? 'bg-secondary/50' : 'bg-white/5'} px-3 py-1`}>
+                  <Lock className={`h-3 w-3 ${th.textSub}`} />
+                  <span className={`text-xs ${th.textDim} truncate`}>
                     {siteName.toLowerCase().replace(/\s+/g, '-')}.app{currentPage.route === '/' ? '' : currentPage.route}
                   </span>
                 </div>
               </div>
-              <span className="text-xs text-white/30">{currentPage.name}</span>
+              <span className={`text-xs ${th.textDim}`}>{currentPage.name}</span>
             </div>
 
             {/* iframe */}
@@ -2333,34 +2376,168 @@ function PreviewPhase() {
   )
 }
 
+// ─── Chat Sidebar (ChatGPT-like) ──────────────────────────────────────────
+
+function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  const chatHistory = useAppStore((s) => s.chatHistory)
+  const activeChatId = useAppStore((s) => s.activeChatId)
+  const setActiveChatId = useAppStore((s) => s.setActiveChatId)
+  const clearChatHistory = useAppStore((s) => s.clearChatHistory)
+  const builderStyle = useAppStore((s) => s.builderStyle)
+  const t = useTranslation()
+
+  const isLight = builderStyle === 'light' || builderStyle === 'minimal'
+  const bgClass = isLight ? 'bg-background border-border/60' : 'bg-[#0c0c14] border-white/8'
+  const textClass = isLight ? 'text-foreground' : 'text-white'
+  const mutedClass = isLight ? 'text-muted-foreground' : 'text-white/40'
+  const hoverClass = isLight ? 'hover:bg-secondary/50' : 'hover:bg-white/5'
+  const activeClass = isLight ? 'bg-primary/10 text-primary' : 'bg-purple-500/10 text-purple-300'
+
+  return (
+    <>
+      {/* Toggle button (always visible, positioned on the left edge) */}
+      <button
+        onClick={onToggle}
+        className={`fixed top-3 left-3 z-50 h-8 w-8 rounded-lg border ${isLight ? 'border-border/60 bg-background' : 'border-white/10 bg-[#0c0c14]'} ${textClass} flex items-center justify-center transition-all hover:opacity-80`}
+        title={isOpen ? t('builder.closeSidebar') : t('builder.openSidebar')}
+      >
+        <MessageSquare className="h-4 w-4" />
+      </button>
+
+      {/* Sidebar panel */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: -260, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -260, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className={`fixed inset-y-0 left-0 z-40 w-[260px] ${bgClass} border-r flex flex-col`}
+          >
+            {/* Header */}
+            <div className={`flex items-center justify-between px-4 py-3 border-b ${isLight ? 'border-border/40' : 'border-white/8'}`}>
+              <div className="flex items-center gap-2">
+                <MessageSquare className={`h-4 w-4 ${mutedClass}`} />
+                <span className={`text-sm font-semibold ${textClass}`}>{t('builder.chatHistory')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {chatHistory.length > 0 && (
+                  <button
+                    onClick={clearChatHistory}
+                    className={`h-6 w-6 rounded ${hoverClass} ${mutedClass} flex items-center justify-center`}
+                    title={t('builder.clearHistory')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={onToggle}
+                  className={`h-6 w-6 rounded ${hoverClass} ${mutedClass} flex items-center justify-center`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat list */}
+            <div className="flex-1 overflow-y-auto px-2 py-2">
+              {chatHistory.length === 0 ? (
+                <div className={`flex flex-col items-center justify-center py-8 ${mutedClass}`}>
+                  <MessageSquare className="h-8 w-8 mb-2 opacity-30" />
+                  <p className="text-xs text-center">{t('builder.noChatHistory')}</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {chatHistory.map((chat) => (
+                    <button
+                      key={chat.id}
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`flex flex-col w-full rounded-lg px-3 py-2.5 text-left transition-all ${
+                        activeChatId === chat.id ? activeClass : hoverClass
+                      }`}
+                    >
+                      <span className={`text-sm font-medium truncate ${activeChatId === chat.id ? '' : mutedClass}`}>
+                        {chat.title}
+                      </span>
+                      <span className={`text-xs mt-0.5 truncate ${isLight ? 'text-muted-foreground/60' : 'text-white/25'}`}>
+                        {chat.prompt.slice(0, 60)}{chat.prompt.length > 60 ? '...' : ''}
+                      </span>
+                      <span className={`text-[10px] mt-1 ${isLight ? 'text-muted-foreground/40' : 'text-white/20'}`}>
+                        {new Date(chat.timestamp).toLocaleDateString()} · {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* New chat button */}
+            <div className={`px-3 py-3 border-t ${isLight ? 'border-border/40' : 'border-white/8'}`}>
+              <button
+                onClick={() => {
+                  useAppStore.getState().setBuilderPhase('prompt')
+                  useAppStore.getState().setBuilderPrompt('')
+                  setActiveChatId(null)
+                }}
+                className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                  isLight ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                }`}
+              >
+                <Plus className="h-4 w-4" />
+                {t('builder.newChat')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function BuilderPage() {
-  const { builderPhase } = useAppStore()
+  const { builderPhase, builderStyle } = useAppStore()
   const t = useTranslation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Determine if builder should use light theme
+  const isLightBuilder = builderStyle === 'light' || builderStyle === 'minimal'
+
+  // Theme-dependent classes for the main wrapper
+  const wrapperBg = isLightBuilder && builderPhase === 'preview'
+    ? 'min-h-screen bg-background'
+    : 'min-h-screen bg-[#0a0a0f]'
+
+  const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={builderPhase}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="min-h-screen bg-[#0a0a0f]"
-      >
-        {builderPhase === 'prompt' && <PromptPhase />}
-        {builderPhase === 'generating' && <GeneratingPhase />}
-        {builderPhase === 'preview' && <PreviewPhase />}
-        {builderPhase === 'edit' && (
-          <div className="flex min-h-screen items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-400 mx-auto mb-4" />
-              <p className="text-white/60">{t('builder.transitioning')}</p>
+    <>
+      {/* Chat sidebar — always rendered, toggleable */}
+      <ChatSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={builderPhase}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className={wrapperBg}
+        >
+          {builderPhase === 'prompt' && <PromptPhase />}
+          {builderPhase === 'generating' && <GeneratingPhase />}
+          {builderPhase === 'preview' && <PreviewPhase sidebarOpen={sidebarOpen} />}
+          {builderPhase === 'edit' && (
+            <div className="flex min-h-screen items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-400 mx-auto mb-4" />
+                <p className="text-white/60">{t('builder.transitioning')}</p>
+              </div>
             </div>
-          </div>
-        )}
-      </motion.div>
-    </AnimatePresence>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </>
   )
 }

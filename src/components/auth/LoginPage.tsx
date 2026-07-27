@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { signIn } from 'next-auth/react'
 import { useAppStore } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -171,7 +172,7 @@ function RightPanel() {
 }
 
 export function LoginPage() {
-  const { navigate, login, themeMode } = useAppStore()
+  const { navigate, login, themeMode, isAuthenticated } = useAppStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -182,6 +183,13 @@ export function LoginPage() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', themeMode === 'dark')
   }, [themeMode])
+
+  // If already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('dashboard')
+    }
+  }, [isAuthenticated, navigate])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -197,52 +205,65 @@ export function LoginPage() {
     }
 
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1200))
 
-    login({
-      id: '1',
+    // Use NextAuth credentials provider for real auth
+    const result = await signIn('credentials', {
       email: email.trim(),
-      name: 'User',
-      aiCredits: 100,
-      plan: 'free',
+      password,
+      redirect: false,
     })
+
+    if (result?.error) {
+      setError('Invalid email or password. Try again or use Google sign-in.')
+      setIsLoading(false)
+      return
+    }
+
+    // If successful, the session will be picked up by the AuthProvider/useSession
+    // The AppRouter useEffect will sync it to the store and redirect
+    // But as a fallback, we can also manually set it
+    try {
+      const res = await fetch(`/api/user?userIdByEmail=${encodeURIComponent(email.trim())}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.user) {
+          login({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            avatarUrl: data.user.avatarUrl,
+            aiCredits: data.user.aiCredits,
+            plan: data.user.plan,
+          })
+          navigate('dashboard')
+        }
+      }
+    } catch {
+      // Fallback: just navigate, session sync will handle it
+      navigate('dashboard')
+    }
 
     toast({
       title: 'Welcome back',
       description: 'You\'ve successfully signed in to Forge.',
     })
 
-    navigate('dashboard')
     setIsLoading(false)
   }
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
     setError('')
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    login({
-      id: '1',
-      email: 'user@gmail.com',
-      name: 'Google User',
-      aiCredits: 100,
-      plan: 'free',
-    })
-
-    toast({
-      title: 'Welcome back',
-      description: 'Signed in with Google successfully.',
-    })
-
-    navigate('dashboard')
-    setIsLoading(false)
+    // Use real NextAuth Google OAuth
+    await signIn('google', { callbackUrl: '/' })
+    // No need to setIsLoading(false) — page will redirect
   }
 
   const handleGithubLogin = async () => {
     setIsLoading(true)
     setError('')
+    // GitHub isn't configured in NextAuth yet, so fallback to demo
     await new Promise((resolve) => setTimeout(resolve, 1000))
-
     login({
       id: '1',
       email: 'user@github.com',
@@ -250,12 +271,10 @@ export function LoginPage() {
       aiCredits: 100,
       plan: 'free',
     })
-
     toast({
       title: 'Welcome back',
-      description: 'Signed in with GitHub successfully.',
+      description: 'Signed in with GitHub successfully (demo mode).',
     })
-
     navigate('dashboard')
     setIsLoading(false)
   }
@@ -295,10 +314,10 @@ export function LoginPage() {
               {/* Heading */}
               <motion.div variants={fadeInUp} className="mb-5">
                 <h2 className="text-2xl font-semibold text-foreground tracking-tight">
-                  Welcome back
+                  Sign in to start building
                 </h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Sign in to continue building with AI
+                  Create AI-powered websites with Forge
                 </p>
               </motion.div>
 
@@ -317,13 +336,13 @@ export function LoginPage() {
                 )}
               </AnimatePresence>
 
-              {/* Social buttons */}
+              {/* Social buttons — Google is primary */}
               <motion.div variants={fadeInUp} className="space-y-2.5 mb-4">
                 <Button
                   variant="outline"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
+                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg font-medium"
                 >
                   <Chrome className="size-4 mr-2" />
                   Continue with Google

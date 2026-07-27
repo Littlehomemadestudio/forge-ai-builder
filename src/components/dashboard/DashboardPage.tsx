@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore, type DashboardTab } from '@/lib/store'
 import { useTranslation } from '@/lib/useTranslation'
@@ -19,7 +19,6 @@ import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { toast } from '@/hooks/use-toast'
 import {
   FolderOpen,
-  Layers,
   Globe,
   Settings,
   CreditCard,
@@ -46,6 +45,12 @@ import {
   LayoutDashboard,
   Clock,
   Zap,
+  Activity,
+  Eye,
+  Play,
+  ChevronDown,
+  RefreshCw,
+  Shield,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -62,7 +67,7 @@ interface ProjectData {
   industry: string | null
   createdAt: string
   updatedAt: string
-  pages?: { id: string; name: string; route: string }[]
+  pages?: { id: string; name: string; route: string; html?: string; css?: string }[]
   deployments?: { id: string; platform: string; url: string | null; status: string; createdAt: string }[]
 }
 
@@ -76,6 +81,13 @@ interface UserData {
   createdAt: string
   updatedAt: string
   projectCount: number
+}
+
+interface ActivityItem {
+  id: string
+  type: 'project_created' | 'project_published' | 'project_archived' | 'page_generated' | 'deployment'
+  message: string
+  timestamp: number
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -101,10 +113,10 @@ const STATUS_CONFIG: Record<string, { color: string; bgColor: string }> = {
 
 const SIDEBAR_ITEMS: { tab: DashboardTab; icon: React.ElementType; labelKey: string }[] = [
   { tab: 'projects', icon: FolderOpen, labelKey: 'dashboard.projects' },
-  { tab: 'templates', icon: Layers, labelKey: 'dashboard.templates' },
+  { tab: 'activity', icon: Activity, labelKey: 'dashboard.activity' },
   { tab: 'deployments', icon: Globe, labelKey: 'dashboard.deployments' },
+  { tab: 'credits', icon: Zap, labelKey: 'dashboard.credits' },
   { tab: 'settings', icon: Settings, labelKey: 'dashboard.settings' },
-  { tab: 'billing', icon: CreditCard, labelKey: 'dashboard.billing' },
 ]
 
 // ─── Main Component ─────────────────────────────────────────────────────────
@@ -118,6 +130,8 @@ export function DashboardPage() {
   const themeMode = useAppStore((s) => s.themeMode)
   const setThemeMode = useAppStore((s) => s.setThemeMode)
   const selectProject = useAppStore((s) => s.selectProject)
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated)
+  const user = useAppStore((s) => s.user)
 
   const rtl = isRtl(uiLanguage)
 
@@ -145,29 +159,59 @@ export function DashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
 
+  // Preview dialog
+  const [previewProject, setPreviewProject] = useState<ProjectData | null>(null)
+
+  // Status change
+  const [statusChangeTarget, setStatusChangeTarget] = useState<{ project: ProjectData; newStatus: string } | null>(null)
+
+  // Activity feed
+  const [activityItems, setActivityItems] = useState<ActivityItem[]>([])
+
   // ─── Data fetching ────────────────────────────────────────────────────────
+  const userId = user?.id || 'demo-user'
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const [projRes, userRes] = await Promise.all([
-        fetch('/api/projects?userId=demo-user'),
-        fetch('/api/user?userId=demo-user'),
+        fetch(`/api/projects?userId=${userId}`),
+        fetch(`/api/user?userId=${userId}`),
       ])
       if (!projRes.ok || !userRes.ok) throw new Error('Fetch failed')
       const projData = await projRes.json()
-      const userData = await userRes.json()
+      const userDataResp = await userRes.json()
       setProjects(projData.projects || [])
-      setUserData(userData.user || null)
+      setUserData(userDataResp.user || null)
+
+      // Generate activity items from project data
+      const activities: ActivityItem[] = (projData.projects || []).flatMap((p: ProjectData) => [
+        {
+          id: `act-create-${p.id}`,
+          type: 'project_created' as const,
+          message: `Created "${p.name}"`,
+          timestamp: new Date(p.createdAt).getTime(),
+        },
+        ...(p.status === 'published' ? [{
+          id: `act-pub-${p.id}`,
+          type: 'project_published' as const,
+          message: `Published "${p.name}"`,
+          timestamp: new Date(p.updatedAt).getTime(),
+        }] : []),
+      ])
+      setActivityItems(activities.sort((a, b) => b.timestamp - a.timestamp))
     } catch {
       toast({ title: t('dashboard.fetchError'), variant: 'destructive' })
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, userId])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    if (isAuthenticated) {
+      fetchData()
+    }
+  }, [fetchData, isAuthenticated])
 
   // ─── CRUD handlers ────────────────────────────────────────────────────────
   const handleCreate = async () => {
@@ -182,7 +226,7 @@ export function DashboardPage() {
           description: newDescription.trim() || null,
           industry: newIndustry || null,
           theme: newTheme,
-          userId: 'demo-user',
+          userId,
         }),
       })
       if (!res.ok) throw new Error('Create failed')
@@ -194,8 +238,15 @@ export function DashboardPage() {
       setNewDescription('')
       setNewIndustry('')
       setNewTheme('light')
+      // Add to activity
+      setActivityItems((prev) => [{
+        id: `act-create-${data.project.id}`,
+        type: 'project_created',
+        message: `Created "${data.project.name}"`,
+        timestamp: Date.now(),
+      }, ...prev])
       // Refresh user data to update project count
-      const userRes = await fetch('/api/user?userId=demo-user')
+      const userRes = await fetch(`/api/user?userId=${userId}`)
       if (userRes.ok) {
         const ud = await userRes.json()
         setUserData(ud.user || null)
@@ -214,9 +265,14 @@ export function DashboardPage() {
       if (!res.ok) throw new Error('Delete failed')
       setProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id))
       toast({ title: t('dashboard.projectDeleted') })
+      setActivityItems((prev) => [{
+        id: `act-del-${deleteTarget.id}`,
+        type: 'project_created',
+        message: `Deleted "${deleteTarget.name}"`,
+        timestamp: Date.now(),
+      }, ...prev])
       setDeleteTarget(null)
-      // Refresh user data
-      const userRes = await fetch('/api/user?userId=demo-user')
+      const userRes = await fetch(`/api/user?userId=${userId}`)
       if (userRes.ok) {
         const ud = await userRes.json()
         setUserData(ud.user || null)
@@ -248,14 +304,43 @@ export function DashboardPage() {
     }
   }
 
+  const handleStatusChange = async () => {
+    if (!statusChangeTarget) return
+    const { project, newStatus } = statusChangeTarget
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) throw new Error('Status update failed')
+      const data = await res.json()
+      setProjects((prev) => prev.map((p) => p.id === project.id ? { ...p, status: data.project.status } : p))
+      toast({ title: `Status changed to ${newStatus}` })
+      setActivityItems((prev) => [{
+        id: `act-status-${project.id}-${Date.now()}`,
+        type: newStatus === 'published' ? 'project_published' : 'project_archived',
+        message: `${newStatus === 'published' ? 'Published' : 'Archived'} "${project.name}"`,
+        timestamp: Date.now(),
+      }, ...prev])
+    } catch {
+      toast({ title: t('dashboard.updateError'), variant: 'destructive' })
+    } finally {
+      setStatusChangeTarget(null)
+    }
+  }
+
   const handleOpenInBuilder = (project: ProjectData) => {
     selectProject(project.id)
-    // Set builder prompt to existing project info
     useAppStore.getState().setBuilderPrompt(project.prompt || project.description || '')
     useAppStore.getState().setBuilderIndustry((project.industry as any) || 'portfolio')
     useAppStore.getState().setBuilderStyle((project.theme as any) || 'light')
     useAppStore.getState().setBuilderPhase('prompt')
     navigate('builder')
+  }
+
+  const handlePreview = (project: ProjectData) => {
+    setPreviewProject(project)
   }
 
   const handleBackToHome = () => {
@@ -363,6 +448,7 @@ export function DashboardPage() {
   // ─── Project card ─────────────────────────────────────────────────────────
   const ProjectCard = ({ project }: { project: ProjectData }) => {
     const isEditing = editingId === project.id
+    const previewRef = useRef<HTMLIFrameElement>(null)
 
     return (
       <motion.div
@@ -416,6 +502,23 @@ export function DashboardPage() {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description}</p>
                 )}
 
+                {/* Mini preview for projects with pages */}
+                {project.pages && project.pages.length > 0 && project.pages[0].html && (
+                  <div className="mt-3 rounded-md overflow-hidden border border-border/40 bg-muted/30 relative group/preview cursor-pointer" onClick={() => handlePreview(project)}>
+                    <iframe
+                      ref={previewRef}
+                      srcDoc={project.pages[0].html}
+                      title={`${project.name} preview`}
+                      className="w-full h-32 origin-top-left scale-[0.25] pointer-events-none"
+                      style={{ width: '400%', height: '128px' }}
+                      sandbox="allow-scripts allow-same-origin"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover/preview:opacity-100 transition-opacity">
+                      <Eye className="h-5 w-5 text-primary" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Meta row */}
                 <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                   <StatusBadge status={project.status} />
@@ -434,7 +537,7 @@ export function DashboardPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex flex-col items-center gap-1 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -444,6 +547,30 @@ export function DashboardPage() {
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={() => handlePreview(project)}
+                  title="Preview"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                {/* Status dropdown */}
+                <Select
+                  value={project.status}
+                  onValueChange={(v) => setStatusChangeTarget({ project, newStatus: v })}
+                >
+                  <SelectTrigger className="h-8 w-8 border-0 p-0 [&>svg]:hidden">
+                    <span className="sr-only">Change status</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -478,14 +605,87 @@ export function DashboardPage() {
     </Card>
   )
 
-  // ─── Coming soon card ─────────────────────────────────────────────────────
-  const ComingSoonCard = () => (
-    <div className="flex flex-col items-center justify-center py-16 sm:py-24">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary/50 border border-border/40">
-        <Sparkles className="h-8 w-8 text-muted-foreground" />
+  // ─── Activity item ────────────────────────────────────────────────────────
+  const ActivityItemRow = ({ item }: { item: ActivityItem }) => {
+    const iconMap: Record<string, React.ElementType> = {
+      project_created: Plus,
+      project_published: Globe,
+      project_archived: Shield,
+      page_generated: Sparkles,
+      deployment: Play,
+    }
+    const Icon = iconMap[item.type] || Activity
+    return (
+      <div className="flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary/50 border border-border/40">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground truncate">{item.message}</p>
+          <p className="text-xs text-muted-foreground">
+            {new Date(item.timestamp).toLocaleDateString()} · {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
       </div>
-      <h2 className="text-lg font-semibold text-foreground mt-4">{t('dashboard.comingSoon')}</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-xs text-center">{t('dashboard.comingSoonDesc')}</p>
+    )
+  }
+
+  // ─── Credits tab ──────────────────────────────────────────────────────────
+  const CreditsTab = () => (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <StatCard icon={Zap} value={userData?.aiCredits ?? 0} label={t('dashboard.statCredits')} />
+        <StatCard icon={Sparkles} value={projects.length} label="Sites Generated" />
+        <StatCard icon={LayoutDashboard} value={stats.published} label={t('dashboard.statPublished')} />
+      </div>
+      <Card className="border border-border/40 bg-secondary/30">
+        <CardContent className="p-5 sm:p-6">
+          <h3 className="text-base font-semibold text-foreground mb-3">AI Credits Usage</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Available Credits</span>
+              <span className="font-semibold text-foreground">{userData?.aiCredits ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Used Credits</span>
+              <span className="font-semibold text-foreground">{10 - (userData?.aiCredits ?? 0)}</span>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Plan</span>
+              <Badge className={`${getPlanBadge(userData?.plan || 'free').className} text-xs font-medium px-2 py-0.5 border-0`}>
+                {getPlanBadge(userData?.plan || 'free').label}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Each site generation uses 1 AI credit. Upgrade to Pro for 100 credits/month.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  // ─── Activity tab ─────────────────────────────────────────────────────────
+  const ActivityTab = () => (
+    <div className="space-y-4">
+      <h2 className="text-base font-semibold text-foreground">Activity Feed</h2>
+      {activityItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Activity className="h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground mt-3">No activity yet. Create a project to get started.</p>
+        </div>
+      ) : (
+        <Card className="border border-border/40">
+          <CardContent className="p-4">
+            <div className="max-h-96 overflow-y-auto">
+              {activityItems.slice(0, 20).map((item) => (
+                <ActivityItemRow key={item.id} item={item} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 
@@ -515,7 +715,6 @@ export function DashboardPage() {
   // ─── Loading skeleton ─────────────────────────────────────────────────────
   const LoadingSkeleton = () => (
     <div className="space-y-4">
-      {/* Stats skeleton */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="border border-border/40">
@@ -531,7 +730,6 @@ export function DashboardPage() {
           </Card>
         ))}
       </div>
-      {/* Cards skeleton */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <Card key={i} className="border border-border/40">
@@ -539,6 +737,7 @@ export function DashboardPage() {
               <Skeleton className="h-4 w-3/4 mb-2" />
               <Skeleton className="h-3 w-full mb-1" />
               <Skeleton className="h-3 w-2/3 mb-2" />
+              <Skeleton className="h-32 w-full rounded-md mb-2" />
               <div className="flex gap-2 mt-2">
                 <Skeleton className="h-5 w-16 rounded-full" />
                 <Skeleton className="h-5 w-20 rounded-full" />
@@ -641,7 +840,7 @@ export function DashboardPage() {
           </Button>
           <Separator orientation="vertical" className="h-6" />
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-foreground">{userData?.name || 'Demo User'}</span>
+            <span className="font-medium text-sm text-foreground">{userData?.name || 'User'}</span>
             {planInfo && (
               <Badge className={`${planInfo.className} text-xs font-medium px-2 py-0.5 border-0`}>
                 {planInfo.label}
@@ -687,7 +886,6 @@ export function DashboardPage() {
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Status filter */}
           {(['all', 'draft', 'published', 'archived'] as const).map((s) => (
             <button
               key={s}
@@ -705,7 +903,6 @@ export function DashboardPage() {
             </button>
           ))}
         </div>
-        {/* Industry filter */}
         <Select value={industryFilter} onValueChange={(v) => setIndustryFilter(v)}>
           <SelectTrigger className="h-9 w-auto min-w-[120px] text-xs">
             <SelectValue placeholder={t('dashboard.filterIndustry')} />
@@ -743,7 +940,17 @@ export function DashboardPage() {
   // ─── Tab content ──────────────────────────────────────────────────────────
   const TabContent = () => {
     if (dashboardTab === 'projects') return <ProjectsTab />
-    return <ComingSoonCard />
+    if (dashboardTab === 'activity') return <ActivityTab />
+    if (dashboardTab === 'credits') return <CreditsTab />
+    return (
+      <div className="flex flex-col items-center justify-center py-16 sm:py-24">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary/50 border border-border/40">
+          <Sparkles className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-lg font-semibold text-foreground mt-4">{t('dashboard.comingSoon')}</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-xs text-center">{t('dashboard.comingSoonDesc')}</p>
+      </div>
+    )
   }
 
   // ─── Main layout ──────────────────────────────────────────────────────────
@@ -857,6 +1064,63 @@ export function DashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── Status Change Confirmation ────────────────────────────────────── */}
+      <AlertDialog open={!!statusChangeTarget} onOpenChange={(open) => !open && setStatusChangeTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Project Status</AlertDialogTitle>
+            <AlertDialogDescription>
+              {statusChangeTarget
+                ? `Are you sure you want to change "${statusChangeTarget.project.name}" status to "${statusChangeTarget.newStatus}"?`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStatusChange}>
+              Change Status
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Preview Dialog ────────────────────────────────────────────────── */}
+      <Dialog open={!!previewProject} onOpenChange={(open) => !open && setPreviewProject(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{previewProject?.name || 'Project Preview'}</DialogTitle>
+            <DialogDescription>
+              {previewProject?.description || 'Preview of your project'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[60vh] rounded-lg border border-border/40">
+            {previewProject?.pages && previewProject.pages.length > 0 && previewProject.pages[0].html ? (
+              <iframe
+                srcDoc={previewProject.pages[0].html}
+                title={`${previewProject.name} Preview`}
+                className="w-full h-[400px] bg-white border-0"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Eye className="h-10 w-10 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground mt-3">No preview available yet. Open in Builder to generate content.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewProject(null)}>Close</Button>
+            <Button onClick={() => {
+              if (previewProject) handleOpenInBuilder(previewProject)
+              setPreviewProject(null)
+            }}>
+              <ExternalLink className="h-4 w-4 mr-1.5" />
+              Open in Builder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
