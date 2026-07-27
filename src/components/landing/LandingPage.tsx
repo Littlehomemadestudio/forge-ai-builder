@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { useAppStore } from '@/lib/store'
 import { isRtl } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
@@ -95,17 +96,23 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: num
 // ─── Abstract Background — reduced blobs, only used on Hero & CTA ─────
 
 function AbstractBackground({ isDark }: { isDark: boolean }) {
-  const o1 = isDark ? 0.08 : 0.04
-  const o2 = isDark ? 0.05 : 0.03
+  const o1 = isDark ? 0.15 : 0.08
+  const o2 = isDark ? 0.10 : 0.05
+  const o3 = isDark ? 0.06 : 0.03
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-1/4 left-0 w-40 h-40 rounded-full animate-morph" style={{
-        background: `radial-gradient(circle, oklch(0.55 0.25 270 / ${o1}), transparent 70%)`,
+      {/* Blue-to-violet gradient blobs — more prominent */}
+      <div className="absolute top-[10%] left-[5%] w-56 h-56 rounded-full animate-morph" style={{
+        background: `radial-gradient(circle, oklch(0.5 0.25 250 / ${o1}), oklch(0.55 0.3 280 / ${o2}), transparent 70%)`,
       }} />
-      <div className="absolute bottom-1/4 right-0 w-48 h-48 rounded-full animate-morph" style={{
-        background: `radial-gradient(circle, oklch(0.55 0.25 270 / ${o2}), transparent 70%)`,
+      <div className="absolute bottom-[15%] right-[5%] w-64 h-64 rounded-full animate-morph" style={{
+        background: `radial-gradient(circle, oklch(0.55 0.3 280 / ${o1}), oklch(0.5 0.25 250 / ${o2}), transparent 70%)`,
         animationDelay: '-3s',
+      }} />
+      <div className="absolute top-[50%] left-[50%] w-48 h-48 rounded-full animate-morph" style={{
+        background: `radial-gradient(circle, oklch(0.55 0.25 270 / ${o3}), transparent 70%)`,
+        animationDelay: '-6s',
       }} />
     </div>
   )
@@ -114,14 +121,14 @@ function AbstractBackground({ isDark }: { isDark: boolean }) {
 // ─── Accent color constants for each section ──────────────────────────
 
 const ACCENT = {
-  hero: 'primary',       // purple (uses Tailwind primary variable)
+  hero: 'primary',       // blue-to-violet (uses gradient overrides)
   features: 'oklch(0.65 0.2 80)',   // warm amber
   themePg: 'oklch(0.6 0.2 160)',    // teal/green
   howItWorks: 'oklch(0.6 0.15 250)', // sky blue
-  aiDemo: 'primary',     // purple (AI-themed)
+  aiDemo: 'primary',     // blue-to-violet
   testimonials: 'oklch(0.65 0.2 350)', // warm rose
-  pricing: 'primary',    // purple
-  cta: 'primary',        // purple
+  pricing: 'primary',    // blue-to-violet
+  cta: 'primary',        // blue-to-violet
 }
 
 // ─── Trust logos data ──────────────────────────────────────────────────
@@ -252,7 +259,7 @@ export default function LandingPage() {
             <Button
               size="sm"
               onClick={handleGetStarted}
-              className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 border-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="text-xs bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {t('nav.getStarted')}
             </Button>
@@ -267,8 +274,11 @@ export default function LandingPage() {
         <section className="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-24">
           <AbstractBackground isDark={isDark} />
 
-          {/* Purple accent line at top */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-40" />
+          {/* Blue-to-violet gradient accent line at top */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-violet-500 to-blue-500 opacity-50" />
+
+          {/* Additional gradient wash */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-violet-500/8 to-blue-500/3 pointer-events-none" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-center">
@@ -277,7 +287,7 @@ export default function LandingPage() {
                 {...sectionFadeIn}
                 className={`lg:col-span-3 ${textAlignClass}`}
               >
-                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] px-3 py-1">
+                <Badge className="bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 text-[10px] px-3 py-1">
                   <Sparkles className="w-3 h-3 me-1" /> {t('hero.badge')}
                 </Badge>
 
@@ -303,7 +313,7 @@ export default function LandingPage() {
                     <Button
                       onClick={handleGenerate}
                       size="sm"
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 border-0 text-xs px-4 shadow-lg shadow-primary/15 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      className="bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 text-xs px-4 shadow-lg shadow-violet-500/15 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                       <Sparkles className="w-3 h-3 me-1" /> {t('hero.generate')}
                     </Button>
@@ -326,16 +336,19 @@ export default function LandingPage() {
                 </div>
               </motion.div>
 
-              {/* Right side: Visual preview (2 cols) */}
+              {/* Right side: Real image preview (2 cols) */}
               <motion.div
                 initial={{ opacity: 0, x: isRtlMode ? -30 : 30 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.7, delay: 0.3 }}
                 className="lg:col-span-2"
               >
-                <div className="relative rounded-2xl border border-border bg-card p-4 shadow-xl shadow-primary/5">
+                <div className="relative rounded-2xl overflow-hidden shadow-xl shadow-blue-500/10">
+                  {/* Blue-to-violet gradient border effect */}
+                  <div className="absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-br from-blue-500/40 via-violet-500/40 to-blue-500/20 pointer-events-none" />
+
                   {/* Browser chrome mockup */}
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border">
+                  <div className="relative bg-card/90 backdrop-blur-sm flex items-center gap-2 px-4 py-2.5 border-b border-border/50">
                     <div className="flex gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
                       <div className="w-2.5 h-2.5 rounded-full bg-[oklch(0.65_0.2_80_/_60%)]" />
@@ -346,44 +359,23 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  {/* Mini website preview */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-2">
-                      <div className="flex items-center gap-1">
-                        <div className="w-2.5 h-2.5 rounded bg-primary" />
-                        <div className="w-6 h-1 rounded bg-foreground/15" />
-                      </div>
-                      <div className="flex gap-1.5">
-                        <div className="w-4 h-1 rounded bg-foreground/10" />
-                        <div className="w-4 h-1 rounded bg-foreground/10" />
-                        <div className="w-4 h-1 rounded bg-foreground/10" />
-                      </div>
-                    </div>
-                    <div className="rounded-lg p-3 text-center" style={{
-                      background: isDark ? 'linear-gradient(135deg, oklch(0.55 0.25 270 / 15%), oklch(0.5 0.2 290 / 10%))' : 'linear-gradient(135deg, oklch(0.55 0.25 270 / 8%), oklch(0.55 0.25 270 / 3%))',
-                    }}>
-                      <div className="h-2 rounded bg-foreground/15 mx-auto mb-1 w-3/4" />
-                      <div className="h-1 rounded bg-foreground/8 mx-auto mb-2 w-1/2" />
-                      <div className="inline-block px-2 py-0.5 rounded-full text-[7px] font-medium text-primary-foreground bg-primary">
-                        {t('hero.preview.cta')}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1">
-                      {[1,2,3].map(i => (
-                        <div key={i} className="rounded p-1.5 bg-secondary/50 border border-border/50">
-                          <div className="w-3 h-3 rounded bg-primary/20 mx-auto mb-0.5" />
-                          <div className="h-0.5 rounded bg-foreground/10 mx-auto w-3/4" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between px-2 py-1 rounded bg-secondary/30">
-                      <div className="w-4 h-0.5 rounded bg-foreground/8" />
-                      <div className="w-8 h-0.5 rounded bg-foreground/5" />
-                    </div>
+                  {/* Real AI-generated website image */}
+                  <div className="relative bg-card">
+                    <Image
+                      src="/images/forge-hero-1.png"
+                      alt="Forge AI-generated website preview"
+                      width={800}
+                      height={533}
+                      className="w-full h-auto object-cover"
+                      priority
+                    />
+                    {/* Blue-to-violet gradient overlay for brand consistency */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 via-transparent to-violet-500/10 pointer-events-none" />
                   </div>
 
-                  {/* Floating accent dot */}
-                  <div className={`absolute -top-3 ${isRtlMode ? '-left-3' : '-right-3'} w-6 h-6 rounded-full bg-primary shadow-lg shadow-primary/30 animate-pulse`} />
+                  {/* Floating accent dots */}
+                  <div className={`absolute -top-3 ${isRtlMode ? '-left-3' : '-right-3'} w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 shadow-lg shadow-violet-500/30 animate-pulse`} />
+                  <div className={`absolute -bottom-2 ${isRtlMode ? '-right-2' : '-left-2'} w-4 h-4 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 shadow-md shadow-blue-500/20 animate-pulse`} style={{ animationDelay: '-1.5s' }} />
                 </div>
               </motion.div>
             </div>
@@ -405,17 +397,17 @@ export default function LandingPage() {
         </section>
 
         {/* ─── Stats Bar ───────────────────────────────────────────── */}
-        <section className="relative py-8 overflow-hidden border-y border-primary/15">
-          {/* Purple accent gradient strip */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/8 via-transparent to-primary/8" />
+        <section className="relative py-8 overflow-hidden border-y border-blue-500/15">
+          {/* Blue-to-violet gradient strip */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-violet-500/8 to-blue-500/10" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {localizedStats.map((stat, i) => {
               const Icon = stat.icon
               return (
                 <div key={stat.label} className={`flex items-center gap-4 ${i > 0 ? 'border-s border-border/50 ps-6 rtl:border-e rtl:border-s-0 rtl:ps-0 rtl:pe-6' : ''}`}>
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-4 h-4 text-primary" />
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-4 h-4 text-violet-500" />
                   </div>
                   <div>
                     <div className="text-lg sm:text-xl font-bold text-foreground">
@@ -440,7 +432,7 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 className={`lg:col-span-2 ${textAlignClass}`}
               >
-                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+                <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
                   <MousePointerClick className="w-3 h-3 me-1" /> {t('playground.badge')}
                 </Badge>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
@@ -451,8 +443,8 @@ export default function LandingPage() {
                   {t('playground.subtitle')}
                 </p>
                 <div className="mt-4 flex gap-2">
-                  <div className="w-5 h-5 rounded bg-primary/10 flex items-center justify-center">
-                    <Layers className="w-2.5 h-2.5 text-primary" />
+                  <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center">
+                    <Layers className="w-2.5 h-2.5 text-violet-500" />
                   </div>
                   <span className="text-[10px] text-muted-foreground">{t('playground.blocks')}</span>
                 </div>
@@ -466,8 +458,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ─── Purple Accent Divider ──────────────────────────────── */}
-        <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        {/* ─── Blue-to-Violet Accent Divider ──────────────────────── */}
+        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
+        <div className="h-px bg-gradient-to-l from-transparent via-violet-500/30 to-transparent -mt-px" />
 
         {/* ─── Features Section — warm amber accent ──────────────── */}
         <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
@@ -491,31 +484,56 @@ export default function LandingPage() {
               </p>
             </motion.div>
 
-            {/* Features grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {localizedFeatures.map((feature) => {
-                const Icon = feature.icon
-                return (
-                  <Card key={feature.titleKey} className="group relative overflow-hidden border-border/50 hover:border-[oklch(0.65_0.2_80_/_30%)] transition-all duration-300 hover:shadow-lg hover:shadow-[oklch(0.65_0.2_80)_/_5]">
-                    <CardContent className="relative z-10 p-5">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-                          style={{ background: `${ACCENT.features}15`, border: `1px solid ${ACCENT.features}25` }}
-                        >
-                          <Icon className="w-4 h-4" style={{ color: ACCENT.features }} />
+            {/* Features grid + showcase image */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Features cards (2 cols) */}
+              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {localizedFeatures.map((feature) => {
+                  const Icon = feature.icon
+                  return (
+                    <Card key={feature.titleKey} className="group relative overflow-hidden border-border/50 hover:border-blue-500/20 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5">
+                      <CardContent className="relative z-10 p-5">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
+                            style={{ background: `${ACCENT.features}15`, border: `1px solid ${ACCENT.features}25` }}
+                          >
+                            <Icon className="w-4 h-4" style={{ color: ACCENT.features }} />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-semibold text-foreground mb-1">{t(feature.titleKey)}</h3>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{t(feature.descKey)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-sm font-semibold text-foreground mb-1">{t(feature.titleKey)}</h3>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{t(feature.descKey)}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                    {/* Amber accent line at bottom on hover */}
-                    <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: ACCENT.features }} />
-                  </Card>
-                )
-              })}
+                      </CardContent>
+                      {/* Blue-to-violet gradient accent line at bottom on hover */}
+                      <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500 to-violet-500" />
+                    </Card>
+                  )
+                })}
+              </div>
+
+              {/* Showcase image (1 col) */}
+              <motion.div
+                {...sectionFadeIn}
+                viewport={{ once: true, margin: '-50px' }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className="lg:col-span-1"
+              >
+                <div className="relative rounded-2xl overflow-hidden border border-border/30 shadow-lg shadow-violet-500/5 h-full min-h-[300px]">
+                  <Image
+                    src="/images/forge-hero-2.png"
+                    alt="Forge AI-powered design capabilities"
+                    width={800}
+                    height={426}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Blue-to-violet gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-violet-500/15 via-transparent to-blue-500/10 pointer-events-none" />
+                  {/* Gradient border effect */}
+                  <div className="absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-b from-blue-500/20 via-transparent to-violet-500/20 pointer-events-none" />
+                </div>
+              </motion.div>
             </div>
           </div>
         </section>
@@ -559,8 +577,10 @@ export default function LandingPage() {
 
         {/* ─── How It Works — sky blue accent ─────────────────── */}
         <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          {/* Sky blue accent top border */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[oklch(0.6_0.15_250_/_30%)] to-transparent" />
+          {/* Blue-to-violet gradient top border */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/20 to-blue-500/30" />
+          {/* Subtle gradient wash */}
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/3 via-transparent to-transparent pointer-events-none" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6">
             <motion.div
@@ -620,10 +640,12 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ─── AI Demo — purple accent (AI-themed) ─────────────── */}
+        {/* ─── AI Demo — blue-to-violet gradient accent ─────────── */}
         <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
-          {/* Purple accent top border */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+          {/* Blue-to-violet gradient top border */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/30 to-blue-500/30" />
+          {/* Gradient wash */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-violet-500/5 to-blue-500/3 pointer-events-none" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
@@ -634,7 +656,7 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 className={`lg:col-span-2 ${textAlignClass}`}
               >
-                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+                <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
                   <Wand2 className="w-3 h-3 me-1" /> {t('aidemo.badge')}
                 </Badge>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
@@ -645,7 +667,7 @@ export default function LandingPage() {
                   {t('aidemo.subtitle')}
                 </p>
                 <div className="mt-4 flex items-center gap-2">
-                  <Play className="w-4 h-4 text-primary" />
+                  <Play className="w-4 h-4 text-violet-500" />
                   <span className="text-[10px] text-muted-foreground">{t('aidemo.hint')}</span>
                 </div>
               </motion.div>
@@ -658,10 +680,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ─── Testimonials — warm rose accent ─────────────────── */}
+        {/* ─── Testimonials — with showcase image ─────────────────── */}
         <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
-          {/* Rose accent band at top */}
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[oklch(0.65_0.2_350_/_20%)] via-[oklch(0.65_0.2_350_/_40%)] to-[oklch(0.65_0.2_350_/_20%)]" />
+          {/* Blue-to-violet gradient band at top */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500/20 via-violet-500/30 to-blue-500/20" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6">
             <motion.div
@@ -679,47 +701,79 @@ export default function LandingPage() {
               </h2>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {localizedTestimonials.map((tm, i) => {
-                const MetricIcon = tm.metricIcon
-                const isFeatured = tm.featured
-                return (
-                  <Card key={tm.id} className={`group relative overflow-hidden border-border/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${isFeatured ? 'md:mt-8 md:col-span-1 border-primary/30 shadow-md' : ''}`} style={isFeatured ? { borderColor: `${ACCENT.testimonials}30` } : undefined}>
-                    <CardContent className={`${isFeatured ? 'p-8' : 'p-5'}`}>
-                      {/* Star ratings */}
-                      <div className="flex gap-0.5 mb-3">
-                        {[1,2,3,4,5].map(s => (
-                          <Star key={s} className="w-3 h-3 fill-[oklch(0.75_0.15_80)] text-[oklch(0.75_0.15_80)]" />
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: ACCENT.testimonials }}>
-                          {tm.avatar}
+            {/* Showcase image + testimonial cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
+              {/* Showcase image (1 col) */}
+              <motion.div
+                {...sectionFadeIn}
+                viewport={{ once: true, margin: '-50px' }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className="lg:col-span-1 lg:row-span-2"
+              >
+                <div className="relative rounded-2xl overflow-hidden shadow-lg shadow-blue-500/5 h-full min-h-[300px]">
+                  <Image
+                    src="/images/forge-hero-3.png"
+                    alt="Forge user success story — website built with AI"
+                    width={800}
+                    height={400}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Blue-to-violet gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-500/15 via-transparent to-violet-500/10 pointer-events-none" />
+                  {/* Gradient border */}
+                  <div className="absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-t from-violet-500/30 via-transparent to-blue-500/20 pointer-events-none" />
+                  {/* Quote overlay */}
+                  <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-violet-500/20 to-transparent">
+                    <div className="text-xs text-white/90 font-medium italic">&ldquo;Built my entire site in 10 minutes&rdquo;</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Testimonial cards (3 cols) */}
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+                {localizedTestimonials.map((tm, i) => {
+                  const MetricIcon = tm.metricIcon
+                  const isFeatured = tm.featured
+                  return (
+                    <Card key={tm.id} className={`group relative overflow-hidden border-border/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:shadow-blue-500/5 ${isFeatured ? 'border-blue-500/20 shadow-md' : ''}`}>
+                      <CardContent className={`${isFeatured ? 'p-8' : 'p-5'}`}>
+                        {/* Star ratings */}
+                        <div className="flex gap-0.5 mb-3">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className="w-3 h-3 fill-[oklch(0.75_0.15_80)] text-[oklch(0.75_0.15_80)]" />
+                          ))}
                         </div>
-                        <div>
-                          <div className="text-xs font-medium text-foreground">{t(`testimonials.${tm.id}.name`)}</div>
-                          <div className="text-[10px] text-muted-foreground">{t(`testimonials.${tm.id}.role`)}</div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-blue-500 to-violet-500">
+                            {tm.avatar}
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-foreground">{t(`testimonials.${tm.id}.name`)}</div>
+                            <div className="text-[10px] text-muted-foreground">{t(`testimonials.${tm.id}.role`)}</div>
+                          </div>
                         </div>
-                      </div>
-                      <p className={`${isFeatured ? 'text-sm' : 'text-xs'} text-muted-foreground leading-relaxed mb-3`}>&ldquo;{t(`testimonials.${tm.id}.quote`)}&rdquo;</p>
-                      <div className="flex items-center gap-1.5 text-[10px]" style={{ color: ACCENT.testimonials }}>
-                        <MetricIcon className="w-3 h-3" />
-                        {t(`testimonials.${tm.id}.metric`)}
-                      </div>
-                    </CardContent>
-                    {/* Rose accent bottom */}
-                    <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-60 transition-opacity duration-300" style={{ background: ACCENT.testimonials }} />
-                  </Card>
-                )
-              })}
+                        <p className={`${isFeatured ? 'text-sm' : 'text-xs'} text-muted-foreground leading-relaxed mb-3`}>&ldquo;{t(`testimonials.${tm.id}.quote`)}&rdquo;</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-violet-500">
+                          <MetricIcon className="w-3 h-3" />
+                          {t(`testimonials.${tm.id}.metric`)}
+                        </div>
+                      </CardContent>
+                      {/* Blue-to-violet gradient accent bottom */}
+                      <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500 to-violet-500" />
+                    </Card>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </section>
 
         {/* ─── Pricing Section ────────────────────────────────────── */}
         <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          {/* Purple accent top */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+          {/* Blue-to-violet gradient top */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/30 to-blue-500/30" />
+          {/* Subtle gradient wash */}
+          <div className="absolute inset-0 bg-gradient-to-b from-violet-500/3 via-transparent to-blue-500/2 pointer-events-none" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6">
             <motion.div
@@ -728,7 +782,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               className={`${textAlignClass} mb-10`}
             >
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+              <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
                 <Zap className="w-3 h-3 me-1" /> {t('pricing.badge')}
               </Badge>
               <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
@@ -744,9 +798,9 @@ export default function LandingPage() {
               {pricingTiers.map((tier) => {
                 const isHighlighted = tier.highlighted
                 return (
-                  <Card key={tier.key} className={`relative overflow-hidden transition-all duration-300 ${isHighlighted ? 'border-primary shadow-lg shadow-primary/10 scale-[1.02]' : 'border-border/50'}`}>
+                  <Card key={tier.key} className={`relative overflow-hidden transition-all duration-300 ${isHighlighted ? 'border-blue-500/30 shadow-lg shadow-violet-500/10 scale-[1.02] bg-gradient-to-b from-blue-500/5 to-violet-500/5' : 'border-border/50'}`}>
                     {isHighlighted && (
-                      <Badge className="absolute top-4 right-4 rtl:right-auto rtl:left-4 bg-primary text-primary-foreground text-[9px] px-2 py-0.5 border-0">
+                      <Badge className="absolute top-4 right-4 rtl:right-auto rtl:left-4 bg-gradient-to-r from-blue-500 to-violet-500 text-white text-[9px] px-2 py-0.5 border-0">
                         {t('pricing.pro.popular')}
                       </Badge>
                     )}
@@ -761,14 +815,14 @@ export default function LandingPage() {
                       <ul className="space-y-2.5">
                         {tier.features.map((fKey) => (
                           <li key={fKey} className="flex items-center gap-2 text-xs text-foreground">
-                            <Check className={`w-3.5 h-3.5 ${isHighlighted ? 'text-primary' : 'text-[oklch(0.6_0.2_160)]'}`} />
+                            <Check className={`w-3.5 h-3.5 ${isHighlighted ? 'text-violet-500' : 'text-[oklch(0.6_0.2_160)]'}`} />
                             {t(fKey)}
                           </li>
                         ))}
                       </ul>
                       <Button
                         onClick={handleGetStarted}
-                        className={`w-full mt-6 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${isHighlighted ? 'bg-primary text-primary-foreground hover:bg-primary/90 border-0 shadow-md shadow-primary/15' : 'border-border bg-card text-foreground hover:bg-accent'}`}
+                        className={`w-full mt-6 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${isHighlighted ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 shadow-md shadow-violet-500/15' : 'border-border bg-card text-foreground hover:bg-accent'}`}
                         variant={isHighlighted ? 'default' : 'outline'}
                       >
                         {t(`pricing.${tier.key}.cta`)}
@@ -783,7 +837,7 @@ export default function LandingPage() {
 
         {/* ─── FAQ ─────────────────────────────────────────────────── */}
         <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/20 via-violet-500/15 to-blue-500/20" />
 
           <div className="relative z-10 max-w-3xl mx-auto px-6">
             <motion.div
@@ -792,7 +846,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               className={`${textAlignClass} mb-6`}
             >
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mb-3">
+              <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
                 <Eye className="w-3 h-3 me-1" /> {t('faq.badge')}
               </Badge>
               <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
@@ -806,7 +860,7 @@ export default function LandingPage() {
                 <AccordionItem
                   key={i}
                   value={`faq-${i}`}
-                  className="border border-border/50 rounded-lg px-4 data-[state=open]:border-primary/30 data-[state=open]:bg-primary/5 transition-all"
+                  className="border border-border/50 rounded-lg px-4 data-[state=open]:border-blue-500/30 data-[state=open]:bg-gradient-to-r data-[state=open]:from-blue-500/5 data-[state=open]:to-violet-500/5 transition-all"
                 >
                   <AccordionTrigger className="text-xs font-medium text-foreground hover:no-underline py-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                     {t(`faq.${i}.q`)}
@@ -824,8 +878,10 @@ export default function LandingPage() {
         <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden">
           <AbstractBackground isDark={isDark} />
 
-          {/* Purple accent background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-primary/5" />
+          {/* Blue-to-violet gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/8 via-violet-500/8 to-blue-500/5" />
+          {/* Gradient line at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500/30 via-violet-500/40 to-blue-500/30" />
 
           <div className="relative z-10 max-w-7xl mx-auto px-6">
             <motion.div
@@ -845,7 +901,7 @@ export default function LandingPage() {
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Button
                     onClick={handleGetStarted}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 border-0 text-xs font-semibold shadow-lg shadow-primary/15 px-6 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 text-xs font-semibold shadow-lg shadow-violet-500/15 px-6 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
                     {t('cta.primary')} <ArrowRight className="w-3 h-3 ms-1 rtl-flip-x" />
                   </Button>
@@ -867,8 +923,9 @@ export default function LandingPage() {
 
       {/* ─── Footer ───────────────────────────────────────────────── */}
       <footer className="mt-auto border-t border-border bg-background">
-        {/* Purple accent line above footer */}
-        <div className="h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        {/* Blue-to-violet accent line above footer */}
+        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+        <div className="h-px bg-gradient-to-l from-transparent via-violet-500/15 to-transparent -mt-px" />
 
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-6 mb-6 ${isRtlMode ? 'rtl:text-right' : ''}`}>
