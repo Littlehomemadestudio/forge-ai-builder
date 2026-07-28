@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     // Support looking up by email (for post-login user fetch)
     const whereClause = email ? { email } : { id: userId };
 
-    const user = await db.user.findUnique({
+    let user = await db.user.findUnique({
       where: whereClause,
       include: {
         _count: {
@@ -20,11 +20,38 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Auto-create user if not found (demo flow)
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 },
-      );
+      if (email) {
+        user = await db.user.create({
+          data: {
+            email,
+            name: email.split('@')[0],
+            plan: 'free',
+            aiCredits: 100,
+          },
+          include: {
+            _count: {
+              select: { projects: true },
+            },
+          },
+        });
+      } else {
+        user = await db.user.create({
+          data: {
+            id: userId,
+            email: `${userId}@forge.ai`,
+            name: userId === 'demo-user' ? 'Demo User' : userId,
+            plan: 'free',
+            aiCredits: 100,
+          },
+          include: {
+            _count: {
+              select: { projects: true },
+            },
+          },
+        });
+      }
     }
 
     return NextResponse.json({

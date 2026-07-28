@@ -7,6 +7,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'demo-user';
 
+    // Verify user exists first; if not, return empty list instead of 500
+    const userExists = await db.user.findUnique({ where: { id: userId } });
+    if (!userExists) {
+      return NextResponse.json({ projects: [] });
+    }
+
     const projects = await db.project.findMany({
       where: { userId },
       include: {
@@ -63,16 +69,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user exists
-    const user = await db.user.findUnique({
+    // Verify user exists; auto-create if not found (demo flow)
+    let user = await db.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 },
-      );
+      user = await db.user.create({
+        data: {
+          id: userId,
+          email: `${userId}@forge.ai`,
+          name: userId,
+          plan: 'free',
+          aiCredits: 100,
+        },
+      });
     }
 
     const project = await db.project.create({

@@ -1627,7 +1627,7 @@ function PromptPhase() {
         {/* Advanced Options Panel */}
         <AdvancedOptionsPanel />
 
-        {/* Generate button */}
+        {/* Generate button — classic cubic minimalistic, deep blue */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1637,13 +1637,10 @@ function PromptPhase() {
           <Button
             onClick={handleGenerate}
             disabled={!builderPrompt.trim()}
-            className="group relative h-14 overflow-hidden rounded-xl border-0 px-10 text-base font-semibold text-white shadow-lg shadow-purple-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
-            style={{ background: 'linear-gradient(135deg, #6c5ce7, #a855f7, #ec4899)' }}
+            className="h-14 rounded-lg px-10 text-base font-semibold bg-[#1a3a6b] text-white hover:bg-[#14305a] active:bg-[#0f2548] shadow-none border-0 transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s linear infinite' }} />
             <Wand2 className="mr-2 rtl:ml-2 rtl:mr-0 h-5 w-5" />
             {t('builder.generate')}
-            <ChevronRight className="ml-2 rtl:mr-2 rtl:ml-0 rtl:rotate-180 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 rtl:group-hover:-translate-x-1" />
           </Button>
         </motion.div>
 
@@ -2095,7 +2092,7 @@ function GeneratingPhase() {
         <div className="mb-6">
           <Progress
             value={hasError ? 100 : (doneCount / pagesToGenerate.length) * 100}
-            className={`h-2 bg-gray-100 [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-violet-500 [&>[data-slot=progress-indicator]]:via-pink-500 [&>[data-slot=progress-indicator]]:to-emerald-500 ${hasError ? '[&>[data-slot=progress-indicator]]:from-red-500 [&>[data-slot=progress-indicator]]:via-red-500 [&>[data-slot=progress-indicator]]:to-red-500' : ''}`}
+            className={`h-2 bg-gray-100 [&>[data-slot=progress-indicator]]:bg-[#1a3a6b] ${hasError ? '[&>[data-slot=progress-indicator]]:bg-red-500' : ''}`}
           />
           <div className="mt-2 flex justify-between text-xs text-gray-500">
             <span>{doneCount}/{pagesToGenerate.length} pages done</span>
@@ -2178,7 +2175,7 @@ function GeneratingPhase() {
         {/* Action buttons */}
         <div className="flex justify-center gap-3">
           {hasError ? (
-            <Button onClick={handleRetry} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+            <Button onClick={handleRetry} className="bg-[#1a3a6b] text-white hover:bg-[#14305a] shadow-none border-0 rounded-lg">
               <RefreshCw className="mr-2 h-4 w-4" /> Back to prompt
             </Button>
           ) : null}
@@ -2410,7 +2407,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             <Rocket className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.exportAll')}</span>
           </Button>
-          <Button size="sm" onClick={handleEdit} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 hover:opacity-90">
+          <Button size="sm" onClick={handleEdit} className="bg-[#1a3a6b] text-white hover:bg-[#14305a] shadow-none border-0 rounded-lg">
             <Code2 className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             {t('builder.preview.edit')}
           </Button>

@@ -262,12 +262,12 @@ export function LoginPage() {
   const handleGithubLogin = async () => {
     setIsLoading(true)
     setError('')
-    // GitHub isn't configured in NextAuth yet, so fallback to demo
+    // GitHub isn't configured in NextAuth yet, so fallback to demo user
     await new Promise((resolve) => setTimeout(resolve, 1000))
     login({
-      id: '1',
-      email: 'user@github.com',
-      name: 'GitHub User',
+      id: 'demo-user',
+      email: 'demo@forge.ai',
+      name: 'Demo User',
       aiCredits: 100,
       plan: 'free',
     })
@@ -399,6 +399,7 @@ export function LoginPage() {
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); setError('') }}
                       disabled={isLoading}
+                      autoComplete="current-password"
                       className="h-10 pl-10 pr-10 rounded-lg transition-all duration-200"
                     />
                     <button

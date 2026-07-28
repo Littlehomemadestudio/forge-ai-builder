@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 import { useAppStore } from '@/lib/store'
 import { isRtl } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
@@ -359,16 +358,25 @@ export default function LandingPage() {
                   <span className="text-[8px] text-muted-foreground font-mono" dir="ltr">{t('hero.preview.getUrl')}</span>
                 </div>
               </div>
-              <div className="relative bg-card">
-                <Image
-                  src="/images/forge-hero-1.png"
-                  alt="Forge AI-generated website preview"
-                  width={1536}
-                  height={1024}
-                  className="w-full h-auto object-cover"
-                  priority
-                  unoptimized
-                />
+              <div className="relative bg-card overflow-hidden rounded-xl">
+                {/* Gradient placeholder for hero preview — no external image needed */}
+                <div className="w-full aspect-[3/2] bg-gradient-to-br from-violet-600/20 via-blue-500/10 to-indigo-600/20 flex items-center justify-center">
+                  <div className="text-center p-8">
+                    <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2 mb-4">
+                      <div className="h-3 w-3 rounded-full bg-emerald-400" />
+                      <span className="text-sm font-medium text-white/80">AI Generated Preview</span>
+                    </div>
+                    <div className="space-y-2 max-w-md mx-auto">
+                      <div className="h-4 bg-white/10 rounded w-3/4 mx-auto" />
+                      <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
+                      <div className="grid grid-cols-3 gap-2 mt-4">
+                        <div className="h-12 bg-white/5 rounded" />
+                        <div className="h-12 bg-white/5 rounded" />
+                        <div className="h-12 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-blue-500/8 via-transparent to-violet-500/5 pointer-events-none" />
               </div>
               <div className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 shadow-lg shadow-violet-500/30 animate-pulse" />
@@ -650,18 +658,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ─── Testimonials — background image ─────────────────── */}
+        {/* ─── Testimonials — decorative gradient background ──────── */}
         <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden">
-          {/* Full-quality background image */}
-          <Image
-            src="/images/forge-hero-3.png"
-            alt=""
-            width={1774}
-            height={887}
-            className="absolute inset-0 w-full h-full object-cover"
-            unoptimized
-            role="presentation"
-          />
+          {/* Gradient background instead of missing image */}
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-blue-500/5 to-indigo-600/10" />
           {/* Dark overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/85 to-background/90" />
           {/* Blue-to-violet gradient overlay */}
@@ -874,18 +874,10 @@ export default function LandingPage() {
         </section>
       </div>
 
-      {/* ─── Footer — with background image ─────────────────────── */}
+      {/* ─── Footer — with decorative gradient background ──────── */}
       <footer className="mt-auto relative overflow-hidden border-t border-border">
-        {/* Full-quality background image */}
-        <Image
-          src="/images/forge-hero-2.png"
-          alt=""
-          width={1717}
-          height={916}
-          className="absolute inset-0 w-full h-full object-cover"
-          unoptimized
-          role="presentation"
-        />
+        {/* Gradient background instead of missing image */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-violet-500/5 to-indigo-600/8" />
         {/* Dark overlay for readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/95" />
         {/* Blue-to-violet gradient overlay */}
