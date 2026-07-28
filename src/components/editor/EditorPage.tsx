@@ -810,6 +810,8 @@ export default function EditorPage() {
   const setCurrentPreviewPage = useAppStore(s => s.setCurrentPreviewPage)
   const updateGeneratedPage = useAppStore(s => s.updateGeneratedPage)
   const generatedSiteName = useAppStore(s => s.generatedSiteName)
+  const navigate = useAppStore(s => s.navigate)
+  const t = useTranslation()
 
   const initialHTML = (() => {
     const selected = generatedPages.find(p => p.id === currentPreviewPage)
@@ -1198,9 +1200,6 @@ export default function EditorPage() {
     sendMessage('toggle-grid', { show: newShow })
   }, [showGrid, sendMessage])
 
-  // ─── Navigate ──────────────────────────────────────────────────────────────
-  const navigate = useAppStore(s => s.navigate)
-
   const iframeSrcDoc = prepareHTMLForIframe(websiteHTML)
 
   // ─── Code panel sync ───────────────────────────────────────────────────────
@@ -1433,7 +1432,6 @@ export default function EditorPage() {
   }
 
   // ─── Main Render ───────────────────────────────────────────────────────────
-  const t = useTranslation()
   return (
     <div className={`h-screen flex flex-col overflow-hidden ${editorTheme === 'light' ? 'editor-light bg-zinc-100 text-zinc-900' : 'bg-[#0a0a0f] text-white'}`}>
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}

@@ -38,6 +38,88 @@ import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { useTranslation } from '@/lib/useTranslation'
 import { ALL_PALETTES, PALETTE_CATEGORIES, type ThemePalette } from '@/lib/palettes'
 
+// ─── Builder Theme Helper ──────────────────────────────────────────────────
+// Classic cubic minimalistic: flat solid colors, no gradients, rounded-md corners
+// Selected/accent: deep blue (blue-700), unselected: white (light) / charcoal (dark)
+
+function useBuilderTheme() {
+  const themeMode = useAppStore((s) => s.themeMode)
+  const isDark = themeMode === 'dark'
+  return {
+    isDark,
+    // Card backgrounds
+    cardBg: isDark ? 'bg-zinc-800' : 'bg-white',
+    cardBorder: isDark ? 'border-zinc-700' : 'border-zinc-200',
+    // Option button unselected
+    optBg: isDark ? 'bg-zinc-800' : 'bg-white',
+    optBorder: isDark ? 'border-zinc-700' : 'border-zinc-200',
+    optText: isDark ? 'text-zinc-300' : 'text-gray-700',
+    optDesc: isDark ? 'text-zinc-400' : 'text-gray-400',
+    optHoverBg: isDark ? 'hover:bg-zinc-700' : 'hover:bg-zinc-50',
+    optHoverText: isDark ? 'hover:text-zinc-100' : 'hover:text-gray-900',
+    // Option button selected (always blue-700 regardless of theme)
+    selBg: 'bg-blue-700',
+    selBorder: 'border-blue-700',
+    selText: 'text-white',
+    selDesc: 'text-blue-100/70',
+    selHoverBg: 'hover:bg-blue-800',
+    // Input / select backgrounds
+    inputBg: isDark ? 'bg-zinc-700' : 'bg-zinc-50',
+    inputBorder: isDark ? 'border-zinc-600' : 'border-zinc-200',
+    inputText: isDark ? 'text-zinc-200' : 'text-gray-700',
+    inputPlaceholder: isDark ? 'placeholder:text-zinc-400' : 'placeholder:text-gray-400',
+    // Page backgrounds
+    pageBg: isDark ? 'bg-zinc-900' : 'bg-white',
+    pageBgAlt: isDark ? 'bg-zinc-800' : 'bg-slate-50',
+    // Text hierarchy
+    text: isDark ? 'text-zinc-100' : 'text-gray-900',
+    textMuted: isDark ? 'text-zinc-400' : 'text-gray-500',
+    textDim: isDark ? 'text-zinc-500' : 'text-gray-400',
+    textSub: isDark ? 'text-zinc-600' : 'text-gray-300',
+    textBright: isDark ? 'text-zinc-200' : 'text-gray-800',
+    // Label
+    labelIcon: isDark ? 'text-zinc-500' : 'text-zinc-400',
+    labelText: isDark ? 'text-zinc-400' : 'text-gray-500',
+    // Hover
+    hoverBg: isDark ? 'hover:bg-zinc-700' : 'hover:bg-gray-50',
+    hoverText: isDark ? 'hover:text-zinc-100' : 'hover:text-gray-700',
+    // Badge
+    badgeBg: isDark ? 'bg-zinc-700' : 'bg-zinc-100',
+    badgeBorder: isDark ? 'border-zinc-600' : 'border-zinc-200',
+    badgeText: isDark ? 'text-zinc-300' : 'text-gray-500',
+    // Info highlight (for selected palette info, etc.)
+    infoBg: isDark ? 'bg-blue-900/30' : 'bg-blue-50',
+    infoBorder: isDark ? 'border-blue-800/40' : 'border-blue-200',
+    infoText: isDark ? 'text-blue-400' : 'text-blue-700',
+    infoBadgeBg: isDark ? 'bg-blue-900/30' : 'bg-blue-100',
+    infoBadgeBorder: isDark ? 'border-blue-800/40' : 'border-blue-200',
+    infoBadgeText: isDark ? 'text-blue-400' : 'text-blue-600',
+    // Tab active state
+    tabActiveBg: isDark ? 'data-[state=active]:bg-blue-700' : 'data-[state=active]:bg-blue-50',
+    tabActiveBorder: isDark ? 'data-[state=active]:border-blue-700' : 'data-[state=active]:border-blue-200',
+    tabActiveText: isDark ? 'data-[state=active]:text-white' : 'data-[state=active]:text-blue-700',
+    // Separators
+    separator: isDark ? 'bg-zinc-700' : 'bg-gray-200',
+    borderSub: isDark ? 'border-zinc-700' : 'border-zinc-100',
+    // Scrollbar
+    scrollbarThumb: isDark ? 'bg-zinc-600' : 'bg-gray-200',
+    // Status colors (functional, not accent)
+    doneBg: isDark ? 'bg-emerald-900/20' : 'bg-emerald-50',
+    doneBorder: isDark ? 'border-emerald-800/30' : 'border-emerald-200',
+    doneText: isDark ? 'text-emerald-400' : 'text-emerald-700',
+    errorBg: isDark ? 'bg-red-900/20' : 'bg-red-50',
+    errorBorder: isDark ? 'border-red-800/30' : 'border-red-300',
+    errorText: isDark ? 'text-red-400' : 'text-red-700',
+    generatingBg: isDark ? 'bg-blue-900/20' : 'bg-blue-50',
+    generatingBorder: isDark ? 'border-blue-800/30' : 'border-blue-200',
+    generatingText: isDark ? 'text-blue-400' : 'text-blue-600',
+    // Dot grid opacity
+    dotGridOpacity: isDark ? 'opacity-[0.03]' : 'opacity-[0.04]',
+    // Focus colors for SelectItems
+    focusBg: isDark ? 'focus:bg-blue-900/30 focus:text-zinc-100' : 'focus:bg-blue-50 focus:text-gray-900',
+  }
+}
+
 // ─── Industry metadata ──────────────────────────────────────────────────────
 
 type Industry = 'portfolio' | 'saas' | 'restaurant' | 'ecommerce' | 'blog' | 'agency' | 'event' | 'personal'
@@ -309,6 +391,7 @@ function TemplatePreviewDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const { setSelectedTemplateHtml, setBuilderMode, navigate, setBuilderPhase } = useAppStore()
+  const bt = useBuilderTheme()
   const t = useTranslation()
 
   if (!template) return null
@@ -360,14 +443,13 @@ function TemplatePreviewDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+            className={`${bt.cardBorder} ${bt.optBg} ${bt.textMuted} ${bt.hoverBg} ${bt.hoverText}`}
           >
             {t('builder.closePreview')}
           </Button>
           <Button
             onClick={handleEditTemplate}
-            className="group relative h-auto overflow-hidden rounded-xl border-0 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 transition-all"
-            style={{ background: 'linear-gradient(135deg, #6c5ce7, #a855f7, #ec4899)' }}
+            className="group relative h-auto overflow-hidden rounded-md px-6 py-2.5 text-sm font-semibold text-white transition-all bg-blue-700 hover:bg-blue-800"
           >
             <Wand2 className="mr-2 h-4 w-4" />
             {t('builder.editTemplate')}
@@ -386,6 +468,7 @@ function TemplatesSection() {
   const [previewTemplate, setPreviewTemplate] = useState<SiteTemplate | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const t = useTranslation()
+  const bt = useBuilderTheme()
 
   const filteredTemplates = selectedCategory === 'All'
     ? SITE_TEMPLATES
@@ -405,30 +488,30 @@ function TemplatesSection() {
     >
       {/* Divider */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-        <span className="text-gray-400 text-xs uppercase tracking-widest">or</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+        <div className={`h-px flex-1 ${bt.separator}`} />
+        <span className={`${bt.textDim} text-xs uppercase tracking-widest`}>or</span>
+        <div className={`h-px flex-1 ${bt.separator}`} />
       </div>
 
       {/* Section header */}
       <div className="mb-6 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm mb-3">
+        <div className={`inline-flex items-center gap-2 rounded-full border ${bt.cardBorder} ${bt.optBg} px-4 py-2 text-sm mb-3`}>
           <FileText className="h-4 w-4 text-emerald-600" />
-          <span className="text-gray-600">{t('builder.adv.readyMade')}</span>
+          <span className={bt.textMuted}>{t('builder.adv.readyMade')}</span>
         </div>
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">{t('builder.adv.startFromTemplate')}</h2>
-        <p className="text-gray-500">{t('builder.adv.pickTemplate')}</p>
+        <h2 className={`text-3xl font-bold tracking-tight ${bt.text} mb-2`}>{t('builder.adv.startFromTemplate')}</h2>
+        <p className={bt.textMuted}>{t('builder.adv.pickTemplate')}</p>
       </div>
 
       {/* Category dropdown */}
       <div className="mb-6 flex justify-center">
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[200px] border-gray-200 bg-white text-gray-700 hover:bg-gray-50">
+          <SelectTrigger className={`w-[200px] ${bt.inputBorder} ${bt.inputBg} ${bt.textMuted} ${bt.hoverBg}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-white border-gray-200">
+          <SelectContent className={`${bt.cardBg} ${bt.cardBorder}`}>
             {TEMPLATE_CATEGORIES.map(cat => (
-              <SelectItem key={cat} value={cat} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
+              <SelectItem key={cat} value={cat} className={`${bt.inputText} ${bt.focusBg}`}>
                 {cat === 'All' ? '🌐 All Categories' : cat}
               </SelectItem>
             ))}
@@ -446,7 +529,7 @@ function TemplatesSection() {
             transition={{ delay: 0.9 + i * 0.05, duration: 0.4 }}
           >
             <Card
-              className="cursor-pointer group border-gray-200 bg-white transition-all duration-300 hover:border-violet-200 hover:shadow-md hover:-translate-y-1 overflow-hidden"
+              className={`cursor-pointer group ${bt.cardBorder} ${bt.cardBg} transition-all duration-300 hover:border-blue-200 hover:shadow-md hover:-translate-y-1 overflow-hidden`}
               onClick={() => handleTemplateClick(template)}
             >
               {/* Thumbnail */}
@@ -471,17 +554,17 @@ function TemplatesSection() {
 
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800 group-hover:text-gray-900 transition-colors">
+                  <h3 className={`text-sm font-semibold ${bt.textBright} group-hover:${bt.text} transition-colors`}>
                     {template.name}
                   </h3>
                   <Badge
                     variant="secondary"
-                    className="ml-auto border-gray-200 bg-gray-100 text-xs text-gray-500"
+                    className={`ml-auto ${bt.badgeBorder} ${bt.badgeBg} text-xs ${bt.badgeText}`}
                   >
                     {template.category}
                   </Badge>
                 </div>
-                <p className="text-xs text-gray-500 line-clamp-2 group-hover:text-gray-600 transition-colors">
+                <p className={`text-xs ${bt.textMuted} line-clamp-2 group-hover:${bt.text} transition-colors`}>
                   {template.description}
                 </p>
               </CardContent>
@@ -503,11 +586,12 @@ function TemplatesSection() {
 // ─── Reusable glass card wrapper ────────────────────────────────────────────
 
 function GlassCard({ label, icon, children, className = '' }: { label: string; icon: typeof Sparkles; children: React.ReactNode; className?: string }) {
+  const bt = useBuilderTheme()
   const Icon = icon
   return (
-    <div className={`rounded-xl border border-gray-200 bg-white shadow-sm p-4 ${className}`}>
-      <label className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-        <Icon className="h-3.5 w-3.5 text-gray-400" /> {label}
+    <div className={`rounded-md border ${bt.cardBorder} ${bt.cardBg} p-4 ${className}`}>
+      <label className={`mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider ${bt.labelText}`}>
+        <Icon className={`h-3.5 w-3.5 ${bt.labelIcon}`} /> {label}
       </label>
       {children}
     </div>
@@ -517,20 +601,21 @@ function GlassCard({ label, icon, children, className = '' }: { label: string; i
 // ─── Color picker input ─────────────────────────────────────────────────────
 
 function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const bt = useBuilderTheme()
   return (
     <div className="flex items-center gap-2">
-      <Label className="text-xs text-gray-500 min-w-[60px]">{label}</Label>
+      <Label className={`text-xs ${bt.textMuted} min-w-[60px]`}>{label}</Label>
       <div className="relative flex items-center gap-1.5">
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-7 rounded-md border border-gray-200 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-md"
+          className={`h-7 w-7 rounded-md border ${bt.inputBorder} cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-md`}
         />
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-[80px] text-xs border-gray-200 bg-gray-50 text-gray-700 px-2"
+          className={`h-7 w-[80px] text-xs ${bt.inputBorder} ${bt.inputBg} ${bt.inputText} px-2`}
         />
       </div>
     </div>
@@ -544,6 +629,7 @@ function AdvancedOptionsPanel() {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [activeTab, setActiveTab] = useState('brand')
   const t = useTranslation()
+  const bt = useBuilderTheme()
 
   const updateColorScheme = (key: string, value: string) => {
     setBuilderAdvancedOptions({
@@ -574,7 +660,7 @@ function AdvancedOptionsPanel() {
       {!builderAdvancedUnlocked ? (
         <button
           onClick={() => setBuilderAdvancedUnlocked(true)}
-          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-400 transition-all hover:bg-gray-50 hover:text-gray-600 hover:border-gray-300 shadow-sm"
+          className={`group flex w-full items-center justify-center gap-2 rounded-md border ${bt.cardBorder} ${bt.cardBg} px-4 py-3 text-sm font-medium ${bt.textDim} transition-all ${bt.hoverBg} ${bt.hoverText}`}
         >
           <Lock className="h-4 w-4" />
           <span>{t('builder.advancedOptions')} — unlock to customize</span>
@@ -582,7 +668,7 @@ function AdvancedOptionsPanel() {
       ) : (
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="group flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-500 transition-all hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 shadow-sm"
+          className={`group flex w-full items-center justify-center gap-2 rounded-md border ${bt.cardBorder} ${bt.cardBg} px-4 py-3 text-sm font-medium ${bt.textMuted} transition-all ${bt.hoverBg} ${bt.hoverText}`}
         >
           <Sliders className="h-4 w-4" />
           <span>{t('builder.advancedOptions')}</span>
@@ -603,23 +689,23 @@ function AdvancedOptionsPanel() {
             <div className="mt-4">
               {/* Tab navigation */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="w-full bg-gray-50 border border-gray-200 rounded-xl h-auto p-1 mb-4 flex-wrap">
-                  <TabsTrigger value="brand" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
+                <TabsList className={`w-full ${bt.inputBg} border ${bt.cardBorder} rounded-md h-auto p-1 mb-4 flex-wrap`}>
+                  <TabsTrigger value="brand" className={`${bt.tabActiveBg} ${bt.tabActiveBorder} ${bt.tabActiveText} ${bt.textMuted} text-xs flex-1 min-w-0`}>
                     <Paintbrush className="h-3 w-3 mr-1" /> Brand
                   </TabsTrigger>
-                  <TabsTrigger value="complexity" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="complexity" className={`${bt.tabActiveBg} ${bt.tabActiveBorder} ${bt.tabActiveText} ${bt.textMuted} text-xs flex-1 min-w-0`}>
                     <Layers className="h-3 w-3 mr-1" /> Length
                   </TabsTrigger>
-                  <TabsTrigger value="visual" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="visual" className={`${bt.tabActiveBg} ${bt.tabActiveBorder} ${bt.tabActiveText} ${bt.textMuted} text-xs flex-1 min-w-0`}>
                     <Palette className="h-3 w-3 mr-1" /> Style
                   </TabsTrigger>
-                  <TabsTrigger value="sections" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="sections" className={`${bt.tabActiveBg} ${bt.tabActiveBorder} ${bt.tabActiveText} ${bt.textMuted} text-xs flex-1 min-w-0`}>
                     <Layout className="h-3 w-3 mr-1" /> Sections
                   </TabsTrigger>
-                  <TabsTrigger value="navigation" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="navigation" className={`${bt.tabActiveBg} ${bt.tabActiveBorder} ${bt.tabActiveText} ${bt.textMuted} text-xs flex-1 min-w-0`}>
                     <Navigation className="h-3 w-3 mr-1" /> UX
                   </TabsTrigger>
-                  <TabsTrigger value="seo" className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600 data-[state=active]:border-violet-200 text-gray-500 text-xs flex-1 min-w-0">
+                  <TabsTrigger value="seo" className={`${bt.tabActiveBg} ${bt.tabActiveBorder} ${bt.tabActiveText} ${bt.textMuted} text-xs flex-1 min-w-0`}>
                     <Shield className="h-3 w-3 mr-1" /> SEO
                   </TabsTrigger>
                 </TabsList>
@@ -633,7 +719,7 @@ function AdvancedOptionsPanel() {
                         value={builderAdvancedOptions.brandName}
                         onChange={(e) => setBuilderAdvancedOptions({ brandName: e.target.value })}
                         placeholder="Enter your brand name..."
-                        className="border-gray-200 bg-gray-50 text-gray-700 placeholder:text-gray-400 h-9"
+                        className={`${bt.inputBorder} ${bt.inputBg} ${bt.inputText} ${bt.inputPlaceholder} h-9`}
                       />
                     </GlassCard>
 
@@ -643,12 +729,12 @@ function AdvancedOptionsPanel() {
                         value={builderAdvancedOptions.fontFamily}
                         onValueChange={(v) => setBuilderAdvancedOptions({ fontFamily: v })}
                       >
-                        <SelectTrigger className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 h-9">
+                        <SelectTrigger className={`${bt.inputBorder} ${bt.inputBg} ${bt.inputText} hover:bg-zinc-100 h-9`}>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-white border-gray-200 max-h-60">
+                        <SelectContent className={`${bt.cardBg} ${bt.cardBorder} max-h-60`}>
                           {FONT_OPTIONS.map(font => (
-                            <SelectItem key={font} value={font} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
+                            <SelectItem key={font} value={font} className={`${bt.inputText} ${bt.focusBg}`}>
                               <span style={{ fontFamily: font }} className="text-sm">{font}</span>
                             </SelectItem>
                           ))}
@@ -670,10 +756,10 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ logoPlacement: opt.id })}
-                            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all ${
+                            className={`flex items-center gap-1.5 rounded-md px-3 py-2 text-xs transition-all ${
                               isSelected
-                                ? 'bg-violet-50 text-violet-600 border border-violet-200'
-                                : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5" />
@@ -705,7 +791,7 @@ function AdvancedOptionsPanel() {
                                 style={{ backgroundColor: color }}
                               />
                             </TooltipTrigger>
-                            <TooltipContent className="bg-white border-gray-200 text-xs text-gray-700">
+                            <TooltipContent className={`${bt.cardBg} ${bt.cardBorder} text-xs ${bt.textMuted}`}>
                               {key}: {color}
                             </TooltipContent>
                           </Tooltip>
@@ -726,16 +812,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ complexity: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -753,16 +839,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ pageLength: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -780,16 +866,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ layoutDensity: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -806,32 +892,32 @@ function AdvancedOptionsPanel() {
                         if (!config) return null
                         const Icon = pageItem.icon
                         return (
-                          <div key={pageItem.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2">
-                            <Icon className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-600 min-w-[80px]">{config.name}</span>
+                          <div key={pageItem.id} className={`flex items-center gap-3 rounded-md border ${bt.borderSub} ${bt.optBg} px-3 py-2`}>
+                            <Icon className={`h-4 w-4 ${bt.textDim}`} />
+                            <span className={`text-sm ${bt.textMuted} min-w-[80px]`}>{config.name}</span>
                             <Switch
                               checked={config.enabled}
                               onCheckedChange={(v) => updatePageConfig(pageItem.id, 'enabled', v)}
-                              className="data-[state=checked]:bg-violet-500"
+                              className="data-[state=checked]:bg-blue-700"
                             />
                             {config.enabled && (
                               <Select
                                 value={config.length}
                                 onValueChange={(v) => updatePageConfig(pageItem.id, 'length', v as BuilderPageLength)}
                               >
-                                <SelectTrigger className="h-7 w-[100px] text-xs border-gray-200 bg-gray-50 text-gray-700">
+                                <SelectTrigger className={`h-7 w-[100px] text-xs ${bt.inputBorder} ${bt.inputBg} ${bt.inputText}`}>
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-white border-gray-200">
+                                <SelectContent className={`${bt.cardBg} ${bt.cardBorder}`}>
                                   {PAGE_LENGTH_OPTIONS.map(opt => (
-                                    <SelectItem key={opt.id} value={opt.id} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900 text-xs">
+                                    <SelectItem key={opt.id} value={opt.id} className={`${bt.inputText} ${bt.focusBg} text-xs`}>
                                       {opt.label}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             )}
-                            <Badge variant="secondary" className={`ml-auto text-xs border ${config.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-100 text-gray-400'}`}>
+                            <Badge variant="secondary" className={`ml-auto text-xs border ${config.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : `${bt.badgeBorder} ${bt.badgeBg} ${bt.badgeText}`}`}>
                               {config.enabled ? 'On' : 'Off'}
                             </Badge>
                           </div>
@@ -857,16 +943,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ contentTone: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -884,16 +970,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ layoutDensity: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -911,18 +997,18 @@ function AdvancedOptionsPanel() {
                         const Icon = item.icon
                         const isEnabled = (builderAdvancedOptions[item.key as keyof BuilderAdvancedOptions] as boolean) ?? false
                         return (
-                          <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2.5">
+                          <div key={item.key} className={`flex items-center justify-between rounded-md border ${bt.borderSub} ${bt.optBg} px-3 py-2.5`}>
                             <div className="flex items-center gap-2 min-w-0">
-                              <Icon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <Icon className={`h-4 w-4 ${bt.textDim} flex-shrink-0`} />
                               <div className="min-w-0">
-                                <span className="text-sm text-gray-600 truncate block">{item.label}</span>
-                                <span className="text-xs text-gray-300 truncate block">{item.desc}</span>
+                                <span className={`text-sm ${bt.textMuted} truncate block`}>{item.label}</span>
+                                <span className={`text-xs ${bt.textSub} truncate block`}>{item.desc}</span>
                               </div>
                             </div>
                             <Switch
                               checked={isEnabled}
                               onCheckedChange={(v) => updateSectionToggle(item.key, v)}
-                              className="data-[state=checked]:bg-violet-500 flex-shrink-0"
+                              className="data-[state=checked]:bg-blue-700 flex-shrink-0"
                             />
                           </div>
                         )
@@ -943,16 +1029,16 @@ function AdvancedOptionsPanel() {
                             <button
                               key={opt.id}
                               onClick={() => setBuilderAdvancedOptions({ navigationStyle: opt.id })}
-                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                              className={`flex items-center gap-2 w-full rounded-md px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-violet-50 border border-violet-200'
-                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                  ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                  : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                              <span className={`text-xs ${isSelected ? bt.selDesc : bt.optDesc}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -970,16 +1056,16 @@ function AdvancedOptionsPanel() {
                             <button
                               key={opt.id}
                               onClick={() => setBuilderAdvancedOptions({ ctaStyle: opt.id })}
-                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                              className={`flex items-center gap-2 w-full rounded-md px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-violet-50 border border-violet-200'
-                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                  ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                  : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                              <span className={`text-xs ${isSelected ? bt.selDesc : bt.optDesc}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -998,16 +1084,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ animationLevel: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -1025,16 +1111,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ responsivePriority: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2.5 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -1056,16 +1142,16 @@ function AdvancedOptionsPanel() {
                             <button
                               key={opt.id}
                               onClick={() => setBuilderAdvancedOptions({ seoLevel: opt.id })}
-                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                              className={`flex items-center gap-2 w-full rounded-md px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-violet-50 border border-violet-200'
-                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                  ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                  : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                              <span className={`text-xs ${isSelected ? bt.selDesc : bt.optDesc}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -1083,16 +1169,16 @@ function AdvancedOptionsPanel() {
                             <button
                               key={opt.id}
                               onClick={() => setBuilderAdvancedOptions({ accessibilityLevel: opt.id })}
-                              className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left transition-all ${
+                              className={`flex items-center gap-2 w-full rounded-md px-3 py-2 text-left transition-all ${
                                 isSelected
-                                  ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                  ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                  : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                               }`}
                             >
-                              <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                              <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                                 {opt.label}
                               </span>
-                              <span className={`text-xs ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                              <span className={`text-xs ${isSelected ? bt.selDesc : bt.optDesc}`}>
                                 {opt.desc}
                               </span>
                             </button>
@@ -1111,16 +1197,16 @@ function AdvancedOptionsPanel() {
                           <button
                             key={opt.id}
                             onClick={() => setBuilderAdvancedOptions({ imageStyle: opt.id })}
-                            className={`flex flex-col rounded-lg px-3 py-2 text-left transition-all ${
+                            className={`flex flex-col rounded-md px-3 py-2 text-left transition-all ${
                               isSelected
-                                ? 'bg-violet-50 border border-violet-200'
-                                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                ? `${bt.selBg} ${bt.selBorder} ${bt.selText}`
+                                : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
                             }`}
                           >
-                            <span className={`text-sm font-medium ${isSelected ? 'text-violet-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-medium ${isSelected ? bt.selText : bt.optText}`}>
                               {opt.label}
                             </span>
-                            <span className={`text-xs mt-0.5 ${isSelected ? 'text-violet-600/60' : 'text-gray-400'}`}>
+                            <span className={`text-xs mt-0.5 ${isSelected ? bt.selDesc : bt.optDesc}`}>
                               {opt.desc}
                             </span>
                           </button>
@@ -1145,6 +1231,7 @@ function PaletteQuickSelect() {
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [search, setSearch] = useState('')
   const t = useTranslation()
+  const bt = useBuilderTheme()
 
   const filtered = categoryFilter === 'All'
     ? ALL_PALETTES
@@ -1176,34 +1263,34 @@ function PaletteQuickSelect() {
     <div className="space-y-3">
       {/* Selected palette info bar — shown prominently at the top */}
       {selectedPalette && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50 p-3">
+        <div className={`rounded-md border ${bt.infoBorder} ${bt.infoBg} p-3`}>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-20 rounded-md shadow-sm" style={{ background: selectedPalette.thumbnailGradient }} />
+            <div className="h-10 w-20 rounded-md" style={{ background: selectedPalette.thumbnailGradient }} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-violet-700">{selectedPalette.name}</p>
+              <p className={`text-sm font-semibold ${bt.infoText}`}>{selectedPalette.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <Badge variant="secondary" className="text-[10px] bg-violet-100 text-violet-600 border-violet-200 px-1.5 py-0">{selectedPalette.category}</Badge>
-                <span className="text-xs text-gray-500">{selectedPalette.layoutStyle}</span>
+                <Badge variant="secondary" className={`text-[10px] ${bt.infoBadgeBg} ${bt.infoBadgeText} ${bt.infoBadgeBorder} px-1.5 py-0`}>{selectedPalette.category}</Badge>
+                <span className={`text-xs ${bt.textMuted}`}>{selectedPalette.layoutStyle}</span>
               </div>
-              {selectedPalette.nameFa && <p className="text-xs text-gray-400 mt-0.5">{selectedPalette.nameFa}</p>}
+              {selectedPalette.nameFa && <p className={`text-xs ${bt.textDim} mt-0.5`}>{selectedPalette.nameFa}</p>}
             </div>
             <div className="flex gap-1">
               {Object.values(selectedPalette.colors).map((c, i) => (
-                <div key={i} className="h-6 w-6 rounded-md border border-gray-200 shadow-sm" style={{ background: c }} />
+                <div key={i} className={`h-6 w-6 rounded-md border ${bt.cardBorder}`} style={{ background: c }} />
               ))}
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-1.5">{selectedPalette.mood}</p>
+          <p className={`text-xs ${bt.textMuted} mt-1.5`}>{selectedPalette.mood}</p>
         </div>
       )}
 
       {/* Category filter pills + search */}
       <div className="flex flex-col gap-2">
-        <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <div className={`flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:${bt.scrollbarThumb} [&::-webkit-scrollbar-thumb]:rounded-full`}>
           <button
             onClick={() => setCategoryFilter('All')}
             className={`text-xs px-3 py-1.5 rounded-md whitespace-nowrap transition-all font-medium ${
-              categoryFilter === 'All' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+              categoryFilter === 'All' ? `${bt.selBg} ${bt.selBorder} ${bt.selText}` : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
             }`}
           >
             All ({ALL_PALETTES.length})
@@ -1213,7 +1300,7 @@ function PaletteQuickSelect() {
               key={cat}
               onClick={() => setCategoryFilter(cat)}
               className={`text-xs px-3 py-1.5 rounded-md whitespace-nowrap transition-all font-medium ${
-                categoryFilter === cat ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+                categoryFilter === cat ? `${bt.selBg} ${bt.selBorder} ${bt.selText}` : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
               }`}
             >
               {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
@@ -1224,12 +1311,12 @@ function PaletteQuickSelect() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search palettes..."
-          className="border-gray-200 bg-gray-50 text-gray-700 placeholder:text-gray-400 h-9 text-xs"
+          className={`${bt.inputBorder} ${bt.inputBg} ${bt.inputText} ${bt.inputPlaceholder} h-9 text-xs`}
         />
       </div>
 
       {/* Palette grid — scrollable, shows ALL matching palettes */}
-      <div className="max-h-[480px] overflow-y-auto rounded-lg border border-gray-100 bg-white p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className={`max-h-[480px] overflow-y-auto rounded-md border ${bt.cardBorder} ${bt.cardBg} p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:${bt.scrollbarThumb} [&::-webkit-scrollbar-thumb]:rounded-full`}>
         {searched.map(palette => {
           const isSelected = builderStyle === palette.id
           return (
@@ -1238,10 +1325,10 @@ function PaletteQuickSelect() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleSelect(palette)}
-              className={`group relative rounded-lg overflow-hidden transition-all shadow-sm ${
+              className={`group relative rounded-md overflow-hidden transition-all ${
                 isSelected
-                  ? 'ring-2 ring-violet-500 shadow-md'
-                  : 'hover:ring-1 hover:ring-gray-300 hover:shadow-md'
+                  ? 'ring-2 ring-blue-700'
+                  : `hover:ring-1 hover:ring-zinc-300`
               }`}
             >
               {/* Gradient thumbnail */}
@@ -1253,17 +1340,17 @@ function PaletteQuickSelect() {
                 ))}
               </div>
               {/* Name + info */}
-              <div className="bg-white px-2 pb-2 pt-0.5">
-                <p className={`text-xs font-medium leading-tight ${isSelected ? 'text-violet-700' : 'text-gray-700'}`}>
+              <div className={`${bt.cardBg} px-2 pb-2 pt-0.5`}>
+                <p className={`text-xs font-medium leading-tight ${isSelected ? bt.infoText : bt.optText}`}>
                   {palette.name}
                 </p>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <Badge variant="secondary" className="text-[9px] bg-gray-100 text-gray-500 border-gray-200 px-1 py-0">{palette.category}</Badge>
-                  <span className="text-[10px] text-gray-400">{palette.layoutStyle}</span>
+                  <Badge variant="secondary" className={`text-[9px] ${bt.badgeBg} ${bt.badgeText} ${bt.badgeBorder} px-1 py-0`}>{palette.category}</Badge>
+                  <span className={`text-[10px] ${bt.textDim}`}>{palette.layoutStyle}</span>
                 </div>
               </div>
               {isSelected && (
-                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-violet-500 shadow-md flex items-center justify-center">
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-700 flex items-center justify-center">
                   <Check className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
@@ -1282,6 +1369,7 @@ function PaletteAdvancedSelect() {
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [search, setSearch] = useState('')
   const t = useTranslation()
+  const bt = useBuilderTheme()
 
   const filtered = categoryFilter === 'All'
     ? ALL_PALETTES
@@ -1312,34 +1400,34 @@ function PaletteAdvancedSelect() {
     <div className="space-y-3">
       {/* Selected palette info */}
       {selectedPalette && (
-        <div className="rounded-lg p-3 bg-violet-50 border border-violet-200">
+        <div className={`rounded-md p-3 ${bt.infoBg} border ${bt.infoBorder}`}>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-20 rounded-md shadow-sm" style={{ background: selectedPalette.thumbnailGradient }} />
+            <div className="h-10 w-20 rounded-md" style={{ background: selectedPalette.thumbnailGradient }} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-violet-700">{selectedPalette.name}</p>
+              <p className={`text-sm font-semibold ${bt.infoText}`}>{selectedPalette.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <Badge variant="secondary" className="text-[10px] bg-violet-100 text-violet-600 border-violet-200 px-1.5 py-0">{selectedPalette.category}</Badge>
-                <span className="text-xs text-gray-500">{selectedPalette.layoutStyle}</span>
+                <Badge variant="secondary" className={`text-[10px] ${bt.infoBadgeBg} ${bt.infoBadgeText} ${bt.infoBadgeBorder} px-1.5 py-0`}>{selectedPalette.category}</Badge>
+                <span className={`text-xs ${bt.textMuted}`}>{selectedPalette.layoutStyle}</span>
               </div>
-              {selectedPalette.nameFa && <p className="text-xs text-gray-400 mt-0.5">{selectedPalette.nameFa}</p>}
+              {selectedPalette.nameFa && <p className={`text-xs ${bt.textDim} mt-0.5`}>{selectedPalette.nameFa}</p>}
             </div>
             <div className="flex gap-1">
               {Object.values(selectedPalette.colors).map((c, i) => (
-                <div key={i} className="h-5 w-5 rounded-md border border-gray-200 shadow-sm" style={{ background: c }} />
+                <div key={i} className={`h-5 w-5 rounded-md border ${bt.cardBorder}`} style={{ background: c }} />
               ))}
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-1">{selectedPalette.mood}</p>
-          {selectedPalette.description && <p className="text-xs text-gray-400 mt-0.5">{selectedPalette.description}</p>}
+          <p className={`text-xs ${bt.textMuted} mt-1`}>{selectedPalette.mood}</p>
+          {selectedPalette.description && <p className={`text-xs ${bt.textDim} mt-0.5`}>{selectedPalette.description}</p>}
         </div>
       )}
 
       {/* Category filter pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className={`flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:${bt.scrollbarThumb} [&::-webkit-scrollbar-thumb]:rounded-full`}>
         <button
           onClick={() => setCategoryFilter('All')}
           className={`text-[10px] px-2.5 py-1 rounded-md whitespace-nowrap transition-all font-medium ${
-            categoryFilter === 'All' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+            categoryFilter === 'All' ? `${bt.selBg} ${bt.selBorder} ${bt.selText}` : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
           }`}
         >
           All ({ALL_PALETTES.length})
@@ -1349,7 +1437,7 @@ function PaletteAdvancedSelect() {
             key={cat}
             onClick={() => setCategoryFilter(cat)}
             className={`text-[10px] px-2.5 py-1 rounded-md whitespace-nowrap transition-all font-medium ${
-              categoryFilter === cat ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+              categoryFilter === cat ? `${bt.selBg} ${bt.selBorder} ${bt.selText}` : `${bt.optBg} ${bt.optBorder} ${bt.optText} ${bt.optHoverBg} ${bt.optHoverText}`
             }`}
           >
             {cat} ({ALL_PALETTES.filter(p => p.category === cat).length})
@@ -1362,11 +1450,11 @@ function PaletteAdvancedSelect() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search palettes..."
-        className="border-gray-200 bg-gray-50 text-gray-700 placeholder:text-gray-400 h-9 text-xs"
+        className={`${bt.inputBorder} ${bt.inputBg} ${bt.inputText} ${bt.inputPlaceholder} h-9 text-xs`}
       />
 
       {/* Palette grid — scrollable, shows ALL matching palettes */}
-      <div className="max-h-[420px] overflow-y-auto rounded-lg border border-gray-100 bg-white p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className={`max-h-[420px] overflow-y-auto rounded-md border ${bt.cardBorder} ${bt.cardBg} p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:${bt.scrollbarThumb} [&::-webkit-scrollbar-thumb]:rounded-full`}>
         {searched.map(palette => {
           const isSelected = builderStyle === palette.id
           return (
@@ -1375,10 +1463,10 @@ function PaletteAdvancedSelect() {
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => handleSelect(palette)}
-              className={`group relative rounded-lg overflow-hidden transition-all shadow-sm ${
+              className={`group relative rounded-md overflow-hidden transition-all ${
                 isSelected
-                  ? 'ring-2 ring-violet-500 shadow-md'
-                  : 'hover:ring-1 hover:ring-gray-300 hover:shadow-md'
+                  ? 'ring-2 ring-blue-700'
+                  : `hover:ring-1 hover:ring-zinc-300`
               }`}
             >
               {/* Gradient thumbnail */}
@@ -1390,14 +1478,14 @@ function PaletteAdvancedSelect() {
                 ))}
               </div>
               {/* Name + layout */}
-              <div className="bg-white px-2 pb-1.5 pt-0.5">
-                <p className={`text-[10px] font-medium leading-tight ${isSelected ? 'text-violet-700' : 'text-gray-700'}`}>
+              <div className={`${bt.cardBg} px-2 pb-1.5 pt-0.5`}>
+                <p className={`text-[10px] font-medium leading-tight ${isSelected ? bt.infoText : bt.optText}`}>
                   {palette.name}
                 </p>
-                <p className="text-[9px] text-gray-400">{palette.layoutStyle}</p>
+                <p className={`text-[9px] ${bt.textDim}`}>{palette.layoutStyle}</p>
               </div>
               {isSelected && (
-                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-violet-500 shadow-md flex items-center justify-center">
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-700 flex items-center justify-center">
                   <Check className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
@@ -1421,6 +1509,7 @@ function PromptPhase() {
     navigate,
   } = useAppStore()
   const t = useTranslation()
+  const bt = useBuilderTheme()
 
   const [cursorVisible, setCursorVisible] = useState(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -1451,28 +1540,9 @@ function PromptPhase() {
   const totalEnabledPages = builderAdvancedOptions.pageConfigs.filter(p => p.enabled).length
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12 bg-gradient-to-b from-white to-slate-50">
-      {/* Background floating elements — subtle light gradients */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute -top-20 -left-20 rtl:-left-auto rtl:-right-20 h-80 w-80 rounded-full bg-gradient-to-br from-violet-200/20 to-pink-200/20 blur-3xl"
-          animate={{ y: [0, 30, 0], x: [0, 20, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute -bottom-40 -right-20 rtl:-right-auto rtl:-left-20 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-200/20 to-teal-200/20 blur-3xl"
-          animate={{ y: [0, -40, 0], x: [0, -30, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute top-1/3 right-1/4 rtl:right-auto rtl:left-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-orange-200/15 to-amber-200/15 blur-3xl"
-          animate={{ y: [0, 20, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
+    <div className={`relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12 ${bt.pageBg}`}>
       {/* Subtle dot grid pattern */}
-      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
+      <div className={`absolute inset-0 ${bt.dotGridOpacity} pointer-events-none`} style={{
         backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.15) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
@@ -1483,7 +1553,7 @@ function PromptPhase() {
           variant="ghost"
           size="sm"
           onClick={() => navigate('landing')}
-          className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 text-xs"
+          className={`${bt.textMuted} ${bt.hoverText} ${bt.hoverBg} text-xs`}
         >
           <ArrowLeft className="h-3.5 w-3.5 mr-1 rtl:ml-1 rtl:mr-0 rtl:rotate-180" />
           {t('builder.backToHome')}
@@ -1506,16 +1576,16 @@ function PromptPhase() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm"
+            className={`mb-6 inline-flex items-center gap-2 rounded-full border ${bt.cardBorder} ${bt.optBg} px-4 py-2 text-sm`}
           >
-            <Sparkles className="h-4 w-4 text-violet-500" />
-            <span className="text-gray-600">{t('builder.poweredBy', { n: totalEnabledPages })}</span>
+            <Sparkles className="h-4 w-4 text-blue-700" />
+            <span className={bt.textMuted}>{t('builder.poweredBy', { n: totalEnabledPages })}</span>
           </motion.div>
 
-          <h1 className="mb-3 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+          <h1 className={`mb-3 text-4xl font-bold tracking-tight ${bt.text} sm:text-5xl`}>
             {t('builder.title')}
           </h1>
-          <p className="text-lg text-gray-500">
+          <p className={`text-lg ${bt.textMuted}`}>
             {t('builder.subtitle')}
           </p>
         </div>
@@ -1530,19 +1600,19 @@ function PromptPhase() {
           {/* Industry selector */}
           <GlassCard label={t('builder.industry')} icon={Briefcase}>
             <Select value={builderIndustry} onValueChange={(v) => setBuilderIndustry(v as Industry)}>
-              <SelectTrigger className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100">
+              <SelectTrigger className={`${bt.inputBorder} ${bt.inputBg} ${bt.inputText} hover:bg-zinc-100`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-white border-gray-200 max-h-80">
+              <SelectContent className={`${bt.cardBg} ${bt.cardBorder} max-h-80`}>
                 {INDUSTRY_OPTIONS.map(opt => {
                   const Icon = opt.icon
                   return (
-                    <SelectItem key={opt.id} value={opt.id} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
+                    <SelectItem key={opt.id} value={opt.id} className={`${bt.inputText} ${bt.focusBg}`}>
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-violet-500" />
+                        <Icon className="h-4 w-4 text-blue-700" />
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">{opt.label}</span>
-                          <span className="text-xs text-gray-500">{opt.hint}</span>
+                          <span className={`text-xs ${bt.textMuted}`}>{opt.hint}</span>
                         </div>
                       </div>
                     </SelectItem>
@@ -1555,17 +1625,17 @@ function PromptPhase() {
           {/* Language selector (generated site's language, NOT UI language) */}
           <GlassCard label={t('builder.siteLanguage')} icon={Globe}>
             <Select value={builderLanguage} onValueChange={(v) => setBuilderLanguage(v as any)}>
-              <SelectTrigger className="border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100">
+              <SelectTrigger className={`${bt.inputBorder} ${bt.inputBg} ${bt.inputText} hover:bg-zinc-100`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-white border-gray-200 max-h-80">
+              <SelectContent className={`${bt.cardBg} ${bt.cardBorder} max-h-80`}>
                 {LANGUAGE_OPTIONS.map(opt => (
-                  <SelectItem key={opt.id} value={opt.id} className="text-gray-700 focus:bg-violet-50 focus:text-gray-900">
+                  <SelectItem key={opt.id} value={opt.id} className={`${bt.inputText} ${bt.focusBg}`}>
                     <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-violet-500" />
+                      <Globe className="h-4 w-4 text-blue-700" />
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{opt.label}</span>
-                        <span className="text-xs text-gray-500" dir="ltr">{opt.font} · {opt.dir.toUpperCase()}</span>
+                        <span className={`text-xs ${bt.textMuted}`} dir="ltr">{opt.font} · {opt.dir.toUpperCase()}</span>
                       </div>
                     </div>
                   </SelectItem>
@@ -1594,14 +1664,13 @@ function PromptPhase() {
           transition={{ delay: 0.4 }}
           className="relative mb-6"
         >
-          <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-gray-50/50 to-transparent" />
+          <div className={`relative overflow-hidden rounded-md border ${bt.cardBorder} ${bt.cardBg}`}>
             <Textarea
               ref={textareaRef}
               value={builderPrompt}
               onChange={(e) => setBuilderPrompt(e.target.value)}
               placeholder={t('builder.placeholder')}
-              className="relative min-h-[160px] resize-none border-0 bg-transparent p-6 text-base text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
+              className={`relative min-h-[160px] resize-none border-0 bg-transparent p-6 text-base ${bt.text} ${bt.inputPlaceholder} focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
@@ -1610,14 +1679,14 @@ function PromptPhase() {
               }}
             />
             {builderPrompt.length === 0 && cursorVisible && (
-              <div className="absolute left-6 rtl:left-auto rtl:right-6 top-[88px] h-5 w-0.5 animate-pulse bg-violet-500" />
+              <div className={`absolute left-6 rtl:left-auto rtl:right-6 top-[88px] h-5 w-0.5 animate-pulse bg-blue-700`} />
             )}
             {/* Footer of textarea */}
-            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-6 py-2.5">
-              <span className="text-xs text-gray-400" dir="ltr">
+            <div className={`flex items-center justify-between border-t ${bt.borderSub} ${bt.inputBg} px-6 py-2.5`}>
+              <span className={`text-xs ${bt.textDim}`} dir="ltr">
                 {t('builder.chars', { n: builderPrompt.length })}
               </span>
-              <span className="text-xs text-gray-500">
+              <span className={`text-xs ${bt.textMuted}`}>
                 {t('builder.pageCount', { enabled: enabledPages.length, total: totalEnabledPages })}
               </span>
             </div>
@@ -1637,7 +1706,7 @@ function PromptPhase() {
           <Button
             onClick={handleGenerate}
             disabled={!builderPrompt.trim()}
-            className="h-14 rounded-lg px-10 text-base font-semibold bg-[#1a3a6b] text-white hover:bg-[#14305a] active:bg-[#0f2548] shadow-none border-0 transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="h-14 rounded-md px-10 text-base font-semibold bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 shadow-none border-0 transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Wand2 className="mr-2 rtl:ml-2 rtl:mr-0 h-5 w-5" />
             {t('builder.generate')}
@@ -1650,7 +1719,7 @@ function PromptPhase() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          <p className="mb-4 text-center text-sm text-gray-400">{t('builder.tryExample')}</p>
+          <p className={`mb-4 text-center text-sm ${bt.textDim}`}>{t('builder.tryExample')}</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PROMPT_SUGGESTIONS.map((suggestion, i) => (
               <motion.div
@@ -1660,17 +1729,17 @@ function PromptPhase() {
                 transition={{ delay: 0.7 + i * 0.06 }}
               >
                 <Card
-                  className="cursor-pointer border-gray-200 bg-white transition-all duration-300 hover:border-violet-200 hover:shadow-md hover:-translate-y-1"
+                  className={`cursor-pointer ${bt.cardBorder} ${bt.cardBg} transition-all duration-300 hover:border-blue-200 hover:shadow-md hover:-translate-y-1`}
                   onClick={() => handleSuggestionClick(suggestion.text, suggestion.industry)}
                 >
                   <CardContent className="flex h-full flex-col gap-2 p-4">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">{suggestion.icon}</span>
-                      <Badge variant="secondary" className="ml-auto border-gray-200 bg-gray-100 text-xs text-gray-500">
+                      <Badge variant="secondary" className={`ml-auto ${bt.badgeBorder} ${bt.badgeBg} text-xs ${bt.badgeText}`}>
                         {INDUSTRY_OPTIONS.find(o => o.id === suggestion.industry)?.label.split(' ')[0]}
                       </Badge>
                     </div>
-                    <span className="text-sm leading-relaxed text-gray-700 line-clamp-3">{suggestion.text}</span>
+                    <span className={`text-sm leading-relaxed ${bt.optText} line-clamp-3`}>{suggestion.text}</span>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1709,6 +1778,7 @@ function GeneratingPhase() {
     addChatEntry,
   } = useAppStore()
   const t = useTranslation()
+  const bt = useBuilderTheme()
 
   // Determine which core pages to generate based on pageConfigs
   const pagesToGenerate = CORE_PAGE_ORDER.filter(cp =>
@@ -1957,25 +2027,12 @@ function GeneratingPhase() {
   const hasError = pageStates.some(p => p.status === 'error')
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 bg-gradient-to-b from-white to-slate-50">
-      {/* Subtle animated gradient orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute left-1/4 top-1/4 h-60 w-60 rounded-full bg-violet-200/30 blur-[100px]"
-          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute right-1/4 bottom-1/4 h-60 w-60 rounded-full bg-pink-200/30 blur-[100px]"
-          animate={{ scale: [1.5, 1, 1.5], opacity: [0.4, 0.3, 0.4] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute left-1/2 top-1/2 h-40 w-40 rounded-full bg-emerald-200/20 blur-[80px]"
-          animate={{ scale: [1, 1.3, 1], x: [0, 40, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
+    <div className={`relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 ${bt.pageBg}`}>
+      {/* Subtle dot grid */}
+      <div className={`absolute inset-0 ${bt.dotGridOpacity} pointer-events-none`} style={{
+        backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.15) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+      }} />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -1990,25 +2047,25 @@ function GeneratingPhase() {
             animate={{ rotate: hasError ? 0 : 360 }}
             transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
           >
-            <div className="absolute inset-0 rounded-full border-2 border-violet-300/40" />
-            <div className="absolute inset-2 rounded-full border-2 border-pink-300/30" style={{ animationDirection: 'reverse' }} />
+            <div className="absolute inset-0 rounded-full border-2 border-blue-300/40" />
+            <div className="absolute inset-2 rounded-full border-2 border-blue-200/30" style={{ animationDirection: 'reverse' }} />
             <div className="absolute inset-4 rounded-full border-2 border-emerald-300/30" />
             <motion.div
               className="absolute inset-0 flex items-center justify-center"
               animate={{ rotate: hasError ? 0 : -360 }}
               transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
             >
-              {hasError ? <AlertCircle className="h-8 w-8 text-red-400" /> : <Sparkles className="h-8 w-8 text-violet-500" />}
+              {hasError ? <AlertCircle className="h-8 w-8 text-red-400" /> : <Sparkles className="h-8 w-8 text-blue-700" />}
             </motion.div>
           </motion.div>
         </div>
 
         {/* Title */}
         <div className="mb-8 text-center">
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">
+          <h2 className={`mb-2 text-2xl font-bold ${bt.text}`}>
             {hasError ? 'Generation hit an error' : 'Generating your website'}
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className={`text-sm ${bt.textMuted}`}>
             {hasError
               ? 'One of the pages failed. You can retry from the prompt, or cancel.'
               : `AI is crafting ${pagesToGenerate.length} complete pages sequentially — this takes ~4-6 minutes total`
@@ -2022,10 +2079,10 @@ function GeneratingPhase() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm"
+            className={`mb-6 rounded-md border ${bt.cardBorder} ${bt.cardBg} p-4 text-left`}
           >
-            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-              <Sparkles className="h-3 w-3 text-violet-500" />
+            <div className={`mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider ${bt.textMuted}`}>
+              <Sparkles className="h-3 w-3 text-blue-700" />
               Detected from your prompt
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -2034,7 +2091,7 @@ function GeneratingPhase() {
                   <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Colors</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.hexColors.map(c => (
-                      <div key={c} className="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1">
+                      <div key={c} className={`flex items-center gap-1 rounded-md border ${bt.cardBorder} ${bt.optBg} px-2 py-1`}>
                         <div className="h-3 w-3 rounded-sm border border-gray-300" style={{ background: c }} />
                         <span className="text-[10px] font-mono text-gray-700">{c}</span>
                       </div>
@@ -2047,7 +2104,7 @@ function GeneratingPhase() {
                   <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Theme</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.themeKeywords.map(t => (
-                      <span key={t} className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] text-violet-600">{t}</span>
+                      <span key={t} className={`rounded-md border ${bt.infoBorder} ${bt.infoBg} px-2 py-1 text-[10px] ${bt.infoText}`}>{t}</span>
                     ))}
                   </div>
                 </div>
@@ -2057,7 +2114,7 @@ function GeneratingPhase() {
                   <div className="mb-1.5 text-[10px] uppercase tracking-wider text-gray-500">Required Elements</div>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedPrompt.requiredElements.map(e => (
-                      <span key={e} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] text-emerald-700">{e}</span>
+                      <span key={e} className={`rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] ${bt.doneText}`}>{e}</span>
                     ))}
                   </div>
                 </div>
@@ -2092,11 +2149,11 @@ function GeneratingPhase() {
         <div className="mb-6">
           <Progress
             value={hasError ? 100 : (doneCount / pagesToGenerate.length) * 100}
-            className={`h-2 bg-gray-100 [&>[data-slot=progress-indicator]]:bg-[#1a3a6b] ${hasError ? '[&>[data-slot=progress-indicator]]:bg-red-500' : ''}`}
+            className={`h-2 ${bt.pageBgAlt} [&>[data-slot=progress-indicator]]:bg-blue-700 ${hasError ? '[&>[data-slot=progress-indicator]]:bg-red-500' : ''}`}
           />
           <div className="mt-2 flex justify-between text-xs text-gray-500">
-            <span>{doneCount}/{pagesToGenerate.length} pages done</span>
-            <span>{formatTime(elapsedSeconds)} elapsed</span>
+            <span className={bt.textMuted}>{doneCount}/{pagesToGenerate.length} pages done</span>
+            <span className={bt.textMuted}>{formatTime(elapsedSeconds)} elapsed</span>
           </div>
         </div>
 
@@ -2115,21 +2172,21 @@ function GeneratingPhase() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`flex items-center gap-3 rounded-lg border p-3 transition-all duration-500 ${
+                className={`flex items-center gap-3 rounded-md border p-3 transition-all duration-500 ${
                   isError
-                    ? 'border-red-300 bg-red-50'
+                    ? `${bt.errorBorder} ${bt.errorBg}`
                     : isDone
-                    ? 'border-emerald-200 bg-emerald-50'
+                    ? `${bt.doneBorder} ${bt.doneBg}`
                     : isGenerating
-                    ? 'border-violet-200 bg-violet-50'
-                    : 'border-gray-200 bg-gray-50'
+                    ? `${bt.generatingBorder} ${bt.generatingBg}`
+                    : `${bt.cardBorder} ${bt.pageBgAlt}`
                 }`}
               >
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                  isError ? 'bg-red-100 text-red-600'
-                  : isDone ? 'bg-emerald-100 text-emerald-600'
-                  : isGenerating ? 'bg-violet-100 text-violet-600'
-                  : 'bg-gray-100 text-gray-400'
+                <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
+                  isError ? `bg-red-100 text-red-600`
+                  : isDone ? `bg-emerald-100 text-emerald-600`
+                  : isGenerating ? `bg-blue-100 text-blue-600`
+                  : `bg-gray-100 text-gray-400`
                 }`}>
                   {isDone ? (
                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300 }}>
@@ -2145,10 +2202,10 @@ function GeneratingPhase() {
                 </div>
                 <div className="flex-1">
                   <span className={`text-sm font-medium ${
-                    isError ? 'text-red-700'
-                    : isDone ? 'text-emerald-700'
-                    : isGenerating ? 'text-gray-900'
-                    : 'text-gray-400'
+                    isError ? bt.errorText
+                    : isDone ? bt.doneText
+                    : isGenerating ? bt.text
+                    : bt.textDim
                   }`}>
                     {page.name}{t('builder.pageSuffix')}
                   </span>
@@ -2156,10 +2213,10 @@ function GeneratingPhase() {
                     <p className="text-xs text-red-500/70 mt-0.5 line-clamp-1">{page.error}</p>
                   )}
                   {isGenerating && (
-                    <p className="text-xs text-violet-600/70 mt-0.5">{t('builder.aiWriting')}</p>
+                    <p className={`text-xs ${bt.generatingText}/70 mt-0.5`}>{t('builder.aiWriting')}</p>
                   )}
                   {isDone && (
-                    <p className="text-xs text-emerald-600/70 mt-0.5">
+                    <p className={`text-xs ${bt.doneText}/70 mt-0.5`}>
                       {page.html ? t('builder.kbGenerated', { n: (page.html.length / 1024).toFixed(1) }) : t('builder.ready')}
                     </p>
                   )}
@@ -2175,14 +2232,14 @@ function GeneratingPhase() {
         {/* Action buttons */}
         <div className="flex justify-center gap-3">
           {hasError ? (
-            <Button onClick={handleRetry} className="bg-[#1a3a6b] text-white hover:bg-[#14305a] shadow-none border-0 rounded-lg">
+            <Button onClick={handleRetry} className="bg-blue-700 text-white hover:bg-blue-800 shadow-none border-0 rounded-md">
               <RefreshCw className="mr-2 h-4 w-4" /> Back to prompt
             </Button>
           ) : null}
           <Button
             variant="ghost"
             onClick={handleCancel}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            className={`${bt.textDim} ${bt.hoverText} ${bt.hoverBg}`}
           >
             <X className="mr-2 h-4 w-4" />
             {t('builder.cancelGeneration')}
@@ -2191,7 +2248,7 @@ function GeneratingPhase() {
 
         {/* Live status line */}
         {!hasError && (
-          <p className="mt-6 text-center text-xs text-gray-400">
+          <p className={`mt-6 text-center text-xs ${bt.textDim}`}>
             {generationStatus || t('builder.initializing')}
           </p>
         )}
@@ -2225,28 +2282,29 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
   } = useAppStore()
   const t = useTranslation()
 
+  const bt = useBuilderTheme()
   // Builder UI is always light theme — the preview iframe content has its own styling
   // isLight controls the builder chrome (toolbar, sidebar, etc.), not the generated site
   const isLight = true
 
-  // Dynamic classes — always light theme for builder UI
+  // Dynamic classes — theme-aware for builder UI
   const th = {
-    bg: 'bg-white',
-    bgAlt: 'bg-slate-50',
-    bgAlt2: 'bg-gray-100',
-    text: 'text-gray-900',
-    textMuted: 'text-gray-500',
-    textDim: 'text-gray-400',
-    textBright: 'text-gray-800',
-    textSub: 'text-gray-300',
-    border: 'border-gray-200',
-    borderSub: 'border-gray-100',
-    hover: 'hover:bg-gray-50',
-    hoverText: 'hover:text-gray-700',
-    activeBg: 'bg-violet-50',
-    activeBorder: 'border-violet-200',
-    activeText: 'text-violet-600',
-    separator: 'bg-gray-200',
+    bg: bt.cardBg,
+    bgAlt: bt.pageBgAlt,
+    bgAlt2: bt.isDark ? 'bg-zinc-700' : 'bg-gray-100',
+    text: bt.text,
+    textMuted: bt.textMuted,
+    textDim: bt.textDim,
+    textBright: bt.textBright,
+    textSub: bt.textSub,
+    border: bt.cardBorder,
+    borderSub: bt.borderSub,
+    hover: bt.hoverBg,
+    hoverText: bt.hoverText,
+    activeBg: bt.infoBg,
+    activeBorder: bt.infoBorder,
+    activeText: bt.infoText,
+    separator: bt.separator,
   }
 
   const [deviceSize, setDeviceSize] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
@@ -2407,7 +2465,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             <Rocket className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.exportAll')}</span>
           </Button>
-          <Button size="sm" onClick={handleEdit} className="bg-[#1a3a6b] text-white hover:bg-[#14305a] shadow-none border-0 rounded-lg">
+          <Button size="sm" onClick={handleEdit} className="bg-blue-700 text-white hover:bg-blue-800 shadow-none border-0 rounded-md">
             <Code2 className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             {t('builder.preview.edit')}
           </Button>
@@ -2430,7 +2488,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
                     key={page.id}
                     whileHover={{ x: 4 }}
                     onClick={() => setCurrentPreviewPage(page.id)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-all ${
                       isActive
                         ? `${th.activeBg} ${th.text} border ${th.activeBorder}`
                         : `${th.textMuted} ${th.hover} ${th.hoverText}`
@@ -2450,7 +2508,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             </div>
           </div>
 
-          <div className={`mt-6 rounded-lg border ${th.border} bg-slate-50 p-3`}>
+          <div className={`mt-6 rounded-md border ${th.border} bg-slate-50 p-3`}>
             <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.siteDetails')}</p>
             <div className={`space-y-2 text-xs ${th.textMuted}`}>
               <div className="flex justify-between">
@@ -2526,15 +2584,15 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
             </div>
           </div>
 
-          <div className={`mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3`}>
+          <div className={`mt-4 rounded-md border ${bt.cardBorder} ${bt.pageBgAlt} p-3`}>
             <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.prompt')}</p>
             <p className={`text-xs ${th.textMuted} leading-relaxed line-clamp-6`}>{builderPrompt}</p>
           </div>
 
           {/* Phase 4: Industry Image Library — collapsible */}
-          <div className={`mt-4 rounded-lg border border-violet-200 bg-violet-50 overflow-hidden`}>
+          <div className={`mt-4 rounded-md border ${bt.infoBorder} ${bt.infoBg} overflow-hidden`}>
             <details>
-              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium text-violet-600/70 uppercase tracking-wider hover:bg-violet-100 flex items-center gap-2`}>
+              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium ${bt.infoText}/70 uppercase tracking-wider hover:bg-blue-100/50 flex items-center gap-2`}>
                 <Layers className="w-3 h-3" />
                 {t('p4.title')}
               </summary>
@@ -2549,9 +2607,9 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
           </div>
 
           {/* Phase 5: Animation Library — collapsible */}
-          <div className={`mt-3 rounded-lg border border-violet-200 bg-violet-50 overflow-hidden`}>
+          <div className={`mt-3 rounded-md border ${bt.infoBorder} ${bt.infoBg} overflow-hidden`}>
             <details>
-              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium text-violet-600/70 uppercase tracking-wider hover:bg-violet-100 flex items-center gap-2`}>
+              <summary className={`cursor-pointer px-3 py-2 text-xs font-medium ${bt.infoText}/70 uppercase tracking-wider hover:bg-blue-100/50 flex items-center gap-2`}>
                 <Sparkles className="w-3 h-3" />
                 {t('p5.title')}
               </summary>
@@ -2566,7 +2624,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
         <div className={`flex flex-1 items-center justify-center bg-slate-50 p-4 overflow-auto`}>
           <motion.div
             layout
-            className={`relative overflow-hidden rounded-xl border border-gray-300 shadow-lg`}
+            className={`relative overflow-hidden rounded-md border ${bt.cardBorder} shadow-lg`}
             style={{ width: iframeWidth, maxWidth: '100%', height: deviceSize === 'mobile' ? '667px' : deviceSize === 'tablet' ? '1024px' : 'calc(100vh - 120px)' }}
           >
             {/* Browser chrome */}
@@ -2612,20 +2670,14 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
   const clearChatHistory = useAppStore((s) => s.clearChatHistory)
   const builderStyle = useAppStore((s) => s.builderStyle)
   const t = useTranslation()
-
-  // Builder UI is always light theme
-  const bgClass = 'bg-white border-gray-200'
-  const textClass = 'text-gray-900'
-  const mutedClass = 'text-gray-500'
-  const hoverClass = 'hover:bg-gray-50'
-  const activeClass = 'bg-violet-50 text-violet-700'
+  const bt = useBuilderTheme()
 
   return (
     <>
       {/* Toggle button (always visible, positioned on the left edge) */}
       <button
         onClick={onToggle}
-        className={`fixed top-3 left-3 z-50 h-8 w-8 rounded-lg border border-gray-200 bg-white ${textClass} flex items-center justify-center transition-all hover:opacity-80`}
+        className={`fixed top-3 left-3 z-50 h-8 w-8 rounded-md border ${bt.cardBorder} ${bt.cardBg} ${bt.text} flex items-center justify-center transition-all hover:opacity-80`}
         title={isOpen ? t('builder.closeSidebar') : t('builder.openSidebar')}
       >
         <MessageSquare className="h-4 w-4" />
@@ -2639,19 +2691,19 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -260, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`fixed inset-y-0 left-0 z-40 w-[260px] ${bgClass} border-r flex flex-col`}
+            className={`fixed inset-y-0 left-0 z-40 w-[260px] ${bt.cardBg} border-r flex flex-col`}
           >
             {/* Header */}
-            <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-200`}>
+            <div className={`flex items-center justify-between px-4 py-3 border-b ${bt.cardBorder}`}>
               <div className="flex items-center gap-2">
-                <MessageSquare className={`h-4 w-4 ${mutedClass}`} />
-                <span className={`text-sm font-semibold ${textClass}`}>{t('builder.chatHistory')}</span>
+                <MessageSquare className={`h-4 w-4 ${bt.textDim}`} />
+                <span className={`text-sm font-semibold ${bt.text}`}>{t('builder.chatHistory')}</span>
               </div>
               <div className="flex items-center gap-1">
                 {chatHistory.length > 0 && (
                   <button
                     onClick={clearChatHistory}
-                    className={`h-6 w-6 rounded ${hoverClass} ${mutedClass} flex items-center justify-center`}
+                    className={`h-6 w-6 rounded ${bt.hoverBg} ${bt.textDim} flex items-center justify-center`}
                     title={t('builder.clearHistory')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -2659,7 +2711,7 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
                 )}
                 <button
                   onClick={onToggle}
-                  className={`h-6 w-6 rounded ${hoverClass} ${mutedClass} flex items-center justify-center`}
+                  className={`h-6 w-6 rounded ${bt.hoverBg} ${bt.textDim} flex items-center justify-center`}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -2669,7 +2721,7 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
             {/* Chat list */}
             <div className="flex-1 overflow-y-auto px-2 py-2">
               {chatHistory.length === 0 ? (
-                <div className={`flex flex-col items-center justify-center py-8 ${mutedClass}`}>
+                <div className={`flex flex-col items-center justify-center py-8 ${bt.textDim}`}>
                   <MessageSquare className="h-8 w-8 mb-2 opacity-30" />
                   <p className="text-xs text-center">{t('builder.noChatHistory')}</p>
                 </div>
@@ -2679,17 +2731,17 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
                     <button
                       key={chat.id}
                       onClick={() => setActiveChatId(chat.id)}
-                      className={`flex flex-col w-full rounded-lg px-3 py-2.5 text-left transition-all ${
-                        activeChatId === chat.id ? activeClass : hoverClass
+                      className={`flex flex-col w-full rounded-md px-3 py-2.5 text-left transition-all ${
+                        activeChatId === chat.id ? `${bt.infoBg} ${bt.infoText}` : bt.hoverBg
                       }`}
                     >
-                      <span className={`text-sm font-medium truncate ${activeChatId === chat.id ? '' : mutedClass}`}>
+                      <span className={`text-sm font-medium truncate ${activeChatId === chat.id ? '' : bt.textDim}`}>
                         {chat.title}
                       </span>
-                      <span className={`text-xs mt-0.5 truncate text-gray-400`}>
+                      <span className={`text-xs mt-0.5 truncate ${bt.textDim}`}>
                         {chat.prompt.slice(0, 60)}{chat.prompt.length > 60 ? '...' : ''}
                       </span>
-                      <span className={`text-[10px] mt-1 text-gray-300`}>
+                      <span className={`text-[10px] mt-1 ${bt.textSub}`}>
                         {new Date(chat.timestamp).toLocaleDateString()} · {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </button>
@@ -2699,14 +2751,14 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
             </div>
 
             {/* New chat button */}
-            <div className={`px-3 py-3 border-t border-gray-200`}>
+            <div className={`px-3 py-3 border-t ${bt.cardBorder}`}>
               <button
                 onClick={() => {
                   useAppStore.getState().setBuilderPhase('prompt')
                   useAppStore.getState().setBuilderPrompt('')
                   setActiveChatId(null)
                 }}
-                className={`flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm font-medium transition-all bg-violet-500 text-white hover:bg-violet-600`}
+                className={`flex items-center gap-2 w-full rounded-md px-3 py-2 text-sm font-medium transition-all bg-blue-700 text-white hover:bg-blue-800`}
               >
                 <Plus className="h-4 w-4" />
                 {t('builder.newChat')}
@@ -2724,10 +2776,11 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
 export default function BuilderPage() {
   const { builderPhase, builderStyle } = useAppStore()
   const t = useTranslation()
+  const bt = useBuilderTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Builder UI is always light theme
-  const wrapperBg = 'min-h-screen bg-slate-50'
+  const wrapperBg = `min-h-screen ${bt.pageBgAlt}`
 
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
@@ -2749,10 +2802,10 @@ export default function BuilderPage() {
           {builderPhase === 'generating' && <GeneratingPhase />}
           {builderPhase === 'preview' && <PreviewPhase sidebarOpen={sidebarOpen} />}
           {builderPhase === 'edit' && (
-            <div className="flex min-h-screen items-center justify-center bg-slate-50">
+            <div className={`flex min-h-screen items-center justify-center ${bt.pageBgAlt}`}>
               <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500 mx-auto mb-4" />
-                <p className="text-gray-600">{t('builder.transitioning')}</p>
+                <Loader2 className={`h-8 w-8 animate-spin text-blue-700 mx-auto mb-4`} />
+                <p className={bt.textMuted}>{t('builder.transitioning')}</p>
               </div>
             </div>
           )}
