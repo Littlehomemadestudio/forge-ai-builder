@@ -155,6 +155,10 @@ export const authOptions: NextAuthOptions = {
     signIn: '/',
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Trust the Host/X-Forwarded-Host header from the reverse proxy (Caddy/Z.ai gateway)
+  // so NextAuth generates correct callback URLs (e.g. https://site-builder-am.space-z.ai/...)
+  // instead of http://localhost:3000 when running behind a proxy.
+  trustHost: true,
 }
 
 // Type augmentation for NextAuth session
