@@ -8,16 +8,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  avatarUrl String?
-  plan      String   @default("free") // free, pro, enterprise
-  aiCredits Int      @default(10)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  projects  Project[]
-  assets    Asset[]
+  id           String    @id @default(cuid())
+  email        String    @unique
+  username     String?   @unique // optional username for login
+  name         String
+  passwordHash String?   // bcrypt hash; null for OAuth-only users
+  avatarUrl    String?
+  plan         String    @default("free") // free, pro, enterprise
+  aiCredits    Int       @default(100)
+  provider     String    @default("credentials") // credentials, google
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  projects     Project[]
+  assets       Asset[]
+
+  @@index([email])
+  @@index([username])
 }
 
 model Project {

@@ -173,7 +173,7 @@ function RightPanel() {
 
 export function LoginPage() {
   const { navigate, login, themeMode, isAuthenticated } = useAppStore()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('') // email or username
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -195,8 +195,8 @@ export function LoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!email.trim()) {
-      setError('Please enter your email address')
+    if (!identifier.trim()) {
+      setError('Please enter your email or username')
       return
     }
     if (!password) {
@@ -206,24 +206,28 @@ export function LoginPage() {
 
     setIsLoading(true)
 
-    // Use NextAuth credentials provider for real auth
+    // Use NextAuth credentials provider for real auth — supports email or username
     const result = await signIn('credentials', {
-      email: email.trim(),
+      identifier: identifier.trim(),
       password,
       redirect: false,
     })
 
     if (result?.error) {
-      setError('Invalid email or password. Try again or use Google sign-in.')
+      // NextAuth CredentialsProvider throws Error(message) — that message surfaces here
+      setError(result.error || 'Invalid credentials. Please try again.')
       setIsLoading(false)
       return
     }
 
     // If successful, the session will be picked up by the AuthProvider/useSession
-    // The AppRouter useEffect will sync it to the store and redirect
-    // But as a fallback, we can also manually set it
+    // The AppRouter useEffect will sync it to the store and redirect.
+    // As a fallback (e.g. if session isn't yet available), fetch user by identifier.
     try {
-      const res = await fetch(`/api/user?userIdByEmail=${encodeURIComponent(email.trim())}`)
+      const lookup = identifier.trim().includes('@')
+        ? `userIdByEmail=${encodeURIComponent(identifier.trim())}`
+        : `userIdByUsername=${encodeURIComponent(identifier.trim())}`
+      const res = await fetch(`/api/user?${lookup}`)
       if (res.ok) {
         const data = await res.json()
         if (data.user) {
@@ -235,9 +239,9 @@ export function LoginPage() {
             aiCredits: data.user.aiCredits,
             plan: data.user.plan,
           })
-          navigate('dashboard')
         }
       }
+      navigate('dashboard')
     } catch {
       // Fallback: just navigate, session sync will handle it
       navigate('dashboard')
@@ -260,23 +264,7 @@ export function LoginPage() {
   }
 
   const handleGithubLogin = async () => {
-    setIsLoading(true)
-    setError('')
-    // GitHub isn't configured in NextAuth yet, so fallback to demo user
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    login({
-      id: 'demo-user',
-      email: 'demo@forge.ai',
-      name: 'Demo User',
-      aiCredits: 100,
-      plan: 'free',
-    })
-    toast({
-      title: 'Welcome back',
-      description: 'Signed in with GitHub successfully (demo mode).',
-    })
-    navigate('dashboard')
-    setIsLoading(false)
+    setError('GitHub sign-in is not configured yet. Please use Google or email/password.')
   }
 
   return (
@@ -368,19 +356,21 @@ export function LoginPage() {
 
               {/* Email/Password Form */}
               <motion.form variants={fadeInUp} onSubmit={handleLogin} className="flex-1 flex flex-col gap-3.5 mt-2">
-                {/* Email */}
+                {/* Email or Username */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground font-medium tracking-wide">
-                    Email
+                    Email or Username
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                     <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setError('') }}
+                      type="text"
+                      placeholder="you@example.com or @username"
+                      value={identifier}
+                      onChange={(e) => { setIdentifier(e.target.value); setError('') }}
                       disabled={isLoading}
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       className="h-10 pl-10 rounded-lg transition-all duration-200"
                     />
                   </div>

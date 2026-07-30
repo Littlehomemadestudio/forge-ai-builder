@@ -1,13 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 
-// GET /api/projects - List all projects for a user
+/**
+ * Resolve the current authenticated user.
+ * Prefers the explicit ?userId= query param (used by the dashboard),
+ * otherwise falls back to the NextAuth session user.
+ * Returns null if no user can be identified.
+ */
+async function resolveUserId(request: NextRequest): Promise<string | null> {
+  // 1. Explicit query param
+  const { searchParams } = new URL(request.url);
+  const explicit = searchParams.get('userId');
+  if (explicit && explicit !== 'demo-user') {
+    return explicit;
+  }
+
+  // 2. NextAuth session
+  const session = await getServerSession(authOptions);
+  if (session?.user?.email) {
+    const user = await db.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (user) return user.id;
+  }
+
+  return null;
+}
+
+// GET /api/projects - List all projects for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') || 'demo-user';
+    const userId = await resolveUserId(request);
 
-    // Verify user exists first; if not, return empty list instead of 500
+    // If no authenticated user, return empty list (frontend will redirect to login)
+    if (!userId) {
+      return NextResponse.json({ projects: [] });
+    }
+
+    // Verify user exists; if not, return empty list instead of 500
     const userExists = await db.user.findUnique({ where: { id: userId } });
     if (!userExists) {
       return NextResponse.json({ projects: [] });
@@ -48,7 +81,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/projects - Create a new project
+// POST /api/projects - Create a new project for the authenticated user
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -59,7 +92,7 @@ export async function POST(request: NextRequest) {
       industry,
       theme,
       framework,
-      userId = 'demo-user',
+      userId: bodyUserId,
     } = body;
 
     if (!name) {
@@ -69,21 +102,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user exists; auto-create if not found (demo flow)
-    let user = await db.user.findUnique({
-      where: { id: userId },
-    });
+    // Resolve the user — prefer body userId, fall back to session
+    let userId = bodyUserId && bodyUserId !== 'demo-user' ? bodyUserId : null;
 
+    if (!userId) {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.email) {
+        const sessionUser = await db.user.findUnique({
+          where: { email: session.user.email },
+          select: { id: true },
+        });
+        if (sessionUser) {
+          userId = sessionUser.id;
+        }
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'You must be signed in to create a project.' },
+        { status: 401 },
+      );
+    }
+
+    // Verify user exists
+    const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
-      user = await db.user.create({
-        data: {
-          id: userId,
-          email: `${userId}@forge.ai`,
-          name: userId,
-          plan: 'free',
-          aiCredits: 100,
-        },
-      });
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 },
+      );
     }
 
     const project = await db.project.create({
@@ -149,6 +197,21 @@ export async function DELETE(request: NextRequest) {
         { error: 'Project not found' },
         { status: 404 },
       );
+    }
+
+    // Optional: verify ownership via session
+    const session = await getServerSession(authOptions);
+    if (session?.user?.email) {
+      const sessionUser = await db.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      });
+      if (sessionUser && existingProject.userId !== sessionUser.id) {
+        return NextResponse.json(
+          { error: 'You do not have permission to delete this project.' },
+          { status: 403 },
+        );
+      }
     }
 
     await db.project.delete({

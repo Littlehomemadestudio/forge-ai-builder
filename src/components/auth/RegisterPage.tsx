@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { signIn } from 'next-auth/react'
 import { useAppStore } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -215,8 +216,9 @@ function RightPanel() {
 }
 
 export function RegisterPage() {
-  const { navigate, login, themeMode } = useAppStore()
+  const { navigate, themeMode } = useAppStore()
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -245,6 +247,16 @@ export function RegisterPage() {
       setError('Please enter your email address')
       return
     }
+    // Basic email format check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address')
+      return
+    }
+    // Username is optional but if provided, must be 3+ chars and alphanumeric/underscore
+    if (username.trim() && !/^[a-zA-Z0-9_]{3,20}$/.test(username.trim())) {
+      setError('Username must be 3-20 characters (letters, numbers, underscore only)')
+      return
+    }
     if (!password) {
       setError('Please enter a password')
       return
@@ -263,67 +275,72 @@ export function RegisterPage() {
     }
 
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    login({
-      id: '1',
-      email: email.trim(),
-      name: name.trim(),
-      aiCredits: 100,
-      plan: 'free',
-    })
+    try {
+      // Step 1: Register the user in the database (creates bcrypt-hashed password)
+      const registerRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register',
+          name: name.trim(),
+          email: email.trim(),
+          username: username.trim() || undefined,
+          password,
+        }),
+      })
 
-    toast({
-      title: 'Account created',
-      description: 'Welcome to Forge! Your account has been created successfully.',
-    })
+      const registerData = await registerRes.json()
 
-    navigate('dashboard')
-    setIsLoading(false)
+      if (!registerRes.ok) {
+        setError(registerData.error || 'Registration failed. Please try again.')
+        setIsLoading(false)
+        return
+      }
+
+      // Step 2: Sign in via NextAuth credentials provider so a session cookie is set
+      const identifier = username.trim() || email.trim()
+      const signInResult = await signIn('credentials', {
+        identifier,
+        password,
+        redirect: false,
+      })
+
+      if (signInResult?.error) {
+        // Registration succeeded but auto-login failed — fall back to login page
+        setError('Account created! Please sign in with your credentials.')
+        setIsLoading(false)
+        navigate('login')
+        return
+      }
+
+      toast({
+        title: 'Account created',
+        description: 'Welcome to Forge! Your account has been created successfully.',
+      })
+
+      // The AppRouter will pick up the NextAuth session and sync to store,
+      // but we also navigate directly to dashboard for instant feedback.
+      navigate('dashboard')
+    } catch (err) {
+      console.error('Register error:', err)
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleGoogleRegister = async () => {
     setIsLoading(true)
     setError('')
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    login({
-      id: '1',
-      email: 'user@gmail.com',
-      name: 'Google User',
-      aiCredits: 100,
-      plan: 'free',
-    })
-
-    toast({
-      title: 'Account created',
-      description: 'Signed up with Google successfully.',
-    })
-
-    navigate('dashboard')
-    setIsLoading(false)
+    // Use real NextAuth Google OAuth — on first sign-in, the signIn callback
+    // in src/lib/auth.ts will create the user in the database automatically.
+    await signIn('google', { callbackUrl: '/' })
+    // No need to setIsLoading(false) — page will redirect to Google
   }
 
   const handleGithubRegister = async () => {
-    setIsLoading(true)
-    setError('')
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    login({
-      id: '1',
-      email: 'user@github.com',
-      name: 'GitHub User',
-      aiCredits: 100,
-      plan: 'free',
-    })
-
-    toast({
-      title: 'Account created',
-      description: 'Signed up with GitHub successfully.',
-    })
-
-    navigate('dashboard')
-    setIsLoading(false)
+    setError('GitHub sign-in is not configured yet. Please use Google or email/password.')
   }
 
   return (
@@ -428,6 +445,26 @@ export function RegisterPage() {
                       value={name}
                       onChange={(e) => { setName(e.target.value); setError('') }}
                       disabled={isLoading}
+                      className="h-10 pl-10 rounded-lg transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Username (optional) */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground font-medium tracking-wide">
+                    Username <span className="text-muted-foreground/60 font-normal">(optional — for login)</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60 flex items-center justify-center text-xs font-mono">@</span>
+                    <Input
+                      type="text"
+                      placeholder="yourname"
+                      value={username}
+                      onChange={(e) => { setUsername(e.target.value); setError('') }}
+                      disabled={isLoading}
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       className="h-10 pl-10 rounded-lg transition-all duration-200"
                     />
                   </div>

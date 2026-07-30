@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSession, signOut } from 'next-auth/react'
 import { useAppStore, type DashboardTab } from '@/lib/store'
 import { useTranslation } from '@/lib/useTranslation'
 import { isRtl, type UiLanguage } from '@/lib/i18n'
@@ -51,6 +52,7 @@ import {
   ChevronDown,
   RefreshCw,
   Shield,
+  LogOut,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -132,6 +134,8 @@ export function DashboardPage() {
   const selectProject = useAppStore((s) => s.selectProject)
   const isAuthenticated = useAppStore((s) => s.isAuthenticated)
   const user = useAppStore((s) => s.user)
+  const logout = useAppStore((s) => s.logout)
+  const { data: session } = useSession()
 
   const rtl = isRtl(uiLanguage)
 
@@ -344,6 +348,18 @@ export function DashboardPage() {
   }
 
   const handleBackToHome = () => {
+    navigate('landing')
+  }
+
+  const handleSignOut = async () => {
+    // Clear local store first for instant UI feedback
+    logout()
+    // Then revoke the NextAuth session (also clears the session cookie)
+    try {
+      await signOut({ redirect: false })
+    } catch (err) {
+      console.error('Sign out error:', err)
+    }
     navigate('landing')
   }
 
@@ -857,6 +873,16 @@ export function DashboardPage() {
           <LanguageSwitcher variant="pill" compact />
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleToggleTheme}>
             {themeMode === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-muted-foreground hover:text-foreground"
+            onClick={handleSignOut}
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1.5">Sign out</span>
           </Button>
         </div>
       </header>

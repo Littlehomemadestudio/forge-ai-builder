@@ -1,38 +1,64 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
+
+/**
+ * Resolve a user by email OR username.
+ * Identifier can be an email (contains "@") or a username.
+ */
+async function findUserByIdentifier(identifier: string) {
+  const trimmed = identifier.trim().toLowerCase()
+  if (!trimmed) return null
+
+  // If it looks like an email, query by email
+  if (trimmed.includes('@')) {
+    return await db.user.findUnique({ where: { email: trimmed } })
+  }
+
+  // Otherwise treat as username — username is stored case-sensitively,
+  // so try the trimmed input and a lowercased variant
+  return await db.user.findUnique({
+    where: { username: identifier.trim() },
+  }) ?? await db.user.findUnique({
+    where: { username: trimmed },
+  })
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || 'dummy-google-client-id',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'dummy-google-client-secret',
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
     CredentialsProvider({
-      name: 'Demo Login',
+      name: 'Forge Login',
       credentials: {
-        email: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+        identifier: { label: 'Email or Username', type: 'text', placeholder: 'you@example.com' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email) return null
+        if (!credentials?.identifier || !credentials?.password) {
+          throw new Error('Email/username and password are required')
+        }
 
-        // For demo: accept any password, find or create user
-        let user = await db.user.findUnique({
-          where: { email: credentials.email },
-        })
+        const user = await findUserByIdentifier(credentials.identifier)
 
+        // Friendly error if no such user
         if (!user) {
-          // Auto-create user for demo flow
-          user = await db.user.create({
-            data: {
-              email: credentials.email,
-              name: credentials.email.split('@')[0],
-              plan: 'free',
-              aiCredits: 100,
-            },
-          })
+          throw new Error('No account found with that email or username. Please sign up first.')
+        }
+
+        // OAuth-only accounts (registered via Google) have no password
+        if (!user.passwordHash) {
+          throw new Error('This account was created with Google. Please use "Continue with Google" to sign in.')
+        }
+
+        // Verify password with bcrypt
+        const passwordMatches = await bcrypt.compare(credentials.password, user.passwordHash)
+        if (!passwordMatches) {
+          throw new Error('Incorrect password. Please try again.')
         }
 
         return {
@@ -48,7 +74,7 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // For Google OAuth: create or update user in our database
       if (account?.provider === 'google' && user.email) {
         let existingUser = await db.user.findUnique({
@@ -63,6 +89,7 @@ export const authOptions: NextAuthOptions = {
               avatarUrl: user.image || null,
               plan: 'free',
               aiCredits: 100,
+              provider: 'google',
             },
           })
         } else {
@@ -81,7 +108,7 @@ export const authOptions: NextAuthOptions = {
       return true
     },
     async jwt({ token, user, account }) {
-      // Persist the user id and extra info in the JWT token
+      // Persist the user id and extra info in the JWT token on first sign-in
       if (user) {
         token.sub = user.id
         token.email = user.email
@@ -124,7 +151,8 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/', // Use our custom login page (SPA handles it via store)
+    // Use our custom login page (SPA handles navigation via store)
+    signIn: '/',
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
