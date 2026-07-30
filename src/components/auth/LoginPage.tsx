@@ -268,9 +268,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 sm:p-6">
+    <div className="min-h-screen flex justify-center bg-background p-4 sm:p-6 py-8">
       <motion.div
-        className="w-full max-w-[960px]"
+        className="w-full max-w-[960px] my-auto"
         variants={staggerContainer}
         initial="initial"
         animate="animate"
@@ -291,9 +291,9 @@ export function LoginPage() {
 
         {/* Split-screen Card */}
         <motion.div variants={fadeInUp}>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row md:h-[560px]">
-            {/* ── Left Panel: Form ────────────────────── */}
-            <div className="flex-1 md:flex-[1.1] flex flex-col p-6 sm:p-8 md:p-10">
+          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row">
+            {/* ── Left Panel: Form (scrollable when content overflows) ── */}
+            <div className="flex-1 md:flex-[1.1] flex flex-col p-6 sm:p-8 md:p-10 md:max-h-[620px] md:overflow-y-auto">
               {/* Logo */}
               <motion.div variants={fadeInUp} className="mb-5">
                 <ForgeLogo />
@@ -355,7 +355,7 @@ export function LoginPage() {
               </motion.div>
 
               {/* Email/Password Form */}
-              <motion.form variants={fadeInUp} onSubmit={handleLogin} className="flex-1 flex flex-col gap-3.5 mt-2">
+              <motion.form variants={fadeInUp} onSubmit={handleLogin} className="flex flex-col gap-3.5 mt-2">
                 {/* Email or Username */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground font-medium tracking-wide">
@@ -414,9 +414,6 @@ export function LoginPage() {
                     Forgot password?
                   </button>
                 </div>
-
-                {/* Submit button - pushed to bottom */}
-                <div className="flex-1" />
 
                 <Button
                   type="submit"

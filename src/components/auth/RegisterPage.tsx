@@ -344,9 +344,9 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 sm:p-6">
+    <div className="min-h-screen flex justify-center bg-background p-4 sm:p-6 py-8">
       <motion.div
-        className="w-full max-w-[960px]"
+        className="w-full max-w-[960px] my-auto"
         variants={staggerContainer}
         initial="initial"
         animate="animate"
@@ -367,9 +367,9 @@ export function RegisterPage() {
 
         {/* Split-screen Card */}
         <motion.div variants={fadeInUp}>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row md:h-[620px]">
-            {/* ── Left Panel: Form ────────────────────── */}
-            <div className="flex-1 md:flex-[1.1] flex flex-col p-6 sm:p-8 md:p-10">
+          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row">
+            {/* ── Left Panel: Form (scrollable when content overflows) ── */}
+            <div className="flex-1 md:flex-[1.1] flex flex-col p-6 sm:p-8 md:p-10 md:max-h-[680px] md:overflow-y-auto">
               {/* Logo */}
               <motion.div variants={fadeInUp} className="mb-4">
                 <ForgeLogo />
@@ -431,7 +431,7 @@ export function RegisterPage() {
               </motion.div>
 
               {/* Register Form */}
-              <motion.form variants={fadeInUp} onSubmit={handleRegister} className="flex-1 flex flex-col gap-3 mt-2 overflow-y-auto max-h-[360px] md:max-h-none pr-1">
+              <motion.form variants={fadeInUp} onSubmit={handleRegister} className="flex flex-col gap-3 mt-2">
                 {/* Name */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground font-medium tracking-wide">
@@ -629,9 +629,6 @@ export function RegisterPage() {
                     </span>
                   </Label>
                 </div>
-
-                {/* Spacer to push button down */}
-                <div className="flex-1 min-h-[8px]" />
 
                 {/* Create account button */}
                 <Button
