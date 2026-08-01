@@ -557,7 +557,7 @@ export function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  className="h-10 w-10 text-muted-foreground hover:text-primary"
                   onClick={() => handleOpenInBuilder(project)}
                   title={t('dashboard.openInBuilder')}
                 >
@@ -566,7 +566,7 @@ export function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  className="h-10 w-10 text-muted-foreground hover:text-primary"
                   onClick={() => handlePreview(project)}
                   title="Preview"
                 >
@@ -577,7 +577,7 @@ export function DashboardPage() {
                   value={project.status}
                   onValueChange={(v) => setStatusChangeTarget({ project, newStatus: v })}
                 >
-                  <SelectTrigger className="h-8 w-8 border-0 p-0 [&>svg]:hidden">
+                  <SelectTrigger className="h-10 w-10 border-0 p-0 [&>svg]:hidden">
                     <span className="sr-only">Change status</span>
                     <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </SelectTrigger>
@@ -590,7 +590,7 @@ export function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-10 w-10 text-muted-foreground hover:text-destructive"
                   onClick={() => setDeleteTarget(project)}
                   title={t('dashboard.deleteProject')}
                 >
@@ -825,19 +825,19 @@ export function DashboardPage() {
 
   // ─── Mobile bottom tab bar ────────────────────────────────────────────────
   const MobileTabBar = () => (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background border-t border-border/40 flex items-center justify-around h-14 px-1 safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background border-t border-border/40 flex items-center justify-around h-14 px-1 safe-area-inset-bottom">
       {SIDEBAR_ITEMS.slice(0, 4).map(({ tab, icon: Icon, labelKey }) => {
         const isActive = dashboardTab === tab
         return (
           <button
             key={tab}
             onClick={() => setDashboardTab(tab)}
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-md transition-colors ${
+            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 rounded-md transition-colors ${
               isActive ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            <Icon className="h-4.5 w-4.5" />
-            <span className="text-[10px] font-medium leading-tight">{t(labelKey)}</span>
+            <Icon className="h-5 w-5" />
+            <span className="text-[11px] font-medium leading-tight">{t(labelKey)}</span>
           </button>
         )
       })}
@@ -848,30 +848,30 @@ export function DashboardPage() {
   const HeaderSection = () => {
     const planInfo = userData ? getPlanBadge(userData.plan) : null
     return (
-      <header className="h-14 flex items-center justify-between px-4 sm:px-6 border-b border-border/40 bg-background shrink-0">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleBackToHome}>
+      <header className="min-h-14 flex items-center justify-between px-4 sm:px-6 border-b border-border/40 bg-background shrink-0 flex-wrap gap-y-1">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Button variant="ghost" size="sm" className="text-muted-foreground shrink-0" onClick={handleBackToHome}>
             <Home className="h-4 w-4 mr-1.5" />
             <span className="hidden sm:inline">{t('dashboard.backToHome')}</span>
           </Button>
-          <Separator orientation="vertical" className="h-6" />
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-foreground">{userData?.name || 'User'}</span>
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="font-medium text-sm text-foreground truncate max-w-[120px]">{userData?.name || 'User'}</span>
             {planInfo && (
-              <Badge className={`${planInfo.className} text-xs font-medium px-2 py-0.5 border-0`}>
+              <Badge className={`${planInfo.className} text-xs font-medium px-2 py-0.5 border-0 hidden sm:inline-flex`}>
                 {planInfo.label}
               </Badge>
             )}
             {userData && (
-              <Badge variant="outline" className="text-xs font-medium px-2 py-0.5 border-border/60 text-muted-foreground">
+              <Badge variant="outline" className="text-xs font-medium px-2 py-0.5 border-border/60 text-muted-foreground hidden sm:inline-flex">
                 {t('dashboard.creditsRemaining', { n: userData.aiCredits })}
               </Badge>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <LanguageSwitcher variant="pill" compact />
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleToggleTheme}>
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleToggleTheme}>
             {themeMode === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </Button>
           <Button
@@ -1113,7 +1113,7 @@ export function DashboardPage() {
 
       {/* ─── Preview Dialog ────────────────────────────────────────────────── */}
       <Dialog open={!!previewProject} onOpenChange={(open) => !open && setPreviewProject(null)}>
-        <DialogContent className="sm:max-w-3xl max-h-[80vh]">
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle>{previewProject?.name || 'Project Preview'}</DialogTitle>
             <DialogDescription>

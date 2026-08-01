@@ -55,7 +55,7 @@ function AppRouter() {
   }, [currentView, isAuthenticated, status, navigate])
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
       {/* Keeps <html lang/dir> + .rtl-ui class in sync with uiLanguage store */}
       <HtmlDirLangSync />
       <AnimatePresence mode="wait">

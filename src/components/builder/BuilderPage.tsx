@@ -32,7 +32,7 @@ import {
   Sun, Moon, Minimize, Flame, Sliders, Paintbrush, Shield, Accessibility,
   Image, Navigation, Megaphone, Clock, DollarSign, HelpCircle,
   MessageSquare, Share2, Phone, Columns, Grip, Tag, AlignLeft, AlignCenter, AlignRight, LayoutGrid,
-  FileText, Maximize2, Trash2, Plus, Check,
+  FileText, Maximize2, Trash2, Plus, Check, PanelLeft,
 } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { useTranslation } from '@/lib/useTranslation'
@@ -1540,7 +1540,7 @@ function PromptPhase() {
   const totalEnabledPages = builderAdvancedOptions.pageConfigs.filter(p => p.enabled).length
 
   return (
-    <div className={`relative flex min-h-screen flex-col items-center justify-center overflow-y-auto px-4 py-12 ${bt.pageBg}`}>
+    <div className={`relative flex min-h-[100dvh] flex-col items-center justify-center overflow-y-auto px-4 py-6 sm:py-12 ${bt.pageBg}`}>
       {/* Subtle dot grid pattern */}
       <div className={`absolute inset-0 ${bt.dotGridOpacity} pointer-events-none`} style={{
         backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.15) 1px, transparent 1px)',
@@ -1706,7 +1706,7 @@ function PromptPhase() {
           <Button
             onClick={handleGenerate}
             disabled={!builderPrompt.trim()}
-            className="h-14 rounded-md px-10 text-base font-semibold bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 shadow-none border-0 transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="h-14 min-h-[44px] w-full sm:w-auto rounded-md px-10 text-base font-semibold bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 shadow-none border-0 transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Wand2 className="mr-2 rtl:ml-2 rtl:mr-0 h-5 w-5" />
             {t('builder.generate')}
@@ -2027,7 +2027,7 @@ function GeneratingPhase() {
   const hasError = pageStates.some(p => p.status === 'error')
 
   return (
-    <div className={`relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 ${bt.pageBg}`}>
+    <div className={`relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-4 ${bt.pageBg}`}>
       {/* Subtle dot grid */}
       <div className={`absolute inset-0 ${bt.dotGridOpacity} pointer-events-none`} style={{
         backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.15) 1px, transparent 1px)',
@@ -2287,6 +2287,9 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
   // isLight controls the builder chrome (toolbar, sidebar, etc.), not the generated site
   const isLight = true
 
+  // Mobile sidebar state (drawer on small screens)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
   // Dynamic classes — theme-aware for builder UI
   const th = {
     bg: bt.cardBg,
@@ -2410,27 +2413,36 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
 
   if (!currentPage) {
     return (
-      <div className={`flex min-h-screen items-center justify-center ${th.bg} ${th.textMuted}`}>
+      <div className={`flex min-h-[100dvh] items-center justify-center ${th.bg} ${th.textMuted}`}>
         {t('builder.noPages')}
       </div>
     )
   }
 
   return (
-    <div className={`flex h-screen flex-col ${th.bg}`}>
+    <div className={`flex h-[100dvh] flex-col ${th.bg}`}>
       {/* Top toolbar */}
-      <div className={`flex items-center justify-between border-b ${th.border} ${th.bgAlt} px-4 py-3`}>
-        <div className="flex items-center gap-3">
+      <div className={`flex items-center justify-between border-b ${th.border} ${th.bgAlt} px-2 sm:px-4 py-3`}>
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile sidebar toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMobileSidebarOpen(true)}
+            className={`md:hidden min-h-[44px] min-w-[44px] ${th.textDim} ${th.hoverText} ${th.hover}`}
+          >
+            <PanelLeft className="h-5 w-5" />
+          </Button>
           <Badge variant="secondary" className="border-emerald-200 bg-emerald-50 text-emerald-700">
             <CheckCircle2 className="mr-1 h-3 w-3" />
             {t('common.ready')}
           </Badge>
-          <span className={`text-sm font-semibold ${th.textBright}`}>{siteName}</span>
+          <span className={`text-sm font-semibold ${th.textBright} truncate max-w-[120px] sm:max-w-none`}>{siteName}</span>
           <span className={`hidden text-xs ${th.textDim} sm:inline`}>· {generatedPages.length} {t('builder.preview.pagesCount')} · {industryLabel} · {styleLabel}</span>
         </div>
 
-        {/* Device toggle */}
-        <div className={`flex items-center gap-1 rounded-lg border ${th.border} bg-slate-50 p-1`}>
+        {/* Device toggle — hidden on mobile */}
+        <div className={`hidden md:flex items-center gap-1 rounded-lg border ${th.border} bg-slate-50 p-1`}>
           {(Object.entries(DEVICE_SIZES) as [keyof typeof DEVICE_SIZES, typeof DEVICE_SIZES[keyof typeof DEVICE_SIZES]][]).map(([key, config]) => {
             const Icon = config.icon
             return (
@@ -2448,24 +2460,24 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleRegenerate} className={`${th.textDim} ${th.hoverText} ${th.hover}`}>
-            <RefreshCw className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button variant="ghost" size="sm" onClick={handleRegenerate} className={`${th.textDim} ${th.hoverText} ${th.hover} min-h-[44px]`}>
+            <RefreshCw className="h-4 w-4 sm:mr-1 rtl:sm:ml-1 rtl:sm:mr-0" />
             <span className="hidden sm:inline">{t('builder.preview.regenerate')}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleSaveProject} className={`${th.textDim} ${th.hoverText} ${th.hover}`}>
+          <Button variant="ghost" size="sm" onClick={handleSaveProject} className={`hidden md:inline-flex ${th.textDim} ${th.hoverText} ${th.hover}`}>
             <Save className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
-            <span className="hidden sm:inline">{t('builder.preview.save')}</span>
+            <span className="hidden lg:inline">{t('builder.preview.save')}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleExport} className={`${th.textDim} ${th.hoverText} ${th.hover}`}>
+          <Button variant="ghost" size="sm" onClick={handleExport} className={`hidden md:inline-flex ${th.textDim} ${th.hoverText} ${th.hover}`}>
             <Download className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
-            <span className="hidden sm:inline">{t('builder.preview.export')}</span>
+            <span className="hidden lg:inline">{t('builder.preview.export')}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleExportAll} className="text-emerald-600/60 hover:text-emerald-700 hover:bg-emerald-50">
+          <Button variant="ghost" size="sm" onClick={handleExportAll} className="hidden md:inline-flex text-emerald-600/60 hover:text-emerald-700 hover:bg-emerald-50">
             <Rocket className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
-            <span className="hidden sm:inline">{t('builder.preview.exportAll')}</span>
+            <span className="hidden lg:inline">{t('builder.preview.exportAll')}</span>
           </Button>
-          <Button size="sm" onClick={handleEdit} className="bg-blue-700 text-white hover:bg-blue-800 shadow-none border-0 rounded-md">
+          <Button size="sm" onClick={handleEdit} className="bg-blue-700 text-white hover:bg-blue-800 shadow-none border-0 rounded-md min-h-[44px]">
             <Code2 className="mr-1 h-4 w-4 rtl:ml-1 rtl:mr-0" />
             {t('builder.preview.edit')}
           </Button>
@@ -2474,8 +2486,69 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Page navigation */}
-        <div className={`w-64 border-r ${th.border} ${th.bgAlt} p-4 overflow-y-auto max-h-screen`}>
+        {/* Mobile sidebar backdrop + drawer */}
+        <AnimatePresence>
+          {mobileSidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+              <motion.div
+                initial={{ x: -256 }}
+                animate={{ x: 0 }}
+                exit={{ x: -256 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className={`fixed inset-y-0 left-0 z-40 md:hidden w-64 border-r ${th.border} ${th.bgAlt} p-4 overflow-y-auto`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <p className={`text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.pages')}</p>
+                  <button
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md ${th.hover} ${th.textDim}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {generatedPages.map((page, i) => {
+                    const pageMeta = CORE_PAGE_ORDER[i]
+                    const Icon = pageMeta?.icon || Layout
+                    const isActive = currentPreviewPage === page.id
+                    return (
+                      <motion.button
+                        key={page.id}
+                        whileHover={{ x: 4 }}
+                        onClick={() => { setCurrentPreviewPage(page.id); setMobileSidebarOpen(false) }}
+                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-all ${
+                          isActive
+                            ? `${th.activeBg} ${th.text} border ${th.activeBorder}`
+                            : `${th.textMuted} ${th.hover} ${th.hoverText}`
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <div className="flex-1">
+                          <div className="font-medium">{page.name}</div>
+                          <div className={`text-xs ${th.textDim}`}>{page.route}</div>
+                        </div>
+                        {page.html && (
+                          <span className={`text-xs ${th.textSub}`}>{(page.html.length / 1024).toFixed(1)}K</span>
+                        )}
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar - Page navigation (desktop only) */}
+        <div className={`hidden md:flex w-64 flex-col border-r ${th.border} ${th.bgAlt} p-4 overflow-y-auto`}>
           <div className="mb-4">
             <p className={`mb-2 text-xs font-medium ${th.textDim} uppercase tracking-wider`}>{t('builder.preview.pages')}</p>
             <div className="space-y-1">
@@ -2677,22 +2750,32 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
       {/* Toggle button (always visible, positioned on the left edge) */}
       <button
         onClick={onToggle}
-        className={`fixed top-3 left-3 z-50 h-8 w-8 rounded-md border ${bt.cardBorder} ${bt.cardBg} ${bt.text} flex items-center justify-center transition-all hover:opacity-80`}
+        className={`fixed top-3 left-3 z-50 h-11 w-11 rounded-md border ${bt.cardBorder} ${bt.cardBg} ${bt.text} flex items-center justify-center transition-all hover:opacity-80`}
         title={isOpen ? t('builder.closeSidebar') : t('builder.openSidebar')}
       >
-        <MessageSquare className="h-4 w-4" />
+        <MessageSquare className="h-5 w-5" />
       </button>
 
       {/* Sidebar panel */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ x: -260, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -260, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`fixed inset-y-0 left-0 z-40 w-[260px] ${bt.cardBg} border-r flex flex-col`}
-          >
+          <>
+            {/* Backdrop overlay on mobile */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+              onClick={onToggle}
+            />
+            <motion.div
+              initial={{ x: -260, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -260, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className={`fixed inset-y-0 left-0 z-40 w-[260px] ${bt.cardBg} border-r flex flex-col`}
+            >
             {/* Header */}
             <div className={`flex items-center justify-between px-4 py-3 border-b ${bt.cardBorder}`}>
               <div className="flex items-center gap-2">
@@ -2765,6 +2848,7 @@ function ChatSidebar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => vo
               </button>
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
@@ -2780,7 +2864,7 @@ export default function BuilderPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Builder UI is always light theme
-  const wrapperBg = `min-h-screen ${bt.pageBgAlt}`
+  const wrapperBg = `min-h-[100dvh] ${bt.pageBgAlt}`
 
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
@@ -2802,7 +2886,7 @@ export default function BuilderPage() {
           {builderPhase === 'generating' && <GeneratingPhase />}
           {builderPhase === 'preview' && <PreviewPhase sidebarOpen={sidebarOpen} />}
           {builderPhase === 'edit' && (
-            <div className={`flex min-h-screen items-center justify-center ${bt.pageBgAlt}`}>
+            <div className={`flex min-h-[100dvh] items-center justify-center ${bt.pageBgAlt}`}>
               <div className="text-center">
                 <Loader2 className={`h-8 w-8 animate-spin text-blue-700 mx-auto mb-4`} />
                 <p className={bt.textMuted}>{t('builder.transitioning')}</p>

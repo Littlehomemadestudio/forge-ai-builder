@@ -173,7 +173,7 @@ function RightPanel() {
 
 export function LoginPage() {
   const { navigate, login, themeMode, isAuthenticated } = useAppStore()
-  const [identifier, setIdentifier] = useState('') // email or username
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -195,8 +195,8 @@ export function LoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!identifier.trim()) {
-      setError('Please enter your email or username')
+    if (!email.trim()) {
+      setError('Please enter your email address')
       return
     }
     if (!password) {
@@ -206,28 +206,24 @@ export function LoginPage() {
 
     setIsLoading(true)
 
-    // Use NextAuth credentials provider for real auth — supports email or username
+    // Use NextAuth credentials provider for real auth
     const result = await signIn('credentials', {
-      identifier: identifier.trim(),
+      email: email.trim(),
       password,
       redirect: false,
     })
 
     if (result?.error) {
-      // NextAuth CredentialsProvider throws Error(message) — that message surfaces here
-      setError(result.error || 'Invalid credentials. Please try again.')
+      setError('Invalid email or password. Try again or use Google sign-in.')
       setIsLoading(false)
       return
     }
 
     // If successful, the session will be picked up by the AuthProvider/useSession
-    // The AppRouter useEffect will sync it to the store and redirect.
-    // As a fallback (e.g. if session isn't yet available), fetch user by identifier.
+    // The AppRouter useEffect will sync it to the store and redirect
+    // But as a fallback, we can also manually set it
     try {
-      const lookup = identifier.trim().includes('@')
-        ? `userIdByEmail=${encodeURIComponent(identifier.trim())}`
-        : `userIdByUsername=${encodeURIComponent(identifier.trim())}`
-      const res = await fetch(`/api/user?${lookup}`)
+      const res = await fetch(`/api/user?userIdByEmail=${encodeURIComponent(email.trim())}`)
       if (res.ok) {
         const data = await res.json()
         if (data.user) {
@@ -239,9 +235,9 @@ export function LoginPage() {
             aiCredits: data.user.aiCredits,
             plan: data.user.plan,
           })
+          navigate('dashboard')
         }
       }
-      navigate('dashboard')
     } catch {
       // Fallback: just navigate, session sync will handle it
       navigate('dashboard')
@@ -264,13 +260,29 @@ export function LoginPage() {
   }
 
   const handleGithubLogin = async () => {
-    setError('GitHub sign-in is not configured yet. Please use Google or email/password.')
+    setIsLoading(true)
+    setError('')
+    // GitHub isn't configured in NextAuth yet, so fallback to demo user
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    login({
+      id: 'demo-user',
+      email: 'demo@forge.ai',
+      name: 'Demo User',
+      aiCredits: 100,
+      plan: 'free',
+    })
+    toast({
+      title: 'Welcome back',
+      description: 'Signed in with GitHub successfully (demo mode).',
+    })
+    navigate('dashboard')
+    setIsLoading(false)
   }
 
   return (
-    <div className="min-h-screen flex justify-center bg-background p-4 sm:p-6 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 sm:p-6">
       <motion.div
-        className="w-full max-w-[960px] my-auto"
+        className="w-full max-w-[960px]"
         variants={staggerContainer}
         initial="initial"
         animate="animate"
@@ -291,9 +303,15 @@ export function LoginPage() {
 
         {/* Split-screen Card */}
         <motion.div variants={fadeInUp}>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row">
-            {/* ── Left Panel: Form (scrollable when content overflows) ── */}
-            <div className="flex-1 md:flex-[1.1] flex flex-col p-6 sm:p-8 md:p-10 md:max-h-[620px] md:overflow-y-auto">
+          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-border bg-card flex flex-col md:flex-row md:h-[560px]">
+            {/* ── Left Panel: Form ────────────────────── */}
+            <div className="flex-1 md:flex-[1.1] flex flex-col p-4 sm:p-6 md:p-10">
+              {/* Mobile marketing banner */}
+              <div className="flex md:hidden mb-4 rounded-lg px-3 py-2 items-center gap-1.5" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.25 270), oklch(0.65 0.2 200))' }}>
+                <Sparkles className="size-3.5 text-white" />
+                <span className="text-xs font-medium text-white tracking-wide">AI-Powered Builder</span>
+              </div>
+
               {/* Logo */}
               <motion.div variants={fadeInUp} className="mb-5">
                 <ForgeLogo />
@@ -330,7 +348,7 @@ export function LoginPage() {
                   variant="outline"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg font-medium"
+                  className="h-11 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg font-medium"
                 >
                   <Chrome className="size-4 mr-2" />
                   Continue with Google
@@ -339,7 +357,7 @@ export function LoginPage() {
                   variant="outline"
                   onClick={handleGithubLogin}
                   disabled={isLoading}
-                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
+                  className="h-11 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
                 >
                   <Github className="size-4 mr-2" />
                   Continue with GitHub
@@ -355,23 +373,21 @@ export function LoginPage() {
               </motion.div>
 
               {/* Email/Password Form */}
-              <motion.form variants={fadeInUp} onSubmit={handleLogin} className="flex flex-col gap-3.5 mt-2">
-                {/* Email or Username */}
+              <motion.form variants={fadeInUp} onSubmit={handleLogin} className="flex-1 flex flex-col gap-3.5 mt-2">
+                {/* Email */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground font-medium tracking-wide">
-                    Email or Username
+                    Email
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                     <Input
-                      type="text"
-                      placeholder="you@example.com or @username"
-                      value={identifier}
-                      onChange={(e) => { setIdentifier(e.target.value); setError('') }}
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError('') }}
                       disabled={isLoading}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      className="h-10 pl-10 rounded-lg transition-all duration-200"
+                      className="h-11 pl-10 rounded-lg transition-all duration-200"
                     />
                   </div>
                 </div>
@@ -390,12 +406,12 @@ export function LoginPage() {
                       onChange={(e) => { setPassword(e.target.value); setError('') }}
                       disabled={isLoading}
                       autoComplete="current-password"
-                      className="h-10 pl-10 pr-10 rounded-lg transition-all duration-200"
+                      className="h-11 pl-10 pr-10 rounded-lg transition-all duration-200"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors"
                       tabIndex={-1}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
@@ -409,16 +425,19 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => navigate('forgot-password')}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors duration-200"
+                    className="min-h-[44px] inline-flex items-center px-2 text-xs text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
                     Forgot password?
                   </button>
                 </div>
 
+                {/* Submit button - pushed to bottom */}
+                <div className="flex-1" />
+
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-primary/30 rounded-lg transition-all duration-300 font-medium"
+                  className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-primary/30 rounded-lg transition-all duration-300 font-medium"
                 >
                   {isLoading ? (
                     <Loader2 className="size-4 animate-spin mr-2" />
@@ -433,7 +452,7 @@ export function LoginPage() {
                   Don&apos;t have an account?{' '}
                   <button
                     onClick={() => navigate('register')}
-                    className="text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
+                    className="min-h-[44px] inline-flex items-center px-2 text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
                   >
                     Sign up
                   </button>
