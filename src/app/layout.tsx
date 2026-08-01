@@ -1,24 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Persian/Arabic font — auto-loaded by next/font, applied conditionally via .rtl-ui class
-const vazirmatn = Vazirmatn({
-  variable: "--font-vazirmatn",
-  subsets: ["arabic", "latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Forge — AI Website Builder",
@@ -48,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${vazirmatn.variable} antialiased bg-background text-foreground`}
+        className="antialiased bg-background text-foreground"
       >
         {children}
         <Toaster />
