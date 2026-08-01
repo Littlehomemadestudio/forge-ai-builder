@@ -35,6 +35,8 @@ import {
   Monitor,
   Smartphone,
   Check,
+  Menu,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -146,6 +148,7 @@ export default function LandingPage() {
   const isAuthenticated = useAppStore(s => s.isAuthenticated)
   const t = useTranslation()
   const [promptValue, setPromptValue] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isDark = themeMode === 'dark'
   const isRtlMode = isRtl(uiLanguage)
 
@@ -247,13 +250,13 @@ export default function LandingPage() {
             <button onClick={() => { setDashboardTab('templates'); navigate('dashboard') }} className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</button>
             <button onClick={handleGetStarted} className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.pricing')}</button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <LanguageSwitcher variant="pill" compact />
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
-              className="w-8 h-8 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="w-10 h-10 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               title={isDark ? t('nav.theme.toggleLight') : t('nav.theme.toggleDark')}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -262,26 +265,71 @@ export default function LandingPage() {
               variant="ghost"
               size="sm"
               onClick={() => navigate('login')}
-              className="text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="text-xs text-muted-foreground min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {t('nav.signin')}
             </Button>
             <Button
               size="sm"
               onClick={handleGetStarted}
-              className="text-xs bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="text-xs bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {t('nav.getStarted')}
             </Button>
           </div>
+          {/* Mobile: hamburger + theme toggle */}
+          <div className="flex sm:hidden items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="w-10 h-10 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              title={isDark ? t('nav.theme.toggleLight') : t('nav.theme.toggleDark')}
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="w-10 h-10 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+          </div>
         </div>
+        {/* Mobile slide-down menu */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-border/50 bg-background/95 backdrop-blur-md">
+            <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-3">
+              <button onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.builder')}</button>
+              <button onClick={() => { setDashboardTab('templates'); navigate('dashboard'); setMobileMenuOpen(false) }} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</button>
+              <button onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.pricing')}</button>
+              <Separator />
+              <Button
+                variant="ghost"
+                onClick={() => { navigate('login'); setMobileMenuOpen(false) }}
+                className="text-sm text-muted-foreground min-h-[44px] justify-start focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                {t('nav.signin')}
+              </Button>
+              <Button
+                onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }}
+                className="text-sm bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                {t('nav.getStarted')}
+              </Button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ─── Main Content ──────────────────────────────────────────── */}
       <div id="main-content">
 
         {/* ─── Hero Section — Centered, professional like z.ai ────────── */}
-        <section className="relative overflow-hidden pt-24 pb-12 md:pt-32 md:pb-16 flex flex-col items-center justify-center min-h-[50vh]">
+        <section className="relative overflow-hidden pt-16 sm:pt-24 pb-12 md:pt-32 md:pb-16 flex flex-col items-center justify-center min-h-[50vh]">
           <AbstractBackground isDark={isDark} />
 
           {/* Blue-to-violet gradient accent line at top */}
@@ -303,7 +351,7 @@ export default function LandingPage() {
 
               {/* Professional prompt input — centered, full width */}
               <div className="mt-8 w-full">
-                <div className={`flex items-center gap-3 p-3 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/60 shadow-xl shadow-blue-500/5 transition-all duration-300 focus-within:border-blue-500/40 focus-within:shadow-blue-500/10 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
+                <div className={`flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/60 shadow-xl shadow-blue-500/5 transition-all duration-300 focus-within:border-blue-500/40 focus-within:shadow-blue-500/10 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
                   <Sparkles className="w-5 h-5 text-violet-500 shrink-0" />
                   <input
                     value={promptValue}
@@ -315,7 +363,7 @@ export default function LandingPage() {
                   <Button
                     onClick={handleGenerate}
                     size="sm"
-                    className="bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 text-xs px-5 h-9 rounded-xl shadow-lg shadow-violet-500/20 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shrink-0"
+                    className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 text-xs px-5 h-11 rounded-xl shadow-lg shadow-violet-500/20 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shrink-0"
                   >
                     {t('hero.generate')} <ArrowRight className="w-3 h-3 ms-1 rtl-flip-x" />
                   </Button>
@@ -330,7 +378,7 @@ export default function LandingPage() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => { setPromptValue(pill); setBuilderPrompt(pill); if (!isAuthenticated) { navigate('login'); return; } navigate('builder') }}
-                    className="text-[11px] text-muted-foreground px-3 py-1.5 rounded-full bg-secondary/50 border border-border/50 hover:border-blue-500/30 hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="text-[11px] text-muted-foreground px-4 py-2.5 rounded-full bg-secondary/50 border border-border/50 hover:border-blue-500/30 hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
                     {pill}
                   </motion.button>
@@ -408,7 +456,7 @@ export default function LandingPage() {
             {localizedStats.map((stat, i) => {
               const Icon = stat.icon
               return (
-                <div key={stat.label} className={`flex items-center gap-4 ${i > 0 ? 'border-s border-border/50 ps-6 rtl:border-e rtl:border-s-0 rtl:ps-0 rtl:pe-6' : ''}`}>
+                <div key={stat.label} className={`flex items-center gap-2 sm:gap-4 ${i > 0 ? 'md:border-s md:border-border/50 md:ps-6 rtl:md:border-e rtl:md:border-s-0 rtl:md:ps-0 rtl:md:pe-6' : ''}`}>
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center flex-shrink-0">
                     <Icon className="w-4 h-4 text-violet-500" />
                   </div>
@@ -751,7 +799,7 @@ export default function LandingPage() {
               {pricingTiers.map((tier) => {
                 const isHighlighted = tier.highlighted
                 return (
-                  <Card key={tier.key} className={`relative overflow-hidden transition-all duration-300 ${isHighlighted ? 'border-blue-500/30 shadow-lg shadow-violet-500/10 scale-[1.02] bg-gradient-to-b from-blue-500/5 to-violet-500/5' : 'border-border/50'}`}>
+                  <Card key={tier.key} className={`relative overflow-hidden transition-all duration-300 ${isHighlighted ? 'border-blue-500/30 shadow-lg shadow-violet-500/10 md:scale-[1.02] mobile-no-scale bg-gradient-to-b from-blue-500/5 to-violet-500/5' : 'border-border/50'}`}>
                     {isHighlighted && (
                       <Badge className="absolute top-4 right-4 rtl:right-auto rtl:left-4 bg-gradient-to-r from-blue-500 to-violet-500 text-white text-[9px] px-2 py-0.5 border-0">
                         {t('pricing.pro.popular')}
@@ -888,30 +936,30 @@ export default function LandingPage() {
         <div className="h-px bg-gradient-to-l from-transparent via-violet-500/15 to-transparent -mt-px relative z-10" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-          <div className={`grid grid-cols-2 md:grid-cols-4 gap-6 mb-6 ${isRtlMode ? 'rtl:text-right' : ''}`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6 ${isRtlMode ? 'rtl:text-right' : ''}`}>
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Hexagon className="w-4 h-4 text-violet-500" />
                 <span className="font-bold text-sm gradient-text">{t('brand.name')}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 {t('footer.tagline')}
               </p>
             </div>
             <div>
               <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.product')}</h4>
               <div className="space-y-1.5">
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); handleGetStarted() }} className="block text-[10px] text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.builder')}</a>
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('activity'); navigate('dashboard') }} className="block text-[10px] text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('common.export')}</a>
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('activity'); navigate('dashboard') }} className="block text-[10px] text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</a>
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('deployments'); navigate('dashboard') }} className="block text-[10px] text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('common.deploy')}</a>
+                <a href="#main-content" onClick={(e) => { e.preventDefault(); handleGetStarted() }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.builder')}</a>
+                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('activity'); navigate('dashboard') }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('common.export')}</a>
+                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('activity'); navigate('dashboard') }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</a>
+                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('deployments'); navigate('dashboard') }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('common.deploy')}</a>
               </div>
             </div>
             <div>
               <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.resources')}</h4>
               <div className="space-y-1.5">
                 {[t('footer.docs'), t('footer.blog'), t('footer.changelog'), t('footer.support')].map((item) => (
-                  <span key={item} className="block text-[10px] text-muted-foreground hover:text-violet-500/70 transition-colors cursor-default">{item}</span>
+                  <span key={item} className="block text-xs text-muted-foreground hover:text-violet-500/70 transition-colors cursor-default">{item}</span>
                 ))}
               </div>
             </div>
@@ -919,18 +967,18 @@ export default function LandingPage() {
               <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.company')}</h4>
               <div className="space-y-1.5">
                 {[t('footer.about'), t('footer.careers'), t('footer.privacy'), t('footer.terms')].map((item) => (
-                  <span key={item} className="block text-[10px] text-muted-foreground hover:text-violet-500/70 transition-colors cursor-default">{item}</span>
+                  <span key={item} className="block text-xs text-muted-foreground hover:text-violet-500/70 transition-colors cursor-default">{item}</span>
                 ))}
               </div>
             </div>
           </div>
           <Separator className="mb-4" />
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">{t('footer.rights')}</span>
+            <span className="text-xs text-muted-foreground">{t('footer.rights')}</span>
             <div className="flex items-center gap-3">
-              <a href="#" className="focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Github className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
-              <a href="#" className="focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
-              <a href="#" className="focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Linkedin className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
+              <a href="#" className="min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Github className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
+              <a href="#" className="min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
+              <a href="#" className="min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Linkedin className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
             </div>
           </div>
         </div>

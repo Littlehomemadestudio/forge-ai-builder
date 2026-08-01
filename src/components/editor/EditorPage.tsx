@@ -849,6 +849,8 @@ export default function EditorPage() {
   const [aiSuggestions, setAiSuggestions] = useState<Array<{ type: 'content'|'style'|'both'; title: string; description: string; newHtml?: string; newStyles?: Record<string,string> }>>([])
   const [aiLoading, setAiLoading] = useState(false)
   const [showAiPanel, setShowAiPanel] = useState(false)
+  const [showLeftPanel, setShowLeftPanel] = useState(false)
+  const [showRightPanel, setShowRightPanel] = useState(false)
 
   // Design tokens state
   const [designTokens, setDesignTokens] = useState({
@@ -1432,8 +1434,518 @@ export default function EditorPage() {
   }
 
   // ─── Main Render ───────────────────────────────────────────────────────────
+
+  // Extract panel content into variables for reuse in desktop and mobile drawers
+  const leftPanelContent = (
+    <Tabs value={leftPanelTab} onValueChange={setLeftPanelTab} className="flex flex-col h-full">
+      <TabsList className="w-full justify-start bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-8 p-0">
+        <TabsTrigger value="layers" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Layers size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.structure')}</TabsTrigger>
+        <TabsTrigger value="components" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Grid3X3 size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.addElements')}</TabsTrigger>
+        <TabsTrigger value="pages" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><File size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.pages')}</TabsTrigger>
+        <TabsTrigger value="tokens" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Paintbrush size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.designs')}</TabsTrigger>
+      </TabsList>
+
+      {/* Layers tab */}
+      <TabsContent value="layers" className="flex-1 overflow-y-auto mt-0 p-2">
+        <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">{t('editor.pageStructure')}</div>
+        <div className="text-[9px] text-zinc-500 mb-2">{t('editor.pageStructureHint')}</div>
+        {elementTree ? renderTreeNode(elementTree, 0) : (
+          <div className="text-[11px] text-zinc-500 text-center py-8">{t('editor.clickElementsHint')}</div>
+        )}
+      </TabsContent>
+
+      {/* Components tab */}
+      <TabsContent value="components" className="flex-1 overflow-y-auto mt-0 p-2">
+        <div className="text-[9px] text-zinc-500 mb-2">{t('editor.components.hint')}</div>
+        <Input placeholder={t('editor.searchElements')} value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] mb-2" />
+        {filteredCategories.map(cat => (
+          <div key={cat.id} className="mb-2">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-1 w-full hover:text-zinc-300">
+                <ChevronRight size={10} className="transition-transform" />{cat.name}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-2 gap-1">
+                  {cat.components.map(comp => (
+                    <button key={comp.id} onClick={() => addComponent(comp.id)} className="flex flex-col items-start p-1.5 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-[10px] group">
+                      <span className="text-white font-medium group-hover:text-[#7c3aed]">{comp.name}</span>
+                      <span className="text-zinc-500 text-[9px]">{comp.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        ))}
+      </TabsContent>
+
+      {/* Pages tab */}
+      <TabsContent value="pages" className="flex-1 overflow-y-auto mt-0 p-2">
+        <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">{t('editor.pages')}</div>
+        <div className="text-[9px] text-zinc-500 mb-2">{t('editor.pages.hint')}</div>
+        {generatedPages.length > 0 ? generatedPages.map(p => (
+          <button key={p.id} onClick={() => switchPage(p.id)} className={`flex items-center gap-2 w-full p-2 rounded text-[11px] mb-1 transition-colors ${activePageIdRef.current === p.id ? 'bg-[#7c3aed]/10 text-white border border-[#7c3aed]/20' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white border border-[#2a2a3e]'}`}>
+            <File size={12} />
+            <div className="flex-1">
+              <span className="font-medium">{p.name}</span>
+              <span className="text-zinc-500 ml-1">{p.route}</span>
+            </div>
+            <span className="text-[9px] text-zinc-500">{(p.html?.length || 0) / 1024}K</span>
+          </button>
+        )) : (
+          <div className="text-[11px] text-zinc-500 text-center py-6">{t('editor.pages.empty')}</div>
+        )}
+      </TabsContent>
+
+      {/* Design Tokens tab */}
+      <TabsContent value="tokens" className="flex-1 overflow-y-auto mt-0 p-2">
+        <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">{t('editor.design.overall')}</div>
+        <div className="text-[9px] text-zinc-500 mb-2">{t('editor.design.overallHint')}</div>
+        {/* Theme presets */}
+        <div className="mb-3">
+          <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.themes')}</Label>
+          <div className="grid grid-cols-3 gap-1">
+            {THEME_PRESETS.map(preset => (
+              <button key={preset.id} onClick={() => {
+                setDesignTokens(prev => ({ ...prev, ...preset.colors, fontFamily: preset.font }))
+                setTimeout(() => applyTheme(), 100)
+              }} className="flex flex-col items-center p-1.5 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors">
+                <div className="flex gap-0.5 mb-0.5">
+                  {[preset.colors.accent, preset.colors.bg, preset.colors.text].map(c => (
+                    <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
+                  ))}
+                </div>
+                <span className="text-[9px] text-zinc-400">{preset.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Colors */}
+        <div className="mb-3">
+          <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.customColors')}</Label>
+          {[
+            { key:'accent', label: t('editor.design.color.accent') },
+            { key:'bg', label: t('editor.design.color.bg') },
+            { key:'surface', label: t('editor.design.color.surface') },
+            { key:'text', label: t('editor.design.color.text') },
+            { key:'muted', label: t('editor.design.color.muted') },
+            { key:'border', label: t('editor.design.color.border') },
+          ].map(({ key, label }) => (
+            <div key={key} className="flex items-center gap-2 mb-1">
+              <Label className="text-[10px] text-zinc-400 w-16">{label}</Label>
+              <input type="color" value={designTokens[key as keyof typeof designTokens] as string} onChange={e => setDesignTokens(prev => ({ ...prev, [key]: e.target.value }))} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
+              <Input value={designTokens[key as keyof typeof designTokens] as string} onChange={e => setDesignTokens(prev => ({ ...prev, [key]: e.target.value }))} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+            </div>
+          ))}
+        </div>
+        {/* Font */}
+        <div className="mb-3">
+          <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.font')}</Label>
+          <Select value={designTokens.fontFamily} onValueChange={v => setDesignTokens(prev => ({ ...prev, fontFamily: v }))}>
+            <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+              {['Inter','Geist','system-ui','Arial','Helvetica','Georgia','Playfair Display','Montserrat','Poppins','Roboto','Lora','Merriweather','Fira Code'].map(f => <SelectItem key={f} value={f} className="text-[11px] text-white">{f}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Scale sliders */}
+        <div className="mb-3">
+          <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.radius')}</Label>
+          <Slider value={[designTokens.borderRadius]} onValueChange={v => setDesignTokens(prev => ({ ...prev, borderRadius: v[0] }))} min={0} max={24} step={1} className="mb-1" />
+          <span className="text-[10px] text-zinc-500">{designTokens.borderRadius}px</span>
+        </div>
+        <div className="mb-3">
+          <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.spacing')}</Label>
+          <Slider value={[designTokens.spacingScale * 100]} onValueChange={v => setDesignTokens(prev => ({ ...prev, spacingScale: v[0] / 100 }))} min={50} max={200} step={10} className="mb-1" />
+          <span className="text-[10px] text-zinc-500">{Math.round(designTokens.spacingScale * 100)}%</span>
+        </div>
+        <div className="mb-3">
+          <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.shadow')}</Label>
+          <Slider value={[designTokens.shadowScale * 100]} onValueChange={v => setDesignTokens(prev => ({ ...prev, shadowScale: v[0] / 100 }))} min={0} max={200} step={10} className="mb-1" />
+          <span className="text-[10px] text-zinc-500">{Math.round(designTokens.shadowScale * 100)}%</span>
+        </div>
+        {/* Preview strip */}
+        <div className="mb-3 p-2 rounded-lg border border-[#2a2a3e]" style={{ background: designTokens.bg }}>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded" style={{ background: designTokens.accent }} />
+            <span style={{ color: designTokens.text, fontFamily: designTokens.fontFamily, fontSize: '14px' }}>{t('editor.design.preview')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="px-2 py-1 rounded text-[10px]" style={{ background: designTokens.accent, color: '#fff' }}>{t('editor.design.previewBtn')}</button>
+            <span style={{ color: designTokens.muted, fontFamily: designTokens.fontFamily, fontSize: '10px' }}>{t('editor.design.previewMuted')}</span>
+          </div>
+          <div className="mt-1 p-1 rounded" style={{ background: designTokens.surface, border: `1px solid ${designTokens.border}` }}>
+            <span style={{ color: designTokens.text, fontSize: '9px' }}>{t('editor.design.previewSurface')}</span>
+          </div>
+        </div>
+        <Button onClick={applyTheme} className="w-full h-7 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]">{t('editor.applyTheme')}</Button>
+      </TabsContent>
+    </Tabs>
+  )
+
+  const rightPanelContent = (
+    <>
+      {!selectedElement ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+          <div className="w-12 h-12 rounded-full bg-[#7c3aed]/10 flex items-center justify-center mb-3">
+            <MousePointer2 size={24} className="text-[#7c3aed]" />
+          </div>
+          <p className="text-sm text-zinc-300 font-medium mb-1">{t('editor.pickSection')}</p>
+          <p className="text-[11px] text-zinc-500 mb-4">{t('editor.pickSectionHint')}</p>
+          <div className="space-y-2 w-full">
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+              <MousePointer2 size={14} className="text-[#7c3aed]" />
+              <span className="text-[11px] text-zinc-300">{t('editor.tip1')}</span>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+              <Edit3 size={14} className="text-emerald-400" />
+              <span className="text-[11px] text-zinc-300">{t('editor.tip2')}</span>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+              <Palette size={14} className="text-pink-400" />
+              <span className="text-[11px] text-zinc-300">{t('editor.tip3')}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col h-full">
+          {/* Element header — friendly name */}
+          <div className="px-2 py-1.5 border-b border-[#1a1a2e] bg-[#1a1a2e]/50 shrink-0">
+            <div className="flex items-center gap-1.5">
+              {(() => {
+                const iconName = getTagIconName(selectedElement.tag)
+                const IC = ICON_MAP[iconName]
+                return IC ? <IC size={14} className="text-[#7c3aed]" /> : <Square size={14} className="text-[#7c3aed]" />
+              })()}
+              <span className="text-[11px] text-white font-semibold">{getTagDisplayName(selectedElement.tag)}</span>
+              <span className="text-[9px] text-zinc-500">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px</span>
+              <div className="flex gap-0.5 ml-auto">
+                <Tooltip><TooltipTrigger asChild><button onClick={duplicateElement} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white"><Copy size={12} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.copySection')}</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><button onClick={removeElement} className="p-0.5 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400"><Trash2 size={12} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.deleteSection')}</TooltipContent></Tooltip>
+              </div>
+            </div>
+            {getTagDescription(selectedElement.tag) && (
+              <div className="text-[9px] text-zinc-500 mt-0.5">{getTagDescription(selectedElement.tag)}</div>
+            )}
+          </div>
+
+          {/* Inspector tabs — friendlier labels */}
+          <Tabs value={inspectorTab} onValueChange={setInspectorTab} className="flex flex-col flex-1 overflow-hidden">
+            <TabsList className="w-full bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-7 p-0 shrink-0">
+              <TabsTrigger value="content" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Edit3 size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.content')}</TabsTrigger>
+              <TabsTrigger value="style" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Palette size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.style')}</TabsTrigger>
+              <TabsTrigger value="layout" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Layout size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.layout')}</TabsTrigger>
+              <TabsTrigger value="animation" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Sparkles size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.animation')}</TabsTrigger>
+              {editorMode === 'advanced' && (
+                <TabsTrigger value="seo" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Globe size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.seo')}</TabsTrigger>
+              )}
+            </TabsList>
+
+            {/* Content tab — friendly editing */}
+            <TabsContent value="content" className="flex-1 overflow-y-auto mt-0 p-2">
+              {/* Quick tip based on element type */}
+              <div className="mb-3 p-2 rounded-lg bg-[#7c3aed]/5 border border-[#7c3aed]/20">
+                <div className="text-[10px] text-[#7c3aed] font-medium mb-0.5">💡 {t('editor.content.tip')}: {getTagDescription(selectedElement.tag) || ''}</div>
+              </div>
+              {/* Main content editor */}
+              <div className="mb-2">
+                <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">📝 {t('editor.content.textInside')}</Label>
+                <div className="text-[9px] text-zinc-500 mb-0.5">{t('editor.content.textInsideHint')}</div>
+                <textarea value={editingContent} onChange={e => setEditingContent(e.target.value)} onBlur={() => applyContent(editingContent)} className="w-full h-24 bg-[#0d0d15] border border-[#2a2a3e] rounded text-[11px] text-white p-2 resize-y" placeholder={t('editor.content.textPlaceholder')} />
+              </div>
+              {/* Tag-specific attribute editors with friendly labels */}
+              {selectedElement.tag === 'img' && (
+                <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🖼️ {t('editor.content.imgSettings')}</Label>
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.imgUrl')}</Label>
+                  <Input value={editingAttributes.src || ''} onChange={e => applyAttribute('src', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="https://example.com/photo.jpg" />
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.imgAlt')}</Label>
+                  <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="A photo of..." />
+                </div>
+              )}
+              {selectedElement.tag === 'a' && (
+                <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🔗 {t('editor.content.linkSettings')}</Label>
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.linkHref')}</Label>
+                  <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="https://example.com" />
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.linkTarget')}</Label>
+                  <Select value={editingAttributes.target || '_self'} onValueChange={v => applyAttribute('target', v)}>
+                    <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="_self" className="text-[11px]">{t('editor.content.sameWindow')}</SelectItem><SelectItem value="_blank" className="text-[11px]">{t('editor.content.newWindow')}</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              )}
+              {(selectedElement.tag === 'input' || selectedElement.tag === 'textarea') && (
+                <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">✏️ {t('editor.content.inputSettings')}</Label>
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.inputType')}</Label>
+                  <Select value={editingAttributes.type || 'text'} onValueChange={v => applyAttribute('type', v)}>
+                    <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">{[{ v:'text', l:t('editor.content.inputType.text') },{ v:'email', l:t('editor.content.inputType.email') },{ v:'password', l:t('editor.content.inputType.password') },{ v:'number', l:t('editor.content.inputType.number') },{ v:'tel', l:t('editor.content.inputType.tel') },{ v:'url', l:t('editor.content.inputType.url') },{ v:'search', l:t('editor.content.inputType.search') },{ v:'date', l:t('editor.content.inputType.date') },{ v:'submit', l:t('editor.content.inputType.submit') },{ v:'button', l:t('editor.content.inputType.button') }].map(t => <SelectItem key={t.v} value={t.v} className="text-[11px]">{t.l}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.inputPlaceholder')}</Label>
+                  <Input value={editingAttributes.placeholder || ''} onChange={e => applyAttribute('placeholder', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="..." />
+                </div>
+              )}
+              {selectedElement.tag === 'button' && (
+                <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
+                  <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🔘 {t('editor.content.buttonSettings')}</Label>
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.buttonAction')}</Label>
+                  <Select value={editingAttributes.type || 'button'} onValueChange={v => applyAttribute('type', v)}>
+                    <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="button" className="text-[11px]">{t('editor.content.buttonTypeButton')}</SelectItem><SelectItem value="submit" className="text-[11px]">{t('editor.content.buttonTypeSubmit')}</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              )}
+              {/* All attributes — collapsible for advanced users (hidden in Simple mode) */}
+              {editorMode === 'advanced' && Object.keys(editingAttributes).length > 0 && (
+                <Collapsible className="mb-2">
+                  <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-1 w-full hover:text-zinc-300">
+                    <ChevronRight size={10} className="transition-transform" />{t('editor.content.advancedAttrs')}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="p-2 rounded-lg bg-[#0d0d15] border border-[#2a2a3e]">
+                      {Object.entries(editingAttributes).map(([key, val]) => (
+                        <div key={key} className="flex items-center gap-1 mb-1">
+                          <Label className="text-[10px] text-zinc-400 w-16">{key}</Label>
+                          <Input value={val} onChange={e => applyAttribute(key, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </TabsContent>
+
+            {/* Style tab — with friendly group names */}
+            <TabsContent value="style" className="flex-1 overflow-y-auto mt-0">
+              {/* Quick edit section — most common changes */}
+              <div className="p-2 border-b border-[#1a1a2e]">
+                <Label className="text-[10px] text-zinc-300 font-semibold mb-1.5 block">⚡ {t('editor.quickChanges')}</Label>
+                <div className="text-[9px] text-zinc-500 mb-1">{t('editor.quickChangesHint')}</div>
+                <div className="grid grid-cols-2 gap-1.5 mb-1">
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.color')}</Label>
+                    <input type="color" value={selectedStyles['color']?.startsWith('#') ? selectedStyles['color'] : '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
+                    <Input value={selectedStyles['color'] || '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.fill')}</Label>
+                    <input type="color" value={selectedStyles['background-color']?.startsWith('#') ? selectedStyles['background-color'] : '#000000'} onChange={e => applyStyle('background-color', e.target.value)} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
+                    <Input value={selectedStyles['background-color'] || 'transparent'} onChange={e => applyStyle('background-color', e.target.value)} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.size')}</Label>
+                    <Input type="number" value={parseFloat(selectedStyles['font-size']) || 16} onChange={e => applyStyle('font-size', e.target.value + 'px')} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={8} max={120} />
+                    <span className="text-[9px] text-zinc-500">px</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.thick')}</Label>
+                    <Select value={selectedStyles['font-weight'] || '400'} onValueChange={v => applyStyle('font-weight', v)}>
+                      <SelectTrigger className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
+                        {[{ v:'300', l:t('editor.weight.300') },{ v:'400', l:t('editor.weight.400') },{ v:'500', l:t('editor.weight.500') },{ v:'600', l:t('editor.weight.600') },{ v:'700', l:t('editor.weight.700') },{ v:'800', l:t('editor.weight.800') },{ v:'900', l:t('editor.weight.900') }].map(w => <SelectItem key={w.v} value={w.v} className="text-[11px]">{w.l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1">
+                  <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.round')}</Label>
+                  <Input type="number" value={parseFloat(selectedStyles['border-top-left-radius']) || 0} onChange={e => { const v = e.target.value + 'px'; applyStyle('border-top-left-radius', v); applyStyle('border-top-right-radius', v); applyStyle('border-bottom-right-radius', v); applyStyle('border-bottom-left-radius', v) }} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={0} max={200} />
+                  <span className="text-[9px] text-zinc-500">px</span>
+                </div>
+                {/* Box model diagram */}
+                <BoxModelDiagram />
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-2">
+                  {styleCssGroups.map(group => {
+                    const isCollapsed = collapsedGroups.has(group.name)
+                    const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
+                    return (
+                      <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                              {friendlyInfo?.name || group.name}
+                            </CollapsibleTrigger>
+                          </TooltipTrigger>
+                          {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                        </Tooltip>
+                        <CollapsibleContent>
+                          <div className="space-y-0.5 pl-1">
+                            {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Layout tab — friendly name "Position & Size" */}
+            <TabsContent value="layout" className="flex-1 overflow-y-auto mt-0">
+              <div className="p-2">
+                <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.heading')}</Label>
+                <div className="text-[9px] text-zinc-500 mb-2">{t('editor.layout.hint')}</div>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-2">
+                  {layoutCssGroups.map(group => {
+                    const isCollapsed = collapsedGroups.has(group.name)
+                    const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
+                    return (
+                      <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                              {friendlyInfo?.name || group.name}
+                            </CollapsibleTrigger>
+                          </TooltipTrigger>
+                          {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                        </Tooltip>
+                        <CollapsibleContent>
+                          <div className="space-y-0.5 pl-1">
+                            {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })}
+                  {/* Responsive section */}
+                  <div className="mt-3 p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
+                    <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.screenSizes')}</Label>
+                    <div className="text-[9px] text-zinc-500 mb-1">{t('editor.layout.screenSizesHint')}</div>
+                    <div className="flex gap-1">
+                      {DEVICE_CONFIGS.slice(0, 3).map(d => (
+                        <button key={d.name} onClick={() => setDevice(d.name)} className={`flex-1 py-1 rounded text-[10px] transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white'}`}>
+                          {d.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Animation tab — with friendly names */}
+            <TabsContent value="animation" className="flex-1 overflow-y-auto mt-0">
+              <ScrollArea className="flex-1">
+                <div className="p-2">
+                  {/* Animation presets grid */}
+                  <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">✨ {t('editor.animation.heading')}</Label>
+                  <div className="text-[9px] text-zinc-500 mb-2">{t('editor.animation.hint')}</div>
+                  <div className="grid grid-cols-3 gap-1 mb-3">
+                    {ANIMATION_PRESETS.map(preset => (
+                      <button key={preset.id} onClick={() => applyAnimationPreset(preset)} className="flex flex-col items-center p-1.5 rounded bg-[#0d0d15] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-[10px] group">
+                        <Sparkles size={12} className="text-zinc-400 group-hover:text-[#7c3aed] mb-0.5" />
+                        <span className="text-zinc-300 group-hover:text-white">{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Animation CSS properties */}
+                  {animationCssGroups.map(group => {
+                    const isCollapsed = collapsedGroups.has(group.name)
+                    const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
+                    return (
+                      <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                              {friendlyInfo?.name || group.name}
+                            </CollapsibleTrigger>
+                          </TooltipTrigger>
+                          {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                        </Tooltip>
+                        <CollapsibleContent>
+                          <div className="space-y-0.5 pl-1">
+                            {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Info tab (Search Settings & Details) */}
+            <TabsContent value="seo" className="flex-1 overflow-y-auto mt-0 p-2">
+              <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">ℹ️ {t('editor.seo.heading')}</Label>
+              <div className="text-[9px] text-zinc-500 mb-2">{t('editor.seo.hint')}</div>
+              {/* Show meta tag editing */}
+              {selectedElement.tag === 'title' && (
+                <div className="mb-2">
+                  <Label className="text-[10px] text-zinc-400">{t('editor.seo.pageTitle')}</Label>
+                  <Input value={selectedElement.textContent || ''} onChange={e => applyContent(e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                </div>
+              )}
+              {selectedElement.tag === 'meta' && (
+                <div className="mb-2">
+                  <Label className="text-[10px] text-zinc-400">{t('editor.seo.metaName')}</Label>
+                  <Input value={editingAttributes.name || ''} onChange={e => applyAttribute('name', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.seo.metaContent')}</Label>
+                  <Input value={editingAttributes.content || ''} onChange={e => applyAttribute('content', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                </div>
+              )}
+              {selectedElement.tag === 'h1' || selectedElement.tag === 'h2' || selectedElement.tag === 'h3' ? (
+                <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
+                  <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.headingInfo')}</div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">H{selectedElement.tag[1]}</Badge>
+                    <span className="text-[10px] text-zinc-500">{t('editor.seo.highImportance')}</span>
+                  </div>
+                </div>
+              ) : null}
+              {/* Alt text for images */}
+              {selectedElement.tag === 'img' && (
+                <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
+                  <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.imgInfo')}</div>
+                  <Label className="text-[10px] text-zinc-400">{t('editor.seo.imgDescLabel')}</Label>
+                  <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                  <div className="mt-1">
+                    <Switch checked={editingAttributes.alt?.length > 0} onCheckedChange={v => { if (!v) applyAttribute('alt', '') }} />
+                    <span className="text-[10px] text-zinc-500 ml-1">{t('editor.seo.hasDescription')}</span>
+                  </div>
+                </div>
+              )}
+              {/* Link SEO */}
+              {selectedElement.tag === 'a' && (
+                <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
+                  <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.linkInfo')}</div>
+                  <Label className="text-[10px] text-zinc-400">{t('editor.seo.linkHrefLabel')}</Label>
+                  <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
+                  <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.seo.linkRel')}</Label>
+                  <Input value={editingAttributes.rel || ''} onChange={e => applyAttribute('rel', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="noopener noreferrer" />
+                </div>
+              )}
+              {/* General SEO info */}
+              <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
+                <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.about')}</div>
+                <div className="space-y-0.5 text-[10px]">
+                  <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.type')}</span><span className="text-zinc-300">{getTagDisplayName(selectedElement.tag)}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.htmlTag')}</span><span className="text-zinc-300 font-mono">{selectedElement.tag}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.classes')}</span><span className="text-zinc-300 truncate max-w-32">{selectedElement.className || t('common.none')}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.children')}</span><span className="text-zinc-300">{selectedElement.childIds.length}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.parent')}</span><span className="text-zinc-300">{selectedElement.parentId || 'body'}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.size')}</span><span className="text-zinc-300">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px</span></div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+    </>
+  )
+
   return (
-    <div className={`h-screen flex flex-col overflow-hidden ${editorTheme === 'light' ? 'editor-light bg-zinc-100 text-zinc-900' : 'bg-[#0a0a0f] text-white'}`}>
+    <div className={`h-[100dvh] flex flex-col overflow-hidden ${editorTheme === 'light' ? 'editor-light bg-zinc-100 text-zinc-900' : 'bg-[#0a0a0f] text-white'}`}>
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}
       <div className="h-11 flex items-center justify-between px-3 border-b border-[#1a1a2e] bg-[#0a0a0f] shrink-0">
         {/* Left section */}
@@ -1452,33 +1964,33 @@ export default function EditorPage() {
           )}
         </div>
 
-        {/* Center section - Canvas mode + formatting */}
-        <div className="flex items-center gap-1">
+        {/* Center section - Canvas mode + formatting (hidden on mobile) */}
+        <div className="hidden md:flex items-center gap-1">
           {/* Canvas mode */}
           <div className="flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
-            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('select')} className={`p-1 rounded transition-colors ${canvasMode === 'select' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.select')}</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('text')} className={`p-1 rounded transition-colors ${canvasMode === 'text' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><Type size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.text')}</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('move')} className={`p-1 rounded transition-colors ${canvasMode === 'move' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><Move size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.move')}</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('select')} className={`p-2 rounded transition-colors ${canvasMode === 'select' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.select')}</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('text')} className={`p-2 rounded transition-colors ${canvasMode === 'text' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><Type size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.text')}</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><button onClick={() => setCanvasMode('move')} className={`p-2 rounded transition-colors ${canvasMode === 'move' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}><Move size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.move')}</TooltipContent></Tooltip>
           </div>
           <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-1" />
           {/* Quick formatting */}
           {selectedElement && (
             <div className="flex items-center gap-0.5">
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('font-weight', selectedStyles['font-weight'] === '700' ? '400' : '700')} className={`p-1 rounded transition-colors ${selectedStyles['font-weight'] === '700' || selectedStyles['font-weight'] === 'bold' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Bold size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.bold')}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('font-style', selectedStyles['font-style'] === 'italic' ? 'normal' : 'italic')} className={`p-1 rounded transition-colors ${selectedStyles['font-style'] === 'italic' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Italic size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.italic')}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-decoration', selectedStyles['text-decoration']?.includes('underline') ? 'none' : 'underline')} className={`p-1 rounded transition-colors ${selectedStyles['text-decoration']?.includes('underline') ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Underline size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.underline')}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-decoration', selectedStyles['text-decoration']?.includes('line-through') ? 'none' : 'line-through')} className={`p-1 rounded transition-colors ${selectedStyles['text-decoration']?.includes('line-through') ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Strikethrough size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.strikethrough')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('font-weight', selectedStyles['font-weight'] === '700' ? '400' : '700')} className={`p-2 rounded transition-colors ${selectedStyles['font-weight'] === '700' || selectedStyles['font-weight'] === 'bold' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Bold size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.bold')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('font-style', selectedStyles['font-style'] === 'italic' ? 'normal' : 'italic')} className={`p-2 rounded transition-colors ${selectedStyles['font-style'] === 'italic' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Italic size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.italic')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-decoration', selectedStyles['text-decoration']?.includes('underline') ? 'none' : 'underline')} className={`p-2 rounded transition-colors ${selectedStyles['text-decoration']?.includes('underline') ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Underline size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.underline')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-decoration', selectedStyles['text-decoration']?.includes('line-through') ? 'none' : 'line-through')} className={`p-2 rounded transition-colors ${selectedStyles['text-decoration']?.includes('line-through') ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><Strikethrough size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.strikethrough')}</TooltipContent></Tooltip>
               <Separator orientation="vertical" className="h-4 bg-[#2a2a3e] mx-0.5" />
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'left')} className={`p-1 rounded transition-colors ${selectedStyles['text-align'] === 'left' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignLeft size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.alignLeft')}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'center')} className={`p-1 rounded transition-colors ${selectedStyles['text-align'] === 'center' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignCenter size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.alignCenter')}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'right')} className={`p-1 rounded transition-colors ${selectedStyles['text-align'] === 'right' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignRight size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.alignRight')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'left')} className={`p-2 rounded transition-colors ${selectedStyles['text-align'] === 'left' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignLeft size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.alignLeft')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'center')} className={`p-2 rounded transition-colors ${selectedStyles['text-align'] === 'center' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignCenter size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.alignCenter')}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><button onClick={() => applyStyle('text-align', 'right')} className={`p-2 rounded transition-colors ${selectedStyles['text-align'] === 'right' ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white'}`}><AlignRight size={13} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.alignRight')}</TooltipContent></Tooltip>
               <Separator orientation="vertical" className="h-4 bg-[#2a2a3e] mx-0.5" />
               {/* Quick color */}
               <div className="flex items-center gap-0.5">
                 {[{ c:'#ffffff', l:t('editor.color.white') },{ c:'#7c3aed', l:t('editor.color.purple') },{ c:'#2dd4bf', l:t('editor.color.teal') },{ c:'#f472b6', l:t('editor.color.pink') },{ c:'#fb923c', l:t('editor.color.orange') },{ c:'#000000', l:t('editor.color.black') }].map(({ c, l }) => (
-                  <Tooltip key={c}><TooltipTrigger asChild><button onClick={() => applyStyle('color', c)} className="w-4 h-4 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors" style={{ background: c }} /></TooltipTrigger><TooltipContent>{l}</TooltipContent></Tooltip>
+                  <Tooltip key={c}><TooltipTrigger asChild><button onClick={() => applyStyle('color', c)} className="w-6 h-6 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors" style={{ background: c }} /></TooltipTrigger><TooltipContent>{l}</TooltipContent></Tooltip>
                 ))}
-                <input type="color" value={selectedStyles['color']?.startsWith('#') ? selectedStyles['color'] : '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="w-4 h-4 rounded cursor-pointer bg-transparent border-0" title={t('editor.tooltip.customColor')} />
+                <input type="color" value={selectedStyles['color']?.startsWith('#') ? selectedStyles['color'] : '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-0" title={t('editor.tooltip.customColor')} />
               </div>
             </div>
           )}
@@ -1486,29 +1998,32 @@ export default function EditorPage() {
 
         {/* Right section */}
         <div className="flex items-center gap-1">
-          <Tooltip><TooltipTrigger asChild><button onClick={undo} disabled={historyIndex <= 0} className="p-1 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Undo2 size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.undo')}</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-1 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Redo2 size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.redo')}</TooltipContent></Tooltip>
+          {/* Mobile panel toggle buttons */}
+          <button onClick={() => setShowLeftPanel(!showLeftPanel)} className="md:hidden p-2 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"><Layers size={14} /></button>
+          <button onClick={() => setShowRightPanel(!showRightPanel)} className="md:hidden p-2 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"><Sliders size={14} /></button>
+          <Tooltip><TooltipTrigger asChild><button onClick={undo} disabled={historyIndex <= 0} className="p-2 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Undo2 size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.undo')}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 rounded hover:bg-[#1a1a2e] disabled:opacity-30 transition-colors"><Redo2 size={14} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.redo')}</TooltipContent></Tooltip>
           <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-0.5" />
-          {/* Device selector */}
-          <div className="flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
+          {/* Device selector (hidden on mobile) */}
+          <div className="hidden md:flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
             {DEVICE_CONFIGS.map(d => (
               <button key={d.name} onClick={() => setDevice(d.name)} className={`p-1 rounded transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}>{deviceIcons[d.name]}</button>
             ))}
           </div>
-          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-0.5" />
-          {/* Zoom */}
-          <span className="text-[10px] text-zinc-500 w-7">{zoom}%</span>
-          <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><ZoomIn size={12} /></button>
-          <button onClick={() => setZoom(z => Math.max(30, z - 10))} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><ZoomOut size={12} /></button>
-          <button onClick={toggleGrid} className={`p-0.5 rounded transition-colors ${showGrid ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white hover:bg-[#1a1a2e]'}`}><Grid2X2 size={12} /></button>
-          <Separator orientation="vertical" className="h-5 bg-[#2a2a3e] mx-0.5" />
+          <Separator orientation="vertical" className="hidden md:block h-5 bg-[#2a2a3e] mx-0.5" />
+          {/* Zoom (hidden on mobile) */}
+          <span className="hidden md:inline text-[10px] text-zinc-500 w-7">{zoom}%</span>
+          <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="hidden md:block p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><ZoomIn size={12} /></button>
+          <button onClick={() => setZoom(z => Math.max(30, z - 10))} className="hidden md:block p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400"><ZoomOut size={12} /></button>
+          <button onClick={toggleGrid} className={`hidden md:block p-0.5 rounded transition-colors ${showGrid ? 'bg-[#7c3aed]/30 text-[#7c3aed]' : 'text-zinc-400 hover:text-white hover:bg-[#1a1a2e]'}`}><Grid2X2 size={12} /></button>
+          <Separator orientation="vertical" className="hidden md:block h-5 bg-[#2a2a3e] mx-0.5" />
           {/* Source Code toggle — only in advanced mode (too technical for normal users) */}
           {editorMode === 'advanced' && (
-            <button onClick={() => setShowCodePanel(!showCodePanel)} className={`p-1 rounded transition-colors ${showCodePanel ? 'bg-[#7c3aed] text-white' : 'hover:bg-[#1a1a2e] text-zinc-400'}`}><Code2 size={14} /></button>
+            <button onClick={() => setShowCodePanel(!showCodePanel)} className={`p-2 rounded transition-colors ${showCodePanel ? 'bg-[#7c3aed] text-white' : 'hover:bg-[#1a1a2e] text-zinc-400'}`}><Code2 size={14} /></button>
           )}
-          <button onClick={save} className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400"><Save size={14} /></button>
+          <button onClick={save} className="p-2 rounded hover:bg-[#1a1a2e] text-zinc-400"><Save size={14} /></button>
           <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-6 text-[11px] border-[#2a2a3e] bg-[#1a1a2e] text-white hover:bg-[#2a2a3e]"><Download size={12} className="mr-1 rtl:ml-1 rtl:mr-0" />{t('editor.export')}</Button></DialogTrigger>
+            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-8 text-[11px] border-[#2a2a3e] bg-[#1a1a2e] text-white hover:bg-[#2a2a3e]"><Download size={12} className="mr-1 rtl:ml-1 rtl:mr-0" />{t('editor.export')}</Button></DialogTrigger>
             <DialogContent className="bg-[#1a1a2e] border-[#2a2a3e] text-white">
               <DialogHeader><DialogTitle className="text-white">{t('editor.exportTitle')}</DialogTitle></DialogHeader>
               <div className="grid grid-cols-2 gap-2 mt-2">
@@ -1533,7 +2048,7 @@ export default function EditorPage() {
               <Button onClick={handleExport} className="w-full mt-3 bg-[#7c3aed] hover:bg-[#6d28d9]">{t('editor.download', { fmt: exportFormat.toUpperCase() })}</Button>
             </DialogContent>
           </Dialog>
-          <Button size="sm" onClick={() => toast({ title: t('editor.deploymentStarted') })} className="h-6 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]"><Rocket size={12} className="mr-1 rtl:ml-1 rtl:mr-0" />{t('editor.deploy')}</Button>
+          <Button size="sm" onClick={() => toast({ title: t('editor.deploymentStarted') })} className="h-8 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]"><Rocket size={12} className="mr-1 rtl:ml-1 rtl:mr-0" />{t('editor.deploy')}</Button>
 
           {/* Phase 3: AI Suggest button */}
           <Tooltip>
@@ -1541,7 +2056,7 @@ export default function EditorPage() {
               <button
                 onClick={fetchAiSuggestions}
                 disabled={!selectedElement || aiLoading}
-                className="h-6 px-2 rounded-md text-[11px] flex items-center gap-1 bg-gradient-to-r from-[#7c3aed] to-[#ec4899] text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="h-8 px-2 rounded-md text-[11px] flex items-center gap-1 bg-gradient-to-r from-[#7c3aed] to-[#ec4899] text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
                 <Wand2 size={12} className="rtl:ml-1 rtl:mr-0" />
                 {aiLoading ? t('editor.aiSuggestLoading') : t('editor.aiSuggest')}
@@ -1550,18 +2065,18 @@ export default function EditorPage() {
             <TooltipContent>{t('editor.aiSuggestHint')}</TooltipContent>
           </Tooltip>
 
-          {/* Phase 3: Simple/Advanced mode toggle */}
-          <div className="flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
+          {/* Phase 3: Simple/Advanced mode toggle (hidden on mobile) */}
+          <div className="hidden md:flex items-center gap-0.5 bg-[#1a1a2e] rounded-lg p-0.5">
             <button
               onClick={() => setEditorMode('simple')}
-              className={`px-2 h-5 rounded text-[10px] font-medium transition-colors ${editorMode === 'simple' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 h-7 rounded text-[10px] font-medium transition-colors ${editorMode === 'simple' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}
               title={t('editor.simpleMode')}
             >
               {t('editor.simpleMode')}
             </button>
             <button
               onClick={() => setEditorMode('advanced')}
-              className={`px-2 h-5 rounded text-[10px] font-medium transition-colors ${editorMode === 'advanced' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 h-7 rounded text-[10px] font-medium transition-colors ${editorMode === 'advanced' ? 'bg-[#7c3aed] text-white' : 'text-zinc-400 hover:text-white'}`}
               title={t('editor.advancedMode')}
             >
               {t('editor.advancedMode')}
@@ -1573,7 +2088,7 @@ export default function EditorPage() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setEditorTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-                className="p-1 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"
+                className="p-2 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white transition-colors"
                 title={t('editor.toggleTheme')}
               >
                 {editorTheme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
@@ -1593,7 +2108,7 @@ export default function EditorPage() {
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="fixed top-14 right-4 rtl:right-auto rtl:left-4 z-50 w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-[#2a2a3e] bg-[#0d0d15] shadow-2xl"
+            className="fixed top-14 right-4 rtl:right-auto rtl:left-4 z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-[#2a2a3e] bg-[#0d0d15] shadow-2xl"
           >
             <div className="flex items-center justify-between p-2 border-b border-[#2a2a3e] bg-[#1a1a2e] sticky top-0">
               <div className="flex items-center gap-1.5">
@@ -1653,152 +2168,9 @@ export default function EditorPage() {
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* ── Left Panel ──────────────────────────────────────────────── */}
-        <div className="w-[260px] border-r border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
-          <Tabs value={leftPanelTab} onValueChange={setLeftPanelTab} className="flex flex-col h-full">
-            <TabsList className="w-full justify-start bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-8 p-0">
-              <TabsTrigger value="layers" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Layers size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.structure')}</TabsTrigger>
-              <TabsTrigger value="components" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Grid3X3 size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.addElements')}</TabsTrigger>
-              <TabsTrigger value="pages" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><File size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.pages')}</TabsTrigger>
-              <TabsTrigger value="tokens" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-2 py-1.5 rounded-none"><Paintbrush size={12} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.designs')}</TabsTrigger>
-            </TabsList>
-
-            {/* Layers tab */}
-            <TabsContent value="layers" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">{t('editor.pageStructure')}</div>
-              <div className="text-[9px] text-zinc-500 mb-2">{t('editor.pageStructureHint')}</div>
-              {elementTree ? renderTreeNode(elementTree, 0) : (
-                <div className="text-[11px] text-zinc-500 text-center py-8">{t('editor.clickElementsHint')}</div>
-              )}
-            </TabsContent>
-
-            {/* Components tab */}
-            <TabsContent value="components" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[9px] text-zinc-500 mb-2">{t('editor.components.hint')}</div>
-              <Input placeholder={t('editor.searchElements')} value={searchQuery} onChange={e => setSearchQuery(e.target.value.toLowerCase())} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] mb-2" />
-              {filteredCategories.map(cat => (
-                <div key={cat.id} className="mb-2">
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-1 w-full hover:text-zinc-300">
-                      <ChevronRight size={10} className="transition-transform" />{cat.name}
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-2 gap-1">
-                        {cat.components.map(comp => (
-                          <button key={comp.id} onClick={() => addComponent(comp.id)} className="flex flex-col items-start p-1.5 rounded bg-[#1a1a2e] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-[10px] group">
-                            <span className="text-white font-medium group-hover:text-[#7c3aed]">{comp.name}</span>
-                            <span className="text-zinc-500 text-[9px]">{comp.description}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              ))}
-            </TabsContent>
-
-            {/* Pages tab */}
-            <TabsContent value="pages" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">{t('editor.pages')}</div>
-              <div className="text-[9px] text-zinc-500 mb-2">{t('editor.pages.hint')}</div>
-              {generatedPages.length > 0 ? generatedPages.map(p => (
-                <button key={p.id} onClick={() => switchPage(p.id)} className={`flex items-center gap-2 w-full p-2 rounded text-[11px] mb-1 transition-colors ${activePageIdRef.current === p.id ? 'bg-[#7c3aed]/10 text-white border border-[#7c3aed]/20' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white border border-[#2a2a3e]'}`}>
-                  <File size={12} />
-                  <div className="flex-1">
-                    <span className="font-medium">{p.name}</span>
-                    <span className="text-zinc-500 ml-1">{p.route}</span>
-                  </div>
-                  <span className="text-[9px] text-zinc-500">{(p.html?.length || 0) / 1024}K</span>
-                </button>
-              )) : (
-                <div className="text-[11px] text-zinc-500 text-center py-6">{t('editor.pages.empty')}</div>
-              )}
-            </TabsContent>
-
-            {/* Design Tokens tab */}
-            <TabsContent value="tokens" className="flex-1 overflow-y-auto mt-0 p-2">
-              <div className="text-[10px] text-zinc-300 mb-1 uppercase tracking-wider font-semibold">{t('editor.design.overall')}</div>
-              <div className="text-[9px] text-zinc-500 mb-2">{t('editor.design.overallHint')}</div>
-              {/* Theme presets */}
-              <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.themes')}</Label>
-                <div className="grid grid-cols-3 gap-1">
-                  {THEME_PRESETS.map(preset => (
-                    <button key={preset.id} onClick={() => {
-                      setDesignTokens(prev => ({ ...prev, ...preset.colors, fontFamily: preset.font }))
-                      setTimeout(() => applyTheme(), 100)
-                    }} className="flex flex-col items-center p-1.5 rounded border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors">
-                      <div className="flex gap-0.5 mb-0.5">
-                        {[preset.colors.accent, preset.colors.bg, preset.colors.text].map(c => (
-                          <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
-                        ))}
-                      </div>
-                      <span className="text-[9px] text-zinc-400">{preset.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Colors */}
-              <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.customColors')}</Label>
-                {[
-                  { key:'accent', label: t('editor.design.color.accent') },
-                  { key:'bg', label: t('editor.design.color.bg') },
-                  { key:'surface', label: t('editor.design.color.surface') },
-                  { key:'text', label: t('editor.design.color.text') },
-                  { key:'muted', label: t('editor.design.color.muted') },
-                  { key:'border', label: t('editor.design.color.border') },
-                ].map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-2 mb-1">
-                    <Label className="text-[10px] text-zinc-400 w-16">{label}</Label>
-                    <input type="color" value={designTokens[key as keyof typeof designTokens] as string} onChange={e => setDesignTokens(prev => ({ ...prev, [key]: e.target.value }))} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
-                    <Input value={designTokens[key as keyof typeof designTokens] as string} onChange={e => setDesignTokens(prev => ({ ...prev, [key]: e.target.value }))} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
-                  </div>
-                ))}
-              </div>
-              {/* Font */}
-              <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.font')}</Label>
-                <Select value={designTokens.fontFamily} onValueChange={v => setDesignTokens(prev => ({ ...prev, fontFamily: v }))}>
-                  <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
-                    {['Inter','Geist','system-ui','Arial','Helvetica','Georgia','Playfair Display','Montserrat','Poppins','Roboto','Lora','Merriweather','Fira Code'].map(f => <SelectItem key={f} value={f} className="text-[11px] text-white">{f}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Scale sliders */}
-              <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.radius')}</Label>
-                <Slider value={[designTokens.borderRadius]} onValueChange={v => setDesignTokens(prev => ({ ...prev, borderRadius: v[0] }))} min={0} max={24} step={1} className="mb-1" />
-                <span className="text-[10px] text-zinc-500">{designTokens.borderRadius}px</span>
-              </div>
-              <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.spacing')}</Label>
-                <Slider value={[designTokens.spacingScale * 100]} onValueChange={v => setDesignTokens(prev => ({ ...prev, spacingScale: v[0] / 100 }))} min={50} max={200} step={10} className="mb-1" />
-                <span className="text-[10px] text-zinc-500">{Math.round(designTokens.spacingScale * 100)}%</span>
-              </div>
-              <div className="mb-3">
-                <Label className="text-[10px] text-zinc-400 mb-1 block">{t('editor.design.shadow')}</Label>
-                <Slider value={[designTokens.shadowScale * 100]} onValueChange={v => setDesignTokens(prev => ({ ...prev, shadowScale: v[0] / 100 }))} min={0} max={200} step={10} className="mb-1" />
-                <span className="text-[10px] text-zinc-500">{Math.round(designTokens.shadowScale * 100)}%</span>
-              </div>
-              {/* Preview strip */}
-              <div className="mb-3 p-2 rounded-lg border border-[#2a2a3e]" style={{ background: designTokens.bg }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-3 h-3 rounded" style={{ background: designTokens.accent }} />
-                  <span style={{ color: designTokens.text, fontFamily: designTokens.fontFamily, fontSize: '14px' }}>{t('editor.design.preview')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="px-2 py-1 rounded text-[10px]" style={{ background: designTokens.accent, color: '#fff' }}>{t('editor.design.previewBtn')}</button>
-                  <span style={{ color: designTokens.muted, fontFamily: designTokens.fontFamily, fontSize: '10px' }}>{t('editor.design.previewMuted')}</span>
-                </div>
-                <div className="mt-1 p-1 rounded" style={{ background: designTokens.surface, border: `1px solid ${designTokens.border}` }}>
-                  <span style={{ color: designTokens.text, fontSize: '9px' }}>{t('editor.design.previewSurface')}</span>
-                </div>
-              </div>
-              <Button onClick={applyTheme} className="w-full h-7 text-[11px] bg-[#7c3aed] hover:bg-[#6d28d9]">{t('editor.applyTheme')}</Button>
-            </TabsContent>
-          </Tabs>
+        {/* ── Left Panel (desktop only) ───────────────────────────────── */}
+        <div className="hidden lg:flex w-[260px] border-r border-[#1a1a2e] bg-[#0a0a0f] flex-col shrink-0">
+          {leftPanelContent}
         </div>
 
         {/* ── Center Preview ──────────────────────────────────────────── */}
@@ -1856,366 +2228,67 @@ export default function EditorPage() {
           </AnimatePresence>
         </div>
 
-        {/* ── Right Inspector Panel ───────────────────────────────────── */}
-        <div className="w-[280px] border-l border-[#1a1a2e] bg-[#0a0a0f] flex flex-col shrink-0">
-          {!selectedElement ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-              <div className="w-12 h-12 rounded-full bg-[#7c3aed]/10 flex items-center justify-center mb-3">
-                <MousePointer2 size={24} className="text-[#7c3aed]" />
-              </div>
-              <p className="text-sm text-zinc-300 font-medium mb-1">{t('editor.pickSection')}</p>
-              <p className="text-[11px] text-zinc-500 mb-4">{t('editor.pickSectionHint')}</p>
-              <div className="space-y-2 w-full">
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                  <MousePointer2 size={14} className="text-[#7c3aed]" />
-                  <span className="text-[11px] text-zinc-300">{t('editor.tip1')}</span>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                  <Edit3 size={14} className="text-emerald-400" />
-                  <span className="text-[11px] text-zinc-300">{t('editor.tip2')}</span>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                  <Palette size={14} className="text-pink-400" />
-                  <span className="text-[11px] text-zinc-300">{t('editor.tip3')}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col h-full">
-              {/* Element header — friendly name */}
-              <div className="px-2 py-1.5 border-b border-[#1a1a2e] bg-[#1a1a2e]/50 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  {(() => {
-                    const iconName = getTagIconName(selectedElement.tag)
-                    const IC = ICON_MAP[iconName]
-                    return IC ? <IC size={14} className="text-[#7c3aed]" /> : <Square size={14} className="text-[#7c3aed]" />
-                  })()}
-                  <span className="text-[11px] text-white font-semibold">{getTagDisplayName(selectedElement.tag)}</span>
-                  <span className="text-[9px] text-zinc-500">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px</span>
-                  <div className="flex gap-0.5 ml-auto">
-                    <Tooltip><TooltipTrigger asChild><button onClick={duplicateElement} className="p-0.5 rounded hover:bg-[#1a1a2e] text-zinc-400 hover:text-white"><Copy size={12} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.copySection')}</TooltipContent></Tooltip>
-                    <Tooltip><TooltipTrigger asChild><button onClick={removeElement} className="p-0.5 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400"><Trash2 size={12} /></button></TooltipTrigger><TooltipContent>{t('editor.tooltip.deleteSection')}</TooltipContent></Tooltip>
-                  </div>
-                </div>
-                {getTagDescription(selectedElement.tag) && (
-                  <div className="text-[9px] text-zinc-500 mt-0.5">{getTagDescription(selectedElement.tag)}</div>
-                )}
-              </div>
-
-              {/* Inspector tabs — friendlier labels */}
-              <Tabs value={inspectorTab} onValueChange={setInspectorTab} className="flex flex-col flex-1 overflow-hidden">
-                <TabsList className="w-full bg-[#1a1a2e] border-b border-[#2a2a3e] rounded-none h-7 p-0 shrink-0">
-                  <TabsTrigger value="content" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Edit3 size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.content')}</TabsTrigger>
-                  <TabsTrigger value="style" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Palette size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.style')}</TabsTrigger>
-                  <TabsTrigger value="layout" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Layout size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.layout')}</TabsTrigger>
-                  <TabsTrigger value="animation" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Sparkles size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.animation')}</TabsTrigger>
-                  {editorMode === 'advanced' && (
-                    <TabsTrigger value="seo" className="text-[10px] data-[state=active]:bg-[#7c3aed] data-[state=active]:text-white px-1.5 py-1 rounded-none"><Globe size={10} className="mr-0.5 rtl:ml-0.5 rtl:mr-0" />{t('editor.tab.seo')}</TabsTrigger>
-                  )}
-                </TabsList>
-
-                {/* Content tab — friendly editing */}
-                <TabsContent value="content" className="flex-1 overflow-y-auto mt-0 p-2">
-                  {/* Quick tip based on element type */}
-                  <div className="mb-3 p-2 rounded-lg bg-[#7c3aed]/5 border border-[#7c3aed]/20">
-                    <div className="text-[10px] text-[#7c3aed] font-medium mb-0.5">💡 {t('editor.content.tip')}: {getTagDescription(selectedElement.tag) || ''}</div>
-                  </div>
-                  {/* Main content editor */}
-                  <div className="mb-2">
-                    <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">📝 {t('editor.content.textInside')}</Label>
-                    <div className="text-[9px] text-zinc-500 mb-0.5">{t('editor.content.textInsideHint')}</div>
-                    <textarea value={editingContent} onChange={e => setEditingContent(e.target.value)} onBlur={() => applyContent(editingContent)} className="w-full h-24 bg-[#0d0d15] border border-[#2a2a3e] rounded text-[11px] text-white p-2 resize-y" placeholder={t('editor.content.textPlaceholder')} />
-                  </div>
-                  {/* Tag-specific attribute editors with friendly labels */}
-                  {selectedElement.tag === 'img' && (
-                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🖼️ {t('editor.content.imgSettings')}</Label>
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.imgUrl')}</Label>
-                      <Input value={editingAttributes.src || ''} onChange={e => applyAttribute('src', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="https://example.com/photo.jpg" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.imgAlt')}</Label>
-                      <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="A photo of..." />
-                    </div>
-                  )}
-                  {selectedElement.tag === 'a' && (
-                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🔗 {t('editor.content.linkSettings')}</Label>
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.linkHref')}</Label>
-                      <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="https://example.com" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.linkTarget')}</Label>
-                      <Select value={editingAttributes.target || '_self'} onValueChange={v => applyAttribute('target', v)}>
-                        <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="_self" className="text-[11px]">{t('editor.content.sameWindow')}</SelectItem><SelectItem value="_blank" className="text-[11px]">{t('editor.content.newWindow')}</SelectItem></SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {(selectedElement.tag === 'input' || selectedElement.tag === 'textarea') && (
-                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">✏️ {t('editor.content.inputSettings')}</Label>
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.inputType')}</Label>
-                      <Select value={editingAttributes.type || 'text'} onValueChange={v => applyAttribute('type', v)}>
-                        <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">{[{ v:'text', l:t('editor.content.inputType.text') },{ v:'email', l:t('editor.content.inputType.email') },{ v:'password', l:t('editor.content.inputType.password') },{ v:'number', l:t('editor.content.inputType.number') },{ v:'tel', l:t('editor.content.inputType.tel') },{ v:'url', l:t('editor.content.inputType.url') },{ v:'search', l:t('editor.content.inputType.search') },{ v:'date', l:t('editor.content.inputType.date') },{ v:'submit', l:t('editor.content.inputType.submit') },{ v:'button', l:t('editor.content.inputType.button') }].map(t => <SelectItem key={t.v} value={t.v} className="text-[11px]">{t.l}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.inputPlaceholder')}</Label>
-                      <Input value={editingAttributes.placeholder || ''} onChange={e => applyAttribute('placeholder', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="..." />
-                    </div>
-                  )}
-                  {selectedElement.tag === 'button' && (
-                    <div className="mb-2 p-2 rounded-lg bg-[#1a1a2e] border border-[#2a2a3e]">
-                      <Label className="text-[10px] text-zinc-300 font-semibold mb-1 block">🔘 {t('editor.content.buttonSettings')}</Label>
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.content.buttonAction')}</Label>
-                      <Select value={editingAttributes.type || 'button'} onValueChange={v => applyAttribute('type', v)}>
-                        <SelectTrigger className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]"><SelectItem value="button" className="text-[11px]">{t('editor.content.buttonTypeButton')}</SelectItem><SelectItem value="submit" className="text-[11px]">{t('editor.content.buttonTypeSubmit')}</SelectItem></SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {/* All attributes — collapsible for advanced users (hidden in Simple mode) */}
-                  {editorMode === 'advanced' && Object.keys(editingAttributes).length > 0 && (
-                    <Collapsible className="mb-2">
-                      <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-1 w-full hover:text-zinc-300">
-                        <ChevronRight size={10} className="transition-transform" />{t('editor.content.advancedAttrs')}
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="p-2 rounded-lg bg-[#0d0d15] border border-[#2a2a3e]">
-                          {Object.entries(editingAttributes).map(([key, val]) => (
-                            <div key={key} className="flex items-center gap-1 mb-1">
-                              <Label className="text-[10px] text-zinc-400 w-16">{key}</Label>
-                              <Input value={val} onChange={e => applyAttribute(key, e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
-                            </div>
-                          ))}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
-                </TabsContent>
-
-                {/* Style tab — with friendly group names */}
-                <TabsContent value="style" className="flex-1 overflow-y-auto mt-0">
-                  {/* Quick edit section — most common changes */}
-                  <div className="p-2 border-b border-[#1a1a2e]">
-                    <Label className="text-[10px] text-zinc-300 font-semibold mb-1.5 block">⚡ {t('editor.quickChanges')}</Label>
-                    <div className="text-[9px] text-zinc-500 mb-1">{t('editor.quickChangesHint')}</div>
-                    <div className="grid grid-cols-2 gap-1.5 mb-1">
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.color')}</Label>
-                        <input type="color" value={selectedStyles['color']?.startsWith('#') ? selectedStyles['color'] : '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
-                        <Input value={selectedStyles['color'] || '#ffffff'} onChange={e => applyStyle('color', e.target.value)} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.fill')}</Label>
-                        <input type="color" value={selectedStyles['background-color']?.startsWith('#') ? selectedStyles['background-color'] : '#000000'} onChange={e => applyStyle('background-color', e.target.value)} className="w-5 h-5 rounded border border-[#2a2a3e] cursor-pointer bg-transparent" />
-                        <Input value={selectedStyles['background-color'] || 'transparent'} onChange={e => applyStyle('background-color', e.target.value)} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.size')}</Label>
-                        <Input type="number" value={parseFloat(selectedStyles['font-size']) || 16} onChange={e => applyStyle('font-size', e.target.value + 'px')} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={8} max={120} />
-                        <span className="text-[9px] text-zinc-500">px</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.thick')}</Label>
-                        <Select value={selectedStyles['font-weight'] || '400'} onValueChange={v => applyStyle('font-weight', v)}>
-                          <SelectTrigger className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1"><SelectValue /></SelectTrigger>
-                          <SelectContent className="bg-[#1a1a2e] border-[#2a2a3e]">
-                            {[{ v:'300', l:t('editor.weight.300') },{ v:'400', l:t('editor.weight.400') },{ v:'500', l:t('editor.weight.500') },{ v:'600', l:t('editor.weight.600') },{ v:'700', l:t('editor.weight.700') },{ v:'800', l:t('editor.weight.800') },{ v:'900', l:t('editor.weight.900') }].map(w => <SelectItem key={w.v} value={w.v} className="text-[11px]">{w.l}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-1">
-                      <Label className="text-[10px] text-zinc-400 w-12">{t('editor.label.round')}</Label>
-                      <Input type="number" value={parseFloat(selectedStyles['border-top-left-radius']) || 0} onChange={e => { const v = e.target.value + 'px'; applyStyle('border-top-left-radius', v); applyStyle('border-top-right-radius', v); applyStyle('border-bottom-right-radius', v); applyStyle('border-bottom-left-radius', v) }} className="h-5 text-[10px] bg-[#0d0d15] border-[#2a2a3e] text-white flex-1" min={0} max={200} />
-                      <span className="text-[9px] text-zinc-500">px</span>
-                    </div>
-                    {/* Box model diagram */}
-                    <BoxModelDiagram />
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-2">
-                      {styleCssGroups.map(group => {
-                        const isCollapsed = collapsedGroups.has(group.name)
-                        const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
-                        return (
-                          <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                                  <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                                  {friendlyInfo?.name || group.name}
-                                </CollapsibleTrigger>
-                              </TooltipTrigger>
-                              {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
-                            </Tooltip>
-                            <CollapsibleContent>
-                              <div className="space-y-0.5 pl-1">
-                                {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        )
-                      })}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                {/* Layout tab — friendly name "Position & Size" */}
-                <TabsContent value="layout" className="flex-1 overflow-y-auto mt-0">
-                  <div className="p-2">
-                    <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.heading')}</Label>
-                    <div className="text-[9px] text-zinc-500 mb-2">{t('editor.layout.hint')}</div>
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-2">
-                      {layoutCssGroups.map(group => {
-                        const isCollapsed = collapsedGroups.has(group.name)
-                        const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
-                        return (
-                          <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                                  <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                                  {friendlyInfo?.name || group.name}
-                                </CollapsibleTrigger>
-                              </TooltipTrigger>
-                              {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
-                            </Tooltip>
-                            <CollapsibleContent>
-                              <div className="space-y-0.5 pl-1">
-                                {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        )
-                      })}
-                      {/* Responsive section */}
-                      <div className="mt-3 p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
-                        <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.screenSizes')}</Label>
-                        <div className="text-[9px] text-zinc-500 mb-1">{t('editor.layout.screenSizesHint')}</div>
-                        <div className="flex gap-1">
-                          {DEVICE_CONFIGS.slice(0, 3).map(d => (
-                            <button key={d.name} onClick={() => setDevice(d.name)} className={`flex-1 py-1 rounded text-[10px] transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white'}`}>
-                              {d.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                {/* Animation tab — with friendly names */}
-                <TabsContent value="animation" className="flex-1 overflow-y-auto mt-0">
-                  <ScrollArea className="flex-1">
-                    <div className="p-2">
-                      {/* Animation presets grid */}
-                      <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">✨ {t('editor.animation.heading')}</Label>
-                      <div className="text-[9px] text-zinc-500 mb-2">{t('editor.animation.hint')}</div>
-                      <div className="grid grid-cols-3 gap-1 mb-3">
-                        {ANIMATION_PRESETS.map(preset => (
-                          <button key={preset.id} onClick={() => applyAnimationPreset(preset)} className="flex flex-col items-center p-1.5 rounded bg-[#0d0d15] border border-[#2a2a3e] hover:border-[#7c3aed] transition-colors text-[10px] group">
-                            <Sparkles size={12} className="text-zinc-400 group-hover:text-[#7c3aed] mb-0.5" />
-                            <span className="text-zinc-300 group-hover:text-white">{preset.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {/* Animation CSS properties */}
-                      {animationCssGroups.map(group => {
-                        const isCollapsed = collapsedGroups.has(group.name)
-                        const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
-                        return (
-                          <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                                  <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                                  {friendlyInfo?.name || group.name}
-                                </CollapsibleTrigger>
-                              </TooltipTrigger>
-                              {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
-                            </Tooltip>
-                            <CollapsibleContent>
-                              <div className="space-y-0.5 pl-1">
-                                {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        )
-                      })}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                {/* Info tab (Search Settings & Details) */}
-                <TabsContent value="seo" className="flex-1 overflow-y-auto mt-0 p-2">
-                  <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">ℹ️ {t('editor.seo.heading')}</Label>
-                  <div className="text-[9px] text-zinc-500 mb-2">{t('editor.seo.hint')}</div>
-                  {/* Show meta tag editing */}
-                  {selectedElement.tag === 'title' && (
-                    <div className="mb-2">
-                      <Label className="text-[10px] text-zinc-400">{t('editor.seo.pageTitle')}</Label>
-                      <Input value={selectedElement.textContent || ''} onChange={e => applyContent(e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                    </div>
-                  )}
-                  {selectedElement.tag === 'meta' && (
-                    <div className="mb-2">
-                      <Label className="text-[10px] text-zinc-400">{t('editor.seo.metaName')}</Label>
-                      <Input value={editingAttributes.name || ''} onChange={e => applyAttribute('name', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.seo.metaContent')}</Label>
-                      <Input value={editingAttributes.content || ''} onChange={e => applyAttribute('content', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                    </div>
-                  )}
-                  {selectedElement.tag === 'h1' || selectedElement.tag === 'h2' || selectedElement.tag === 'h3' ? (
-                    <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
-                      <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.headingInfo')}</div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">H{selectedElement.tag[1]}</Badge>
-                        <span className="text-[10px] text-zinc-500">{t('editor.seo.highImportance')}</span>
-                      </div>
-                    </div>
-                  ) : null}
-                  {/* Alt text for images */}
-                  {selectedElement.tag === 'img' && (
-                    <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
-                      <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.imgInfo')}</div>
-                      <Label className="text-[10px] text-zinc-400">{t('editor.seo.imgDescLabel')}</Label>
-                      <Input value={editingAttributes.alt || ''} onChange={e => applyAttribute('alt', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                      <div className="mt-1">
-                        <Switch checked={editingAttributes.alt?.length > 0} onCheckedChange={v => { if (!v) applyAttribute('alt', '') }} />
-                        <span className="text-[10px] text-zinc-500 ml-1">{t('editor.seo.hasDescription')}</span>
-                      </div>
-                    </div>
-                  )}
-                  {/* Link SEO */}
-                  {selectedElement.tag === 'a' && (
-                    <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15] mb-2">
-                      <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.linkInfo')}</div>
-                      <Label className="text-[10px] text-zinc-400">{t('editor.seo.linkHrefLabel')}</Label>
-                      <Input value={editingAttributes.href || ''} onChange={e => applyAttribute('href', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" />
-                      <Label className="text-[10px] text-zinc-400 mt-1">{t('editor.seo.linkRel')}</Label>
-                      <Input value={editingAttributes.rel || ''} onChange={e => applyAttribute('rel', e.target.value)} className="h-6 text-[11px] bg-[#0d0d15] border-[#2a2a3e]" placeholder="noopener noreferrer" />
-                    </div>
-                  )}
-                  {/* General SEO info */}
-                  <div className="p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
-                    <div className="text-[10px] text-zinc-400 mb-1">{t('editor.seo.about')}</div>
-                    <div className="space-y-0.5 text-[10px]">
-                      <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.type')}</span><span className="text-zinc-300">{getTagDisplayName(selectedElement.tag)}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.htmlTag')}</span><span className="text-zinc-300 font-mono">{selectedElement.tag}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.classes')}</span><span className="text-zinc-300 truncate max-w-32">{selectedElement.className || t('common.none')}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.children')}</span><span className="text-zinc-300">{selectedElement.childIds.length}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.parent')}</span><span className="text-zinc-300">{selectedElement.parentId || 'body'}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">{t('editor.seo.size')}</span><span className="text-zinc-300">{Math.round(selectedElement.rect.width)}×{Math.round(selectedElement.rect.height)}px</span></div>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
+        {/* ── Right Inspector Panel (desktop only) ────────────────────── */}
+        <div className="hidden lg:flex w-[280px] border-l border-[#1a1a2e] bg-[#0a0a0f] flex-col shrink-0">
+          {rightPanelContent}
         </div>
       </div>
+
+      {/* ── Mobile Left Panel Drawer ──────────────────────────────────── */}
+      <AnimatePresence>
+        {showLeftPanel && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+              onClick={() => setShowLeftPanel(false)}
+            />
+            <motion.div
+              initial={{ x: -260 }}
+              animate={{ x: 0 }}
+              exit={{ x: -260 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 z-40 w-[260px] lg:hidden border-r border-[#1a1a2e] bg-[#0a0a0f] flex flex-col"
+            >
+              <div className="flex items-center justify-between px-2 h-8 border-b border-[#1a1a2e] bg-[#1a1a2e]/50">
+                <span className="text-[10px] text-zinc-300 font-semibold uppercase tracking-wider">{t('editor.structure')}</span>
+                <button onClick={() => setShowLeftPanel(false)} className="p-1 rounded hover:bg-[#2a2a3e] text-zinc-400 hover:text-white"><X size={14} /></button>
+              </div>
+              {leftPanelContent}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile Right Panel Drawer ─────────────────────────────────── */}
+      <AnimatePresence>
+        {showRightPanel && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+              onClick={() => setShowRightPanel(false)}
+            />
+            <motion.div
+              initial={{ x: 280 }}
+              animate={{ x: 0 }}
+              exit={{ x: 280 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 rtl:right-auto rtl:left-0 z-40 w-[280px] lg:hidden border-l border-[#1a1a2e] bg-[#0a0a0f] flex flex-col"
+            >
+              <div className="flex items-center justify-between px-2 h-8 border-b border-[#1a1a2e] bg-[#1a1a2e]/50">
+                <span className="text-[10px] text-zinc-300 font-semibold uppercase tracking-wider">{t('editor.properties')}</span>
+                <button onClick={() => setShowRightPanel(false)} className="p-1 rounded hover:bg-[#2a2a3e] text-zinc-400 hover:text-white"><X size={14} /></button>
+              </div>
+              {rightPanelContent}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
