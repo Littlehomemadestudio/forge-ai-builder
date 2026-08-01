@@ -5,19 +5,9 @@ import { db } from '@/lib/db';
 
 /**
  * Resolve the current authenticated user.
- * Prefers the explicit ?userId= query param (used by the dashboard),
- * otherwise falls back to the NextAuth session user.
  * Returns null if no user can be identified.
  */
-async function resolveUserId(request: NextRequest): Promise<string | null> {
-  // 1. Explicit query param
-  const { searchParams } = new URL(request.url);
-  const explicit = searchParams.get('userId');
-  if (explicit && explicit !== 'demo-user') {
-    return explicit;
-  }
-
-  // 2. NextAuth session
+async function resolveUserId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   if (session?.user?.email) {
     const user = await db.user.findUnique({
@@ -31,9 +21,9 @@ async function resolveUserId(request: NextRequest): Promise<string | null> {
 }
 
 // GET /api/projects - List all projects for the authenticated user
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await resolveUserId(request);
+    const userId = await resolveUserId();
 
     // If no authenticated user, return empty list (frontend will redirect to login)
     if (!userId) {
@@ -92,7 +82,6 @@ export async function POST(request: NextRequest) {
       industry,
       theme,
       framework,
-      userId: bodyUserId,
     } = body;
 
     if (!name) {
@@ -102,21 +91,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve the user — prefer body userId, fall back to session
-    let userId = bodyUserId && bodyUserId !== 'demo-user' ? bodyUserId : null;
-
-    if (!userId) {
-      const session = await getServerSession(authOptions);
-      if (session?.user?.email) {
-        const sessionUser = await db.user.findUnique({
-          where: { email: session.user.email },
-          select: { id: true },
-        });
-        if (sessionUser) {
-          userId = sessionUser.id;
-        }
-      }
-    }
+    const userId = await resolveUserId();
 
     if (!userId) {
       return NextResponse.json(
@@ -199,19 +174,19 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Optional: verify ownership via session
-    const session = await getServerSession(authOptions);
-    if (session?.user?.email) {
-      const sessionUser = await db.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      });
-      if (sessionUser && existingProject.userId !== sessionUser.id) {
-        return NextResponse.json(
-          { error: 'You do not have permission to delete this project.' },
-          { status: 403 },
-        );
-      }
+    const userId = await resolveUserId();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'You must be signed in to delete a project.' },
+        { status: 401 },
+      );
+    }
+
+    if (existingProject.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 },
+      );
     }
 
     await db.project.delete({

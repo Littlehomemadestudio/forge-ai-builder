@@ -16,28 +16,6 @@ import {
 import type { AnimationId } from '@/lib/animations';
 import { ALL_PALETTES, type ThemePalette } from '@/lib/palettes';
 
-// ─── Global fetch hardening (CRITICAL) ────────────────────────────────────
-// The z-ai-web-dev-sdk uses fetch() with NO AbortSignal. If the GLM API
-// hangs or streams very slowly, the underlying socket can stay open
-// indefinitely. We add a process-level safety net for unhandled rejections
-// so the server never crashes silently.
-//
-// Note: We previously monkey-patched global fetch to add AbortController,
-// but that interfered with the SDK's response handling. Instead, we rely
-// on Promise.race in callZaiWithTimeout to enforce the timeout.
-if (typeof process !== 'undefined' && !(process as any).__forgeRejectionPatched) {
-  (process as any).__forgeRejectionPatched = true;
-  process.on('unhandledRejection', (reason: any) => {
-    const msg = String(reason?.message || reason || '').slice(0, 200);
-    console.error('[forge] unhandledRejection (suppressed):', msg);
-  });
-  process.on('uncaughtException', (err: any) => {
-    const msg = String(err?.message || err || '').slice(0, 200);
-    console.error('[forge] uncaughtException (suppressed):', msg);
-  });
-  console.log('[forge] process-level unhandled rejection handlers installed');
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────
 
 type Industry =

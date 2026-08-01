@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
+
+async function resolveUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return null;
+
+  const user = await db.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+
+  return user?.id ?? null;
+}
 
 // GET /api/projects/[id] - Get a single project by ID
 export async function GET(
@@ -8,9 +22,17 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const userId = await resolveUserId();
 
-    const project = await db.project.findUnique({
-      where: { id },
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'You must be signed in to view this project.' },
+        { status: 401 },
+      );
+    }
+
+    const project = await db.project.findFirst({
+      where: { id, userId },
       include: {
         pages: true,
         deployments: {
@@ -44,10 +66,18 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+    const userId = await resolveUserId();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'You must be signed in to update this project.' },
+        { status: 401 },
+      );
+    }
 
     // Verify project exists
-    const existing = await db.project.findUnique({
-      where: { id },
+    const existing = await db.project.findFirst({
+      where: { id, userId },
     });
 
     if (!existing) {
@@ -105,9 +135,17 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const userId = await resolveUserId();
 
-    const existing = await db.project.findUnique({
-      where: { id },
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'You must be signed in to delete this project.' },
+        { status: 401 },
+      );
+    }
+
+    const existing = await db.project.findFirst({
+      where: { id, userId },
     });
 
     if (!existing) {
