@@ -67,20 +67,28 @@ export function getCuratedImagesForIndustry(
 }
 
 // ─── Tier 2: SDK image search ─────────────────────────────────────────────
-// Calls z-ai-web-dev-sdk.images.search.create({ query, count })
+// Calls z-ai-web-dev-sdk.images.search.create({ query, count }) if SDK is
+// installed and configured. Returns [] when unavailable so the caller falls
+// through to the next tier (AI generation, then SVG placeholder).
 
 export async function searchImagesViaSdk(
   query: string,
   count = 8
 ): Promise<Array<{ url: string; caption?: string; source?: string }>> {
   try {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
+    const ZAI = await import('z-ai-web-dev-sdk')
+      .then((m) => m.default)
+      .catch(() => null);
+    if (!ZAI) {
+      // SDK not installed — skip silently; caller falls through to next tier.
+      return [];
+    }
     const zai = await ZAI.create();
     const result = await zai.images.search.create({ query, count });
     if (!result.success || !result.results || result.results.length === 0) {
       return [];
     }
-    return result.results.map(r => ({
+    return result.results.map((r: any) => ({
       url: r.original_url,
       caption: r.caption,
       source: r.source,
@@ -92,14 +100,22 @@ export async function searchImagesViaSdk(
 }
 
 // ─── Tier 3: SDK AI image generation ──────────────────────────────────────
-// Calls z-ai-web-dev-sdk.images.generations.create({ prompt, size })
+// Calls z-ai-web-dev-sdk.images.generations.create({ prompt, size }) if SDK
+// is installed. Returns null when unavailable so caller falls through to the
+// SVG placeholder tier.
 
 export async function generateImageViaSdk(
   prompt: string,
   size: '1024x1024' | '768x1344' | '864x1152' | '1344x768' | '1152x864' | '1440x720' | '720x1440' = '1024x1024'
 ): Promise<string | null> {
   try {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
+    const ZAI = await import('z-ai-web-dev-sdk')
+      .then((m) => m.default)
+      .catch(() => null);
+    if (!ZAI) {
+      // SDK not installed — caller falls through to SVG placeholder.
+      return null;
+    }
     const zai = await ZAI.create();
     const result = await zai.images.generations.create({ prompt, size });
     if (!result.data || result.data.length === 0) {

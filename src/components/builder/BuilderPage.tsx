@@ -2328,7 +2328,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
     }
   }, [currentPreviewPage, currentPage])
 
-  const handleSaveProject = () => {
+  const handleSaveProject = async () => {
     // Create a chat entry for this generation
     const chatId = `chat-${Date.now()}`
     addChatEntry({
@@ -2339,20 +2339,78 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
       projectId: undefined,
     })
 
-    const project = {
-      id: `proj-${Date.now()}`,
-      name: siteName,
-      description: builderPrompt,
-      prompt: builderPrompt,
-      thumbnail: '',
-      status: 'draft',
-      framework: 'html',
-      theme: `${builderIndustry}-${builderStyle}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    // Persist the project to the database via the /api/projects endpoint.
+    // The server resolves the authenticated user from the NextAuth session
+    // cookie and stores the project under their account. This means the
+    // project survives logout/login cycles and is tied to the user's email
+    // rather than just their browser's localStorage.
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: siteName,
+          description: builderPrompt,
+          prompt: builderPrompt,
+          industry: builderIndustry,
+          theme: `${builderIndustry}-${builderStyle}`,
+          framework: 'html',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      const saved = data.project
+      // Mirror the saved project into the local Zustand store so the UI
+      // updates immediately without waiting for a dashboard refetch.
+      const project = {
+        id: saved.id,
+        name: saved.name,
+        description: saved.description || undefined,
+        prompt: saved.prompt || undefined,
+        thumbnail: saved.thumbnail || '',
+        status: saved.status,
+        framework: saved.framework,
+        theme: saved.theme,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+      }
+      addProject(project)
+
+      // If we have generated pages, persist them as Page rows attached to
+      // the new project. This preserves the actual HTML/CSS/JS the user
+      // generated so it can be re-opened from the dashboard later.
+      if (generatedPages.length > 0) {
+        const primary = generatedPages[0]
+        try {
+          await fetch(`/api/projects/${saved.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              // Save thumbnail as a tiny preview snapshot (first 200 chars)
+              thumbnail: primary.html.slice(0, 200),
+              // Persist the full generated HTML/CSS/JS of the home page
+              pageName: primary.name,
+              pageHtml: primary.html,
+              pageCss: primary.css,
+              pageJs: primary.js,
+            }),
+          })
+        } catch {
+          // Non-fatal: page content update is best-effort.
+        }
+      }
+
+      toast({ title: t('builder.preview.saved'), description: t('builder.preview.savedDesc', { name: siteName }) })
+    } catch (err: any) {
+      toast({
+        title: 'Save failed',
+        description: err?.message || 'Could not save project to your account',
+        variant: 'destructive',
+      })
     }
-    addProject(project)
-    toast({ title: t('builder.preview.saved'), description: t('builder.preview.savedDesc', { name: siteName }) })
   }
 
   const handleExport = () => {

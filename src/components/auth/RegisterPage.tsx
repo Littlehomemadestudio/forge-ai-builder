@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-  Github,
   Chrome,
   Mail,
   Lock,
@@ -339,10 +338,6 @@ export function RegisterPage() {
     // No need to setIsLoading(false) — page will redirect to Google
   }
 
-  const handleGithubRegister = async () => {
-    setError('GitHub sign-in is not configured yet. Please use Google or email/password.')
-  }
-
   return (
     <div className="min-h-screen flex justify-center bg-background p-4 sm:p-6 py-8">
       <motion.div
@@ -400,7 +395,7 @@ export function RegisterPage() {
                 )}
               </AnimatePresence>
 
-              {/* Social buttons */}
+              {/* Social buttons — Google only */}
               <motion.div variants={fadeInUp} className="space-y-2.5 mb-3">
                 <Button
                   variant="outline"
@@ -410,15 +405,6 @@ export function RegisterPage() {
                 >
                   <Chrome className="size-4 mr-2" />
                   Continue with Google
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleGithubRegister}
-                  disabled={isLoading}
-                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
-                >
-                  <Github className="size-4 mr-2" />
-                  Continue with GitHub
                 </Button>
               </motion.div>
 

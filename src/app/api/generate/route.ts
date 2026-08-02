@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { loadZaiConfig, checkZaiAvailability, aiUnavailableMessage } from '@/lib/zai-server';
 import { db } from '@/lib/db';
 import {
   detectIndustry as detectIndustryV2,
@@ -1823,36 +1823,13 @@ function sleep(ms: number) {
 }
 
 /**
- * Read the Z.AI config from the same locations the SDK uses. We bypass the
- * SDK because Bun + z-ai-web-dev-sdk 0.0.18 has intermittent crashes when
- * handling large GLM-4.7 responses (the SDK calls response.json() which
- * can OOM-crash Bun's HTTP stack on complex Persian / multilingual content
- * with many animation keywords). Calling fetch directly with an explicit
- * AbortSignal and parsing the response as text first (then JSON.parse)
- * gives us full control and resilience.
+ * Config loading is delegated to src/lib/zai-server.ts so the app can run
+ * with either env vars (ZAI_API_KEY) or a .z-ai-config file. The function
+ * below is a thin wrapper that returns null instead of throwing when config
+ * is missing, so callers can produce a friendly error.
  */
-let _cachedZaiConfig: any = null;
-async function loadZaiConfig(): Promise<any> {
-  if (_cachedZaiConfig) return _cachedZaiConfig;
-  const fs = await import('fs/promises');
-  const path = await import('path');
-  const os = await import('os');
-  const candidates = [
-    path.join(process.cwd(), '.z-ai-config'),
-    path.join(os.homedir(), '.z-ai-config'),
-    '/etc/.z-ai-config',
-  ];
-  for (const p of candidates) {
-    try {
-      const txt = await fs.readFile(p, 'utf-8');
-      const cfg = JSON.parse(txt);
-      if (cfg.baseUrl && cfg.apiKey) {
-        _cachedZaiConfig = cfg;
-        return cfg;
-      }
-    } catch { /* ignore */ }
-  }
-  throw new Error('Z.AI config not found in .z-ai-config, ~/.z-ai-config, or /etc/.z-ai-config');
+async function loadZaiConfigOrNull(): Promise<any | null> {
+  return await loadZaiConfig();
 }
 
 /**
@@ -1865,7 +1842,11 @@ async function callZaiDirect(
   userPrompt: string,
   onTick: () => void
 ): Promise<string> {
-  const cfg = await loadZaiConfig();
+  const cfg = await loadZaiConfigOrNull();
+  if (!cfg) {
+    const av = await checkZaiAvailability();
+    throw new Error(aiUnavailableMessage(av.reason));
+  }
   const url = `${cfg.baseUrl}/chat/completions`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -1929,7 +1910,6 @@ async function callZaiDirect(
 }
 
 async function callGlmWithRetry(
-  zai: Awaited<ReturnType<typeof ZAI.create>>,
   req: GeneratePageRequest,
   parsed: ParsedPrompt,
   colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string; neonPink?: string },
@@ -2035,7 +2015,7 @@ async function runGenerationJob(
       JOBS.set(jobId, job);
     }
 
-    const content = await callGlmWithRetry(null as any, req, parsed, colors, headerFooter, () => {
+    const content = await callGlmWithRetry(req, parsed, colors, headerFooter, () => {
       const j = JOBS.get(jobId);
       if (j) {
         j.heartbeats++;

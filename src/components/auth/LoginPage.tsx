@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-  Github,
   Chrome,
   Mail,
   Lock,
@@ -207,8 +206,11 @@ export function LoginPage() {
     setIsLoading(true)
 
     // Use NextAuth credentials provider for real auth
+    // Note: the field name is "identifier" — it matches the key defined in
+    // CredentialsProvider.credentials in src/lib/auth.ts. Using "email" here
+    // would silently send undefined to authorize() and always return 401.
     const result = await signIn('credentials', {
-      email: email.trim(),
+      identifier: email.trim(),
       password,
       redirect: false,
     })
@@ -257,26 +259,6 @@ export function LoginPage() {
     // Use real NextAuth Google OAuth
     await signIn('google', { callbackUrl: '/' })
     // No need to setIsLoading(false) — page will redirect
-  }
-
-  const handleGithubLogin = async () => {
-    setIsLoading(true)
-    setError('')
-    // GitHub isn't configured in NextAuth yet, so fallback to demo user
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    login({
-      id: 'demo-user',
-      email: 'demo@forge.ai',
-      name: 'Demo User',
-      aiCredits: 100,
-      plan: 'free',
-    })
-    toast({
-      title: 'Welcome back',
-      description: 'Signed in with GitHub successfully (demo mode).',
-    })
-    navigate('dashboard')
-    setIsLoading(false)
   }
 
   return (
@@ -342,7 +324,7 @@ export function LoginPage() {
                 )}
               </AnimatePresence>
 
-              {/* Social buttons — Google is primary */}
+              {/* Social buttons — Google only */}
               <motion.div variants={fadeInUp} className="space-y-2.5 mb-4">
                 <Button
                   variant="outline"
@@ -352,15 +334,6 @@ export function LoginPage() {
                 >
                   <Chrome className="size-4 mr-2" />
                   Continue with Google
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleGithubLogin}
-                  disabled={isLoading}
-                  className="h-11 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
-                >
-                  <Github className="size-4 mr-2" />
-                  Continue with GitHub
                 </Button>
               </motion.div>
 

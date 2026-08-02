@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { checkZaiAvailability, aiUnavailableMessage, tryLoadZaiSdk } from '@/lib/zai-server';
 
 // ─── Editor AI Suggestion API ──────────────────────────────────────────────
 //
@@ -83,8 +83,21 @@ Current text content: ${body.currentText || '(empty)'}
 
 Suggest 2-3 improvements. Output STRICT JSON only.`;
 
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
+    const zai = await tryLoadZaiSdk();
+    if (!zai) {
+      const av = await checkZaiAvailability();
+      return NextResponse.json({
+        suggestions: [{
+          type: 'content' as const,
+          title: lang === 'fa' ? 'هوش مصنوعی پیکربندی نشده' : 'AI not configured',
+          description: lang === 'fa'
+            ? 'برای فعال‌سازی پیشنهادهای هوش مصنوعی، ZAI_API_KEY را در .env تنظیم کنید.'
+            : aiUnavailableMessage(av.reason),
+        }],
+      } satisfies SuggestResponse);
+    }
+    const zaiInstance = await zai.create();
+    const completion = await zaiInstance.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
