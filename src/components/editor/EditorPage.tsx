@@ -1361,10 +1361,21 @@ export default function EditorPage() {
     )
   }
 
-  // ─── Component categories (memoized — only re-filters when searchQuery changes) ─
+    // ─── Component categories (memoized — only re-filters when searchQuery changes) ─
+  // Basic mode shows only the essentials (the most common building blocks); Advanced
+  // mode reveals the full library so power-users aren't overwhelmed on first sight.
+  const ESSENTIAL_COMPONENTS = new Set([
+    'container', 'row', 'text', 'heading', 'image', 'button', 'card', 'form',
+    'input', 'label', 'section', 'link', 'spacer',
+  ])
   const filteredCategories = useMemo(() => EDITOR_COMPONENT_CATEGORIES.filter(cat =>
     !searchQuery || cat.name.toLowerCase().includes(searchQuery) || cat.components.some(c => c.name.toLowerCase().includes(searchQuery) || c.description.toLowerCase().includes(searchQuery))
-  ), [searchQuery])
+  ).map(cat => ({
+    ...cat,
+    components: editorMode === 'advanced'
+      ? cat.components
+      : cat.components.filter(c => ESSENTIAL_COMPONENTS.has(c.id)),
+  })).filter(cat => cat.components.length > 0), [searchQuery, editorMode])
 
   // Memoize the CSS property group filters (they don't change between renders)
   const styleCssGroups = useMemo(() => CSS_PROPERTY_GROUPS.filter(g => ['Colors','Typography','Spacing','Background','Border','Effects','Filters','SVG'].includes(g.name)), [])
@@ -1758,79 +1769,98 @@ export default function EditorPage() {
                 </div>
                 {/* Box model diagram */}
                 <BoxModelDiagram />
-              </div>
-              <ScrollArea className="flex-1">
-                <div className="p-2">
-                  {styleCssGroups.map(group => {
-                    const isCollapsed = collapsedGroups.has(group.name)
-                    const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
-                    return (
-                      <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                              {friendlyInfo?.name || group.name}
-                            </CollapsibleTrigger>
-                          </TooltipTrigger>
-                          {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
-                        </Tooltip>
-                        <CollapsibleContent>
-                          <div className="space-y-0.5 pl-1">
-                            {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )
-                  })}
+                    </div>
+              {editorMode === 'advanced' ? (
+                <ScrollArea className="flex-1">
+                  <div className="p-2">
+                    {styleCssGroups.map(group => {
+                      const isCollapsed = collapsedGroups.has(group.name)
+                      const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
+                      return (
+                        <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                                <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                                {friendlyInfo?.name || group.name}
+                              </CollapsibleTrigger>
+                            </TooltipTrigger>
+                            {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                          </Tooltip>
+                          <CollapsibleContent>
+                            <div className="space-y-0.5 pl-1">
+                              {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )
+                    })}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
+                  <div className="text-[9px] text-zinc-500 mb-2">
+                    {t('editor.advancedModeHint')}
+                  </div>
+                  <div className="text-[10px] text-zinc-400">
+                    {t('editor.styleTip1')}
+                  </div>
                 </div>
-              </ScrollArea>
-            </TabsContent>
+              )}
+                        </TabsContent>
 
-            {/* Layout tab — friendly name "Position & Size" */}
+            {/* Layout tab — friendly name "Position & Size" */ }
             <TabsContent value="layout" className="flex-1 overflow-y-auto mt-0">
               <div className="p-2">
                 <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.heading')}</Label>
                 <div className="text-[9px] text-zinc-500 mb-2">{t('editor.layout.hint')}</div>
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-2">
-                  {layoutCssGroups.map(group => {
-                    const isCollapsed = collapsedGroups.has(group.name)
-                    const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
-                    return (
-                      <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
-                              <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
-                              {friendlyInfo?.name || group.name}
-                            </CollapsibleTrigger>
-                          </TooltipTrigger>
-                          {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
-                        </Tooltip>
-                        <CollapsibleContent>
-                          <div className="space-y-0.5 pl-1">
-                            {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )
-                  })}
-                  {/* Responsive section */}
-                  <div className="mt-3 p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
-                    <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.screenSizes')}</Label>
-                    <div className="text-[9px] text-zinc-500 mb-1">{t('editor.layout.screenSizesHint')}</div>
-                    <div className="flex gap-1">
-                      {DEVICE_CONFIGS.slice(0, 3).map(d => (
-                        <button key={d.name} onClick={() => setDevice(d.name)} className={`flex-1 py-1 rounded text-[10px] transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white'}`}>
-                          {d.name}
-                        </button>
-                      ))}
+              {editorMode === 'advanced' ? (
+                <ScrollArea className="flex-1">
+                  <div className="p-2">
+                    {layoutCssGroups.map(group => {
+                      const isCollapsed = collapsedGroups.has(group.name)
+                      const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
+                      return (
+                        <Collapsible key={group.name} open={!isCollapsed} onOpenChange={(open) => setCollapsedGroups(prev => { const n = new Set(prev); if (open) n.delete(group.name); else n.add(group.name); return n })}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-zinc-300 font-semibold uppercase tracking-wider mb-1 w-full hover:text-[#7c3aed]">
+                                <ChevronRight size={10} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                                {friendlyInfo?.name || group.name}
+                              </CollapsibleTrigger>
+                            </TooltipTrigger>
+                            {friendlyInfo?.desc && <TooltipContent side="right" className="text-[11px] max-w-64">{friendlyInfo.desc}</TooltipContent>}
+                          </Tooltip>
+                          <CollapsibleContent>
+                            <div className="space-y-0.5 pl-1">
+                              {group.properties.map(prop => renderPropertyEditor(prop, selectedStyles))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )
+                    })}
+                    {/* Responsive section */}
+                    <div className="mt-3 p-2 rounded-lg border border-[#2a2a3e] bg-[#0d0d15]">
+                      <Label className="text-[10px] text-zinc-300 font-semibold mb-0.5 block">{t('editor.layout.screenSizes')}</Label>
+                      <div className="text-[9px] text-zinc-500 mb-1">{t('editor.layout.screenSizesHint')}</div>
+                      <div className="flex gap-1">
+                        {DEVICE_CONFIGS.slice(0, 3).map(d => (
+                          <button key={d.name} onClick={() => setDevice(d.name)} className={`flex-1 py-1 rounded text-[10px] transition-colors ${device === d.name ? 'bg-[#7c3aed] text-white' : 'bg-[#1a1a2e] text-zinc-400 hover:text-white'}`}>
+                            {d.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                </ScrollArea>
+              ) : (
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
+                  <div className="text-[9px] text-zinc-500 mb-2">
+                    {t('editor.advancedModeHint')}
+                  </div>
                 </div>
-              </ScrollArea>
+              )}
             </TabsContent>
 
             {/* Animation tab — with friendly names */}
@@ -1848,8 +1878,8 @@ export default function EditorPage() {
                       </button>
                     ))}
                   </div>
-                  {/* Animation CSS properties */}
-                  {animationCssGroups.map(group => {
+                                                    {/* Animation CSS properties — advanced only */}
+                  {editorMode === 'advanced' && animationCssGroups.map(group => {
                     const isCollapsed = collapsedGroups.has(group.name)
                     const friendlyInfo = FRIENDLY_GROUP_NAMES[group.name]
                     return (
