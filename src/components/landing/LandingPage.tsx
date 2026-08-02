@@ -1,156 +1,138 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import { useAppStore } from '@/lib/store'
 import { isRtl } from '@/lib/i18n'
-import dynamic from 'next/dynamic'
-import {
-  Sparkles,
-  Paintbrush,
-  Download,
-  Rocket,
-  Sun,
-  Moon,
-  ArrowRight,
-  Zap,
-  Shield,
-  MousePointerClick,
-  Github,
-  Twitter,
-  Linkedin,
-  Hexagon,
-  Eye,
-  LayoutGrid,
-  Globe,
-  TrendingUp,
-  Clock,
-  Users,
-  Star,
-  Play,
-  Palette,
-  Wand2,
-  Code2,
-  Layers,
-  Monitor,
-  Smartphone,
-  Check,
-  Menu,
-  X,
-} from 'lucide-react'
+import { useTranslation } from '@/lib/useTranslation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion'
-import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
-import { useTranslation } from '@/lib/useTranslation'
+import {
+  Sparkles, Sun, Moon, ArrowRight, Zap, Shield, MousePointerClick,
+  Github, Twitter, Linkedin, Hexagon, Eye, Globe, LayoutGrid, Users,
+  Code2, Download, Rocket, Paintbrush, Layers, Check, Menu, X,
+  Star, Clock, TrendingUp, Monitor, Smartphone, HelpCircle,
+} from 'lucide-react'
 
-// Lazy-load heavy interactive components
-const BuilderPlayground = dynamic(() => import('@/components/landing/BuilderPlayground').then(m => ({ default: m.BuilderPlayground })), { ssr: false })
-const ThemePlayground = dynamic(() => import('@/components/landing/ThemePlayground').then(m => ({ default: m.ThemePlayground })), { ssr: false })
-const AIDemo = dynamic(() => import('@/components/landing/AIDemo').then(m => ({ default: m.AIDemo })), { ssr: false })
+// Lazy-load the interactive AI demo (heavy, client-only)
+const AIDemo = dynamic(
+  () => import('@/components/landing/AIDemo').then((m) => ({ default: m.AIDemo })),
+  { ssr: false }
+)
 
-// ─── Minimal Animation — only 4-5 key moments ────────────────────────
-
+// ─── Shared animation ───────────────────────────────────────────────────
 const sectionFadeIn = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-80px' },
+  transition: { duration: 0.6, ease: 'easeOut' },
 }
 
-// ─── Animated Counter (kept — deterministic, no Math.random) ──────────
-
-function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
+// ─── Animated counter (deterministic, no Math.random) ───────────────────
+function AnimatedCounter({
+  target,
+  suffix = '',
+  duration = 2000,
+}: {
+  target: number
+  suffix?: string
+  duration?: number
+}) {
   const [count, setCount] = useState(0)
   const [triggered, setTriggered] = useState(false)
-  const ref = React.useRef<HTMLSpanElement>(null)
+  const ref = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !triggered) {
-        setTriggered(true)
-        const startTime = performance.now()
-        const animate = (now: number) => {
-          const elapsed = now - startTime
-          const progress = Math.min(elapsed / duration, 1)
-          const eased = 1 - Math.pow(1 - progress, 3)
-          setCount(Math.floor(target * eased))
-          if (progress < 1) requestAnimationFrame(animate)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !triggered) {
+          setTriggered(true)
+          const startTime = performance.now()
+          const animate = (now: number) => {
+            const elapsed = now - startTime
+            const progress = Math.min(elapsed / duration, 1)
+            const eased = 1 - Math.pow(1 - progress, 3)
+            setCount(Math.floor(target * eased))
+            if (progress < 1) requestAnimationFrame(animate)
+          }
+          requestAnimationFrame(animate)
         }
-        requestAnimationFrame(animate)
-      }
-    }, { threshold: 0.3 })
+      },
+      { threshold: 0.3 }
+    )
     observer.observe(el)
     return () => observer.disconnect()
   }, [triggered, target, duration])
 
-  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+  return (
+    <span ref={ref}>
+      {count.toLocaleString()}
+      {suffix}
+    </span>
+  )
 }
 
-// ─── Abstract Background — reduced blobs, only used on Hero & CTA ─────
-
-function AbstractBackground({ isDark }: { isDark: boolean }) {
-  const o1 = isDark ? 0.15 : 0.08
-  const o2 = isDark ? 0.10 : 0.05
-  const o3 = isDark ? 0.06 : 0.03
-
+// ─── Aurora background — soft indigo→violet→fuchsia blobs ───────────────
+function AuroraBackground({ isDark }: { isDark: boolean }) {
+  const o1 = isDark ? 0.18 : 0.10
+  const o2 = isDark ? 0.12 : 0.06
+  const o3 = isDark ? 0.08 : 0.04
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Blue-to-violet gradient blobs — more prominent */}
-      <div className="absolute top-[10%] left-[5%] w-56 h-56 rounded-full animate-morph" style={{
-        background: `radial-gradient(circle, oklch(0.5 0.25 250 / ${o1}), oklch(0.55 0.3 280 / ${o2}), transparent 70%)`,
-      }} />
-      <div className="absolute bottom-[15%] right-[5%] w-64 h-64 rounded-full animate-morph" style={{
-        background: `radial-gradient(circle, oklch(0.55 0.3 280 / ${o1}), oklch(0.5 0.25 250 / ${o2}), transparent 70%)`,
-        animationDelay: '-3s',
-      }} />
-      <div className="absolute top-[50%] left-[50%] w-48 h-48 rounded-full animate-morph" style={{
-        background: `radial-gradient(circle, oklch(0.55 0.25 270 / ${o3}), transparent 70%)`,
-        animationDelay: '-6s',
-      }} />
+      <div
+        className="absolute top-[8%] left-[6%] h-72 w-72 rounded-full animate-morph"
+        style={{
+          background: `radial-gradient(circle, oklch(0.55 0.28 280 / ${o1}), oklch(0.5 0.25 250 / ${o2}), transparent 70%)`,
+          animationDelay: '-3s',
+        }}
+      />
+      <div
+        className="absolute top-[40%] right-[4%] h-80 w-80 rounded-full animate-morph"
+        style={{
+          background: `radial-gradient(circle, oklch(0.6 0.25 320 / ${o1}), oklch(0.55 0.25 290 / ${o2}), transparent 70%)`,
+          animationDelay: '-7s',
+        }}
+      />
+      <div
+        className="absolute bottom-[6%] left-[40%] h-64 w-64 rounded-full animate-morph"
+        style={{
+          background: `radial-gradient(circle, oklch(0.55 0.25 265 / ${o3}), transparent 70%)`,
+          animationDelay: '-11s',
+        }}
+      />
     </div>
   )
 }
 
-// ─── Accent color constants for each section ──────────────────────────
-
-const ACCENT = {
-  hero: 'primary',       // blue-to-violet (uses gradient overrides)
-  features: 'oklch(0.65 0.2 80)',   // warm amber
-  themePg: 'oklch(0.6 0.2 160)',    // teal/green
-  howItWorks: 'oklch(0.6 0.15 250)', // sky blue
-  aiDemo: 'primary',     // blue-to-violet
-  testimonials: 'oklch(0.65 0.2 350)', // warm rose
-  pricing: 'primary',    // blue-to-violet
-  cta: 'primary',        // blue-to-violet
-}
-
-// ─── Trust logos data ──────────────────────────────────────────────────
-
 const TRUST_LOGOS = ['TechFlow', 'DesignLab', 'CloudNine', 'DataPulse', 'NovaSoft', 'PixelCraft']
-
-// ─── Main Landing Page Component ──────────────────────────────────────
-
+// ─── Main component ─────────────────────────────────────────────────────
 export default function LandingPage() {
-  const navigate = useAppStore(s => s.navigate)
-  const setBuilderPrompt = useAppStore(s => s.setBuilderPrompt)
-  const setDashboardTab = useAppStore(s => s.setDashboardTab)
-  const themeMode = useAppStore(s => s.themeMode)
-  const setThemeMode = useAppStore(s => s.setThemeMode)
-  const uiLanguage = useAppStore(s => s.uiLanguage)
-  const isAuthenticated = useAppStore(s => s.isAuthenticated)
+  const navigate = useAppStore((s) => s.navigate)
+  const setBuilderPrompt = useAppStore((s) => s.setBuilderPrompt)
+  const setDashboardTab = useAppStore((s) => s.setDashboardTab)
+  const themeMode = useAppStore((s) => s.themeMode)
+  const setThemeMode = useAppStore((s) => s.setThemeMode)
+  const uiLanguage = useAppStore((s) => s.uiLanguage)
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated)
   const t = useTranslation()
+
   const [promptValue, setPromptValue] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isDark = themeMode === 'dark'
   const isRtlMode = isRtl(uiLanguage)
+  const textAlignClass = isRtlMode ? 'text-right' : 'text-left'
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
@@ -163,32 +145,29 @@ export default function LandingPage() {
   const handleGenerate = useCallback(() => {
     if (!promptValue.trim()) return
     setBuilderPrompt(promptValue)
-    // Check auth before navigating to builder
-    if (!isAuthenticated) {
-      navigate('login')
-      return
-    }
-    navigate('builder')
+    navigate(isAuthenticated ? 'builder' : 'login')
   }, [promptValue, setBuilderPrompt, navigate, isAuthenticated])
 
   const handleGetStarted = useCallback(() => {
-    // Check auth before navigating to builder
-    if (!isAuthenticated) {
-      navigate('login')
-      return
-    }
-    navigate('builder')
+    navigate(isAuthenticated ? 'builder' : 'login')
   }, [navigate, isAuthenticated])
 
-  // Stats — more startup-realistic
+  const scrollToPricing = useCallback(() => {
+    document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
+
+  const goTemplates = useCallback(() => {
+    setDashboardTab('templates')
+    navigate(isAuthenticated ? 'dashboard' : 'login')
+  }, [setDashboardTab, navigate, isAuthenticated])
+
   const localizedStats = [
-    { value: 2500, suffix: '+', label: t('stats.sitesBuilt'), icon: Globe },
-    { value: 15000, suffix: '+', label: t('stats.pagesGenerated'), icon: LayoutGrid },
-    { value: 99, suffix: '.9%', label: t('stats.uptime'), icon: Shield },
-    { value: 50, suffix: '+', label: t('stats.countries'), icon: Users },
+    { value: 2500, suffix: '+', label: 'stats.sitesBuilt', icon: Globe },
+    { value: 15000, suffix: '+', label: 'stats.pagesGenerated', icon: LayoutGrid },
+    { value: 99, suffix: '.9%', label: 'stats.uptime', icon: Shield },
+    { value: 50, suffix: '+', label: 'stats.countries', icon: Users },
   ]
 
-  // Features — amber accent
   const localizedFeatures = [
     { icon: Sparkles, titleKey: 'features.ai.title', descKey: 'features.ai.desc' },
     { icon: Paintbrush, titleKey: 'features.editor.title', descKey: 'features.editor.desc' },
@@ -196,28 +175,24 @@ export default function LandingPage() {
     { icon: Rocket, titleKey: 'features.deploy.title', descKey: 'features.deploy.desc' },
   ]
 
-  // Steps — sky blue accent
   const localizedSteps = [
     { number: '1', titleKey: 'how.step1.title', descKey: 'how.step1.desc', icon: MousePointerClick, bullets: [{ icon: Monitor, key: 'how.step1.bullet1' }, { icon: Smartphone, key: 'how.step1.bullet2' }] },
     { number: '2', titleKey: 'how.step2.title', descKey: 'how.step2.desc', icon: Zap, bullets: [{ icon: Code2, key: 'how.step2.bullet1' }, { icon: Layers, key: 'how.step2.bullet2' }] },
     { number: '3', titleKey: 'how.step3.title', descKey: 'how.step3.desc', icon: Rocket, bullets: [{ icon: Download, key: 'how.step3.bullet1' }, { icon: Rocket, key: 'how.step3.bullet2' }] },
   ]
 
-  // Testimonials — rose accent, middle featured
   const localizedTestimonials = [
     { id: '1', avatar: 'SC', metricIcon: Clock },
     { id: '2', avatar: 'MR', metricIcon: TrendingUp, featured: true },
     { id: '3', avatar: 'AP', metricIcon: Globe },
   ]
 
-  // Pricing tiers
   const pricingTiers = [
     { key: 'free', features: ['pricing.free.f1', 'pricing.free.f2', 'pricing.free.f3'] },
     { key: 'pro', features: ['pricing.pro.f1', 'pricing.pro.f2', 'pricing.pro.f3', 'pricing.pro.f4'], highlighted: true },
     { key: 'enterprise', features: ['pricing.enterprise.f1', 'pricing.enterprise.f2', 'pricing.enterprise.f3', 'pricing.enterprise.f4'] },
   ]
 
-  // Suggestion pills
   const localizedPills = [
     t('hero.suggestion.saas'),
     t('hero.suggestion.portfolio'),
@@ -225,160 +200,103 @@ export default function LandingPage() {
     t('hero.suggestion.ecommerce'),
   ]
 
-  // Helper for section accent color (non-purple)
-  const accentBg = (color: string, opacity: number) => `${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`
-  const accentBorder = (color: string, opacity: number) => `${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`
-
-  const textAlignClass = isRtlMode ? 'text-right' : 'text-left'
-
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      {/* ─── Skip to content ────────────────────────────────────────── */}
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md focus:text-sm">
+      {/* Skip to content */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md focus:text-sm"
+      >
         Skip to content
       </a>
-
       {/* ─── Navbar ────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
-        <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-between">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6">
           <div className="flex items-center gap-2">
-            <Hexagon className="w-5 h-5 text-primary" />
-            <span className="font-bold text-sm gradient-text">{t('brand.name')}</span>
+            <Hexagon className="h-5 w-5 text-primary" />
+            <span className="gradient-text text-sm font-bold">{t('brand.name')}</span>
           </div>
-          <div className="hidden sm:flex items-center gap-4">
-            <button onClick={handleGetStarted} className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.builder')}</button>
-            <button onClick={() => { setDashboardTab('templates'); navigate('dashboard') }} className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</button>
-            <button onClick={handleGetStarted} className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.pricing')}</button>
+
+          <div className="hidden items-center gap-6 md:flex">
+            <button onClick={handleGetStarted} className="rounded text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{t('nav.builder')}</button>
+            <button onClick={goTemplates} className="rounded text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{t('nav.templates')}</button>
+            <button onClick={scrollToPricing} className="rounded text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{t('nav.pricing')}</button>
           </div>
-          <div className="hidden sm:flex items-center gap-2">
+
+          <div className="hidden items-center gap-2 md:flex">
             <LanguageSwitcher variant="pill" compact />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="w-10 h-10 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              title={isDark ? t('nav.theme.toggleLight') : t('nav.theme.toggleDark')}
-            >
-              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            <Button variant="ghost" size="sm" onClick={toggleTheme} className="h-9 w-9 p-0" title={isDark ? t('nav.theme.toggleLight') : t('nav.theme.toggleDark')} aria-label="Toggle theme">
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('login')}
-              className="text-xs text-muted-foreground min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              {t('nav.signin')}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleGetStarted}
-              className="text-xs bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              {t('nav.getStarted')}
-            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('login')} className="text-xs">{t('nav.signin')}</Button>
+            <Button size="sm" onClick={handleGetStarted} className="border-0 bg-gradient-to-r from-blue-500 to-violet-500 text-xs text-white shadow-md shadow-violet-500/15 hover:from-blue-600 hover:to-violet-600">{t('nav.getStarted')}</Button>
           </div>
-          {/* Mobile: hamburger + theme toggle */}
-          <div className="flex sm:hidden items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="w-10 h-10 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              title={isDark ? t('nav.theme.toggleLight') : t('nav.theme.toggleDark')}
-            >
-              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+
+          <div className="flex items-center gap-2 md:hidden">
+            <Button variant="ghost" size="sm" onClick={toggleTheme} className="h-9 w-9 p-0" aria-label="Toggle theme">
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="w-10 h-10 p-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="h-9 w-9 p-0" aria-label="Menu">
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
-        {/* Mobile slide-down menu */}
+
         {mobileMenuOpen && (
-          <div className="sm:hidden border-t border-border/50 bg-background/95 backdrop-blur-md">
-            <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-3">
-              <button onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.builder')}</button>
-              <button onClick={() => { setDashboardTab('templates'); navigate('dashboard'); setMobileMenuOpen(false) }} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</button>
-              <button onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.pricing')}</button>
+          <div className="border-t border-border/50 bg-background/95 backdrop-blur-md md:hidden">
+            <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-4">
+              <button onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }} className="py-2 text-start text-sm text-muted-foreground transition-colors hover:text-foreground">{t('nav.builder')}</button>
+              <button onClick={() => { goTemplates(); setMobileMenuOpen(false) }} className="py-2 text-start text-sm text-muted-foreground transition-colors hover:text-foreground">{t('nav.templates')}</button>
+              <button onClick={() => { scrollToPricing(); setMobileMenuOpen(false) }} className="py-2 text-start text-sm text-muted-foreground transition-colors hover:text-foreground">{t('nav.pricing')}</button>
               <Separator />
-              <Button
-                variant="ghost"
-                onClick={() => { navigate('login'); setMobileMenuOpen(false) }}
-                className="text-sm text-muted-foreground min-h-[44px] justify-start focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              >
-                {t('nav.signin')}
-              </Button>
-              <Button
-                onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }}
-                className="text-sm bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              >
-                {t('nav.getStarted')}
-              </Button>
+              <Button variant="ghost" onClick={() => { navigate('login'); setMobileMenuOpen(false) }} className="justify-start text-sm">{t('nav.signin')}</Button>
+              <Button onClick={() => { handleGetStarted(); setMobileMenuOpen(false) }} className="border-0 bg-gradient-to-r from-blue-500 to-violet-500 text-sm text-white hover:from-blue-600 hover:to-violet-600">{t('nav.getStarted')}</Button>
             </div>
           </div>
         )}
       </nav>
 
-      {/* ─── Main Content ──────────────────────────────────────────── */}
-      <div id="main-content">
-
-        {/* ─── Hero Section — Centered, professional like z.ai ────────── */}
-        <section className="relative overflow-hidden pt-16 sm:pt-24 pb-12 md:pt-32 md:pb-16 flex flex-col items-center justify-center min-h-[50vh]">
-          <AbstractBackground isDark={isDark} />
-
-          {/* Blue-to-violet gradient accent line at top */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-violet-500 to-blue-500 opacity-50" />
-
-          {/* Additional gradient wash */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-violet-500/8 to-blue-500/3 pointer-events-none" />
-
-          <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
-            <motion.div {...sectionFadeIn}>
-              <Badge className="bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 text-[10px] px-3 py-1 mx-auto">
-                <Sparkles className="w-3 h-3 me-1" /> {t('hero.badge')}
+      <main id="main-content" className="flex-1">
+        {/* ─── Hero ─────────────────────────────────────────────────── */}
+        <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 md:pt-40 md:pb-24">
+          <AuroraBackground isDark={isDark} />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+          <div className="relative z-10 mx-auto max-w-3xl px-5 text-center sm:px-6">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+              <Badge className="mb-6 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <Sparkles className="h-3 w-3" /> {t('hero.badge')}
               </Badge>
-
-              {/* One-line headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mt-6">
-                {t('hero.title.pre')} <span className="gradient-text">{t('hero.title.highlight')}</span>
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+                {t('hero.title.pre')}{' '}
+                <span className="gradient-text">{t('hero.title.highlight')}</span>
               </h1>
+              <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
+                {t('hero.subtitle')}
+              </p>
+            </motion.div>
 
-              {/* Professional prompt input — centered, full width */}
-              <div className="mt-8 w-full">
-                <div className={`flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/60 shadow-xl shadow-blue-500/5 transition-all duration-300 focus-within:border-blue-500/40 focus-within:shadow-blue-500/10 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
-                  <Sparkles className="w-5 h-5 text-violet-500 shrink-0" />
-                  <input
-                    value={promptValue}
-                    onChange={(e) => setPromptValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                    placeholder={t('hero.placeholder')}
-                    className="flex-1 bg-transparent text-foreground text-sm placeholder:text-muted-foreground/60 px-2 py-2 outline-none min-w-0"
-                  />
-                  <Button
-                    onClick={handleGenerate}
-                    size="sm"
-                    className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 text-xs px-5 h-11 rounded-xl shadow-lg shadow-violet-500/20 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shrink-0"
-                  >
-                    {t('hero.generate')} <ArrowRight className="w-3 h-3 ms-1 rtl-flip-x" />
-                  </Button>
-                </div>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.15 }} className="mt-8">
+              <div className={`flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-card/80 p-3 shadow-xl shadow-primary/5 backdrop-blur-sm focus-within:border-primary/40 sm:flex-nowrap ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
+                <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+                <input
+                  value={promptValue}
+                  onChange={(e) => setPromptValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                  placeholder={t('hero.placeholder')}
+                  className={`min-h-12 flex-1 rounded-xl bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/60 ${textAlignClass}`}
+                />
+                <Button onClick={handleGenerate} className="h-11 shrink-0 rounded-xl border-0 bg-gradient-to-r from-blue-500 to-violet-500 px-5 text-xs text-white shadow-lg shadow-violet-500/20 hover:from-blue-600 hover:to-violet-600">
+                  {t('hero.generate')} <ArrowRight className="ms-1 h-3.5 w-3.5 rtl-flip-x" />
+                </Button>
               </div>
-
-              {/* Suggestion pills */}
-              <div className={`flex flex-wrap justify-center gap-2 mt-4 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
+              <div className={`mt-3 flex flex-wrap justify-center gap-2 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
                 {localizedPills.map((pill) => (
                   <motion.button
                     key={pill}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => { setPromptValue(pill); setBuilderPrompt(pill); if (!isAuthenticated) { navigate('login'); return; } navigate('builder') }}
-                    className="text-[11px] text-muted-foreground px-4 py-2.5 rounded-full bg-secondary/50 border border-border/50 hover:border-blue-500/30 hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => { setPromptValue(pill); setBuilderPrompt(pill); navigate(isAuthenticated ? 'builder' : 'login') }}
+                    className="rounded-full border border-border/50 bg-secondary/50 px-4 py-2 text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
                   >
                     {pill}
                   </motion.button>
@@ -387,381 +305,190 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
-          {/* Full quality hero image below the prompt */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.5 }}
-            className="relative z-10 max-w-4xl mx-auto px-6 mt-10"
-          >
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-blue-500/10">
-              <div className="absolute inset-0 rounded-2xl p-[2px] bg-gradient-to-br from-blue-500/30 via-violet-500/30 to-blue-500/15 pointer-events-none" />
-              <div className="relative bg-card/90 backdrop-blur-sm flex items-center gap-2 px-4 py-2.5 border-b border-border/50">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }} className="relative z-10 mx-auto mt-12 max-w-4xl px-5 sm:px-6">
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl shadow-primary/10">
+              <div className="flex items-center gap-2 border-b border-border/50 bg-secondary/40 px-4 py-2.5">
                 <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[oklch(0.65_0.2_80_/_60%)]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[oklch(0.6_0.2_160_/_60%)]" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/60" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
                 </div>
-                <div className="flex-1 h-5 rounded-md bg-secondary flex items-center px-2">
-                  <span className="text-[8px] text-muted-foreground font-mono" dir="ltr">{t('hero.preview.getUrl')}</span>
+                <div className="flex h-5 flex-1 items-center rounded-md bg-background px-2">
+                  <span className="font-mono text-[9px] text-muted-foreground" dir="ltr">{t('hero.preview.getUrl')}</span>
                 </div>
               </div>
-              <div className="relative bg-card overflow-hidden rounded-xl">
-                {/* Gradient placeholder for hero preview — no external image needed */}
-                <div className="w-full aspect-[3/2] bg-gradient-to-br from-violet-600/20 via-blue-500/10 to-indigo-600/20 flex items-center justify-center">
-                  <div className="text-center p-8">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2 mb-4">
-                      <div className="h-3 w-3 rounded-full bg-emerald-400" />
-                      <span className="text-sm font-medium text-white/80">AI Generated Preview</span>
-                    </div>
-                    <div className="space-y-2 max-w-md mx-auto">
-                      <div className="h-4 bg-white/10 rounded w-3/4 mx-auto" />
-                      <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
-                      <div className="grid grid-cols-3 gap-2 mt-4">
-                        <div className="h-12 bg-white/5 rounded" />
-                        <div className="h-12 bg-white/5 rounded" />
-                        <div className="h-12 bg-white/5 rounded" />
-                      </div>
-                    </div>
+              <div className="relative aspect-[16/9] bg-gradient-to-br from-violet-600/15 via-blue-500/10 to-indigo-600/15">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-background/60 px-3 py-1.5 backdrop-blur-sm">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                    <span className="text-[11px] font-medium text-foreground/80">AI Generated Preview</span>
                   </div>
+                  <div className="h-4 w-2/3 rounded bg-foreground/15" />
+                  <div className="h-3 w-1/2 rounded bg-foreground/10" />
+                  <div className="mt-2 grid w-full max-w-sm grid-cols-3 gap-3">
+                    <div className="h-12 rounded-lg bg-foreground/10" />
+                    <div className="h-12 rounded-lg bg-foreground/10" />
+                    <div className="h-12 rounded-lg bg-foreground/10" />
+                  </div>
+                  <div className="mt-2 h-8 w-28 rounded-full bg-gradient-to-r from-blue-500 to-violet-500" />
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-500/8 via-transparent to-violet-500/5 pointer-events-none" />
               </div>
-              <div className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 shadow-lg shadow-violet-500/30 animate-pulse" />
-              <div className="absolute -bottom-2 -left-2 w-4 h-4 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 shadow-md shadow-blue-500/20 animate-pulse" style={{ animationDelay: '-1.5s' }} />
             </div>
           </motion.div>
         </section>
-
-        {/* ─── Trust Logos / Social Proof ──────────────────────────── */}
-        <section className="py-6 border-y border-border/30">
-          <div className="max-w-7xl mx-auto px-6">
-            <p className="text-[10px] text-muted-foreground opacity-50 text-center mb-3">{t('trust.title')}</p>
-            <div className={`flex flex-wrap items-center justify-center gap-6 md:gap-10 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
+        {/* ─── Trust ───────────────────────────────────────────────── */}
+        <section className="border-y border-border/40 py-8">
+          <div className="mx-auto max-w-7xl px-5 sm:px-6">
+            <p className="mb-5 text-center text-[11px] uppercase tracking-[0.25em] text-muted-foreground/70">{t('trust.title')}</p>
+            <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 opacity-60">
               {TRUST_LOGOS.map((name) => (
-                <span key={name} className="text-xs font-semibold text-muted-foreground opacity-50 hover:opacity-70 transition-opacity tracking-wide">
-                  {name}
-                </span>
+                <span key={name} className="text-sm font-semibold tracking-tight text-muted-foreground">{name}</span>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ─── Stats Bar ───────────────────────────────────────────── */}
-        <section className="relative py-8 overflow-hidden border-y border-blue-500/15">
-          {/* Blue-to-violet gradient strip */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-violet-500/8 to-blue-500/10" />
-
-          <div className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {localizedStats.map((stat, i) => {
-              const Icon = stat.icon
+        {/* ─── Stats ───────────────────────────────────────────────── */}
+        <section className="py-14 md:py-20">
+          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-4">
+            {localizedStats.map((s) => {
+              const Icon = s.icon
               return (
-                <div key={stat.label} className={`flex items-center gap-2 sm:gap-4 ${i > 0 ? 'md:border-s md:border-border/50 md:ps-6 rtl:md:border-e rtl:md:border-s-0 rtl:md:ps-0 rtl:md:pe-6' : ''}`}>
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-4 h-4 text-violet-500" />
+                <div key={s.label} className="flex flex-col items-center gap-2 bg-background p-6 text-center">
+                  <Icon className="h-5 w-5 text-primary" />
+                  <div className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                    <AnimatedCounter target={s.value} suffix={s.suffix} />
                   </div>
-                  <div>
-                    <div className="text-lg sm:text-xl font-bold text-foreground">
-                      <AnimatedCounter target={stat.value} suffix={stat.suffix} />
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">{stat.label}</div>
-                  </div>
+                  <div className="text-[11px] text-muted-foreground">{t(s.label)}</div>
                 </div>
               )
             })}
           </div>
         </section>
 
-        {/* ─── Builder Playground ──────────────────────────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-              {/* Left: Heading (2 cols) */}
-              <motion.div
-                {...sectionFadeIn}
-                viewport={{ once: true, margin: '-50px' }}
-                whileInView={{ opacity: 1, y: 0 }}
-                className={`lg:col-span-2 ${textAlignClass}`}
-              >
-                <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
-                  <MousePointerClick className="w-3 h-3 me-1" /> {t('playground.badge')}
-                </Badge>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-                  {t('playground.title.pre')}{' '}
-                  <span className="gradient-text">{t('playground.title.highlight')}</span>
-                </h2>
-                <p className="text-xs text-muted-foreground max-w-sm">
-                  {t('playground.subtitle')}
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center">
-                    <Layers className="w-2.5 h-2.5 text-violet-500" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{t('playground.blocks')}</span>
-                </div>
-              </motion.div>
-
-              {/* Right: Playground (3 cols) */}
-              <div className="lg:col-span-3">
-                <BuilderPlayground isDark={isDark} />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── Blue-to-Violet Accent Divider ──────────────────────── */}
-        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
-        <div className="h-px bg-gradient-to-l from-transparent via-violet-500/30 to-transparent -mt-px" />
-
-        {/* ─── Features Section — warm amber accent ──────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            {/* Section header */}
-            <motion.div
-              {...sectionFadeIn}
-              viewport={{ once: true, margin: '-50px' }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className={`${textAlignClass} mb-10`}
-            >
-              <Badge className="text-[10px] mb-3" style={{ background: `${ACCENT.features}15`, color: ACCENT.features, borderColor: `${ACCENT.features}25` }}>
-                <Zap className="w-3 h-3 me-1" /> {t('features.badge')}
+        {/* ─── Features ────────────────────────────────────────────── */}
+        <section className="py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-6">
+            <motion.div {...sectionFadeIn} className={`mx-auto mb-12 max-w-2xl ${textAlignClass}`}>
+              <Badge className="mb-3 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <Zap className="h-3 w-3" /> {t('features.badge')}
               </Badge>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 {t('features.title.pre')}{' '}
-                <span style={{ color: ACCENT.features }}>{t('features.title.highlight')}</span>
+                <span className="gradient-text">{t('features.title.highlight')}</span>
               </h2>
-              <p className="text-xs text-muted-foreground max-w-md">
-                {t('features.subtitle')}
-              </p>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">{t('features.subtitle')}</p>
             </motion.div>
 
-            {/* Features grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl">
-              {localizedFeatures.map((feature) => {
-                const Icon = feature.icon
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {localizedFeatures.map((f) => {
+                const Icon = f.icon
                 return (
-                  <Card key={feature.titleKey} className="group relative overflow-hidden border-border/50 hover:border-blue-500/20 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5">
-                    <CardContent className="relative z-10 p-5">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-                          style={{ background: `${ACCENT.features}15`, border: `1px solid ${ACCENT.features}25` }}
-                        >
-                          <Icon className="w-4 h-4" style={{ color: ACCENT.features }} />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-semibold text-foreground mb-1">{t(feature.titleKey)}</h3>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{t(feature.descKey)}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                    {/* Blue-to-violet gradient accent line at bottom on hover */}
-                    <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500 to-violet-500" />
-                  </Card>
+                  <motion.div key={f.titleKey} {...sectionFadeIn} className="group rounded-2xl border border-border/60 bg-card p-6 transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+                    <div className="mb-5 grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-500/15 to-violet-500/15 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-base font-semibold">{t(f.titleKey)}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{t(f.descKey)}</p>
+                  </motion.div>
                 )
               })}
             </div>
           </div>
         </section>
-
-        {/* ─── Theme Playground — teal/green accent ─────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-              {/* Left: Playground (3 cols) */}
-              <div className="lg:col-span-3 order-2 lg:order-1">
-                <ThemePlayground isDark={isDark} />
-              </div>
-
-              {/* Right: Heading (2 cols) */}
-              <motion.div
-                {...sectionFadeIn}
-                viewport={{ once: true, margin: '-50px' }}
-                whileInView={{ opacity: 1, y: 0 }}
-                className={`lg:col-span-2 order-1 lg:order-2 ${textAlignClass} lg:text-right`}
-              >
-                <Badge className="text-[10px] mb-3" style={{ background: `${ACCENT.themePg}15`, color: ACCENT.themePg, borderColor: `${ACCENT.themePg}25` }}>
-                  <Palette className="w-3 h-3 me-1" /> {t('themepg.badge')}
-                </Badge>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-                  {t('themepg.title.pre')}{' '}
-                  <span style={{ color: ACCENT.themePg }}>{t('themepg.title.highlight')}</span>
-                </h2>
-                <p className="text-xs text-muted-foreground max-w-sm">
-                  {t('themepg.subtitle')}
-                </p>
-                <div className={`mt-4 flex gap-2 ${textAlignClass === 'text-right' ? 'lg:justify-start' : 'lg:justify-end'}`}>
-                  <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: `${ACCENT.themePg}15` }}>
-                    <Palette className="w-2.5 h-2.5" style={{ color: ACCENT.themePg }} />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{t('themepg.presetsHint')}</span>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── How It Works — sky blue accent ─────────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          {/* Blue-to-violet gradient top border */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/20 to-blue-500/30" />
-          {/* Subtle gradient wash */}
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/3 via-transparent to-transparent pointer-events-none" />
-
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <motion.div
-              {...sectionFadeIn}
-              viewport={{ once: true, margin: '-50px' }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className={`${textAlignClass} mb-10`}
-            >
-              <Badge className="text-[10px] mb-3" style={{ background: `${ACCENT.howItWorks}15`, color: ACCENT.howItWorks, borderColor: `${ACCENT.howItWorks}25` }}>
-                <ArrowRight className="w-3 h-3 me-1 rtl-flip-x" /> {t('how.badge')}
+        {/* ─── How it works ────────────────────────────────────────── */}
+        <section className="border-y border-border/40 bg-secondary/20 py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-6">
+            <motion.div {...sectionFadeIn} className="mx-auto mb-14 max-w-2xl text-center">
+              <Badge className="mb-3 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <Eye className="h-3 w-3" /> {t('how.badge')}
               </Badge>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 {t('how.title.pre')}{' '}
-                <span style={{ color: ACCENT.howItWorks }}>{t('how.title.highlight')}</span>
+                <span className="gradient-text">{t('how.title.highlight')}</span>
               </h2>
             </motion.div>
 
-            <div className="space-y-8">
-              {localizedSteps.map((step, i) => {
+            <div className="relative grid gap-8 md:grid-cols-3">
+              <div className="absolute left-0 right-0 top-9 hidden h-px bg-gradient-to-r from-transparent via-border to-transparent md:block" />
+              {localizedSteps.map((step) => {
                 const Icon = step.icon
-                const isEven = i % 2 === 0
                 return (
-                  <div key={step.number} className={`grid grid-cols-1 md:grid-cols-2 gap-6 items-center ${!isEven ? 'rtl:[direction:rtl]' : ''}`}>
-                    {/* Visual side */}
-                    <div className={`${!isEven ? 'rtl:[direction:ltr]' : ''}`}>
-                      <div className={`relative rounded-2xl border border-border bg-card p-6 ${isEven ? 'md:ms-8 rtl:me-8 rtl:ms-0' : 'md:me-8 rtl:ms-8 rtl:me-0'}`}>
-                        <div className={`absolute -top-3 ${isRtlMode ? '-right-3' : '-left-3'} w-8 h-8 rounded-full text-white text-sm font-bold flex items-center justify-center shadow-lg shadow-[oklch(0.6_0.15_250)_/_30]`} style={{ background: ACCENT.howItWorks }}>
-                          {step.number}
-                        </div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${ACCENT.howItWorks}15` }}>
-                            <Icon className="w-5 h-5" style={{ color: ACCENT.howItWorks }} />
-                          </div>
-                          <h3 className="text-sm font-bold text-foreground">{t(step.titleKey)}</h3>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{t(step.descKey)}</p>
-                      </div>
+                  <motion.div key={step.number} {...sectionFadeIn} className="relative rounded-2xl border border-border/60 bg-card p-6">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-sm font-semibold text-white shadow-md shadow-violet-500/20">{step.number}</div>
+                      <Icon className="h-5 w-5 text-primary" />
                     </div>
-                    {/* Text side */}
-                    <div className={`${!isEven ? 'rtl:[direction:ltr]' : ''}`}>
-                      <div className={`flex flex-col gap-2 ${isEven ? 'md:justify-end rtl:md:justify-start' : 'md:justify-start rtl:md:justify-end'}`}>
-                        {step.bullets.map((b) => {
-                          const BIcon = b.icon
-                          return (
-                            <div key={b.key} className="flex items-center gap-2">
-                              <BIcon className="w-4 h-4" style={{ color: ACCENT.howItWorks }} />
-                              <span className="text-[10px] text-muted-foreground">{t(b.key)}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                    <h3 className="text-base font-semibold">{t(step.titleKey)}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{t(step.descKey)}</p>
+                    <ul className="mt-4 space-y-2">
+                      {step.bullets.map((b) => {
+                        const BIcon = b.icon
+                        return (
+                          <li key={b.key} className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <BIcon className="h-3.5 w-3.5 text-primary" /> {t(b.key)}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </motion.div>
                 )
               })}
             </div>
           </div>
         </section>
 
-        {/* ─── AI Demo — blue-to-violet gradient accent ─────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
-          {/* Blue-to-violet gradient top border */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/30 to-blue-500/30" />
-          {/* Gradient wash */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-violet-500/5 to-blue-500/3 pointer-events-none" />
-
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-              {/* Left: Heading (2 cols) */}
-              <motion.div
-                {...sectionFadeIn}
-                viewport={{ once: true, margin: '-50px' }}
-                whileInView={{ opacity: 1, y: 0 }}
-                className={`lg:col-span-2 ${textAlignClass}`}
-              >
-                <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
-                  <Wand2 className="w-3 h-3 me-1" /> {t('aidemo.badge')}
-                </Badge>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
-                  {t('aidemo.title.pre')}{' '}
-                  <span className="gradient-text">{t('aidemo.title.highlight')}</span>
-                </h2>
-                <p className="text-xs text-muted-foreground max-w-sm">
-                  {t('aidemo.subtitle')}
-                </p>
-                <div className="mt-4 flex items-center gap-2">
-                  <Play className="w-4 h-4 text-violet-500" />
-                  <span className="text-[10px] text-muted-foreground">{t('aidemo.hint')}</span>
-                </div>
-              </motion.div>
-
-              {/* Right: Demo (3 cols) */}
-              <div className="lg:col-span-3">
-                <AIDemo isDark={isDark} />
-              </div>
-            </div>
+        {/* ─── AI Demo ─────────────────────────────────────────────── */}
+        <section className="py-16 md:py-24">
+          <div className="mx-auto max-w-5xl px-5 sm:px-6">
+            <motion.div {...sectionFadeIn} className={`mx-auto mb-10 max-w-2xl ${textAlignClass}`}>
+              <Badge className="mb-3 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <Sparkles className="h-3 w-3" /> {t('aidemo.badge')}
+              </Badge>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                {t('aidemo.title.pre')}{' '}
+                <span className="gradient-text">{t('aidemo.title.highlight')}</span>
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">{t('aidemo.subtitle')}</p>
+            </motion.div>
+            <motion.div {...sectionFadeIn} className="overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-xl shadow-primary/5 sm:p-6">
+              <AIDemo isDark={isDark} />
+            </motion.div>
           </div>
         </section>
-
-        {/* ─── Testimonials — decorative gradient background ──────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden">
-          {/* Gradient background instead of missing image */}
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-blue-500/5 to-indigo-600/10" />
-          {/* Dark overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/85 to-background/90" />
-          {/* Blue-to-violet gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/8 via-violet-500/5 to-blue-500/8" />
-          {/* Blue-to-violet gradient band at top */}
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500/20 via-violet-500/30 to-blue-500/20 z-10" />
-
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <motion.div
-              {...sectionFadeIn}
-              viewport={{ once: true, margin: '-50px' }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className={`${textAlignClass} mb-10`}
-            >
-              <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
-                <Star className="w-3 h-3 me-1" /> {t('testimonials.badge')}
+        {/* ─── Testimonials ────────────────────────────────────────── */}
+        <section className="py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-6">
+            <motion.div {...sectionFadeIn} className="mx-auto mb-12 max-w-2xl text-center">
+              <Badge className="mb-3 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <Star className="h-3 w-3" /> {t('testimonials.badge')}
               </Badge>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 {t('testimonials.title.pre')}{' '}
                 <span className="gradient-text">{t('testimonials.title.highlight')}</span>
               </h2>
             </motion.div>
 
-            {/* Testimonial cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {localizedTestimonials.map((tm, i) => {
+            <div className="grid gap-5 md:grid-cols-3">
+              {localizedTestimonials.map((tm) => {
                 const MetricIcon = tm.metricIcon
-                const isFeatured = tm.featured
+                const featured = tm.featured
                 return (
-                  <Card key={tm.id} className={`group relative overflow-hidden border-border/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:shadow-blue-500/5 bg-card/80 backdrop-blur-md ${isFeatured ? 'border-blue-500/20 shadow-md' : ''}`}>
-                    <CardContent className={`${isFeatured ? 'p-8' : 'p-5'}`}>
-                      <div className="flex gap-0.5 mb-3">
-                        {[1,2,3,4,5].map(s => (
-                          <Star key={s} className="w-3 h-3 fill-[oklch(0.75_0.15_80)] text-[oklch(0.75_0.15_80)]" />
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-blue-500 to-violet-500">
-                          {tm.avatar}
-                        </div>
+                  <Card key={tm.id} className={`relative overflow-hidden ${featured ? 'border-primary/30 shadow-lg shadow-primary/10 md:scale-[1.03]' : 'border-border/60'}`}>
+                    {featured && <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-blue-500 to-violet-500" />}
+                    <CardContent className="p-6">
+                      <div className="mb-3 flex items-center gap-2">
+                        <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-[10px] font-bold text-white">{tm.avatar}</div>
                         <div>
                           <div className="text-xs font-medium text-foreground">{t(`testimonials.${tm.id}.name`)}</div>
                           <div className="text-[10px] text-muted-foreground">{t(`testimonials.${tm.id}.role`)}</div>
                         </div>
                       </div>
-                      <p className={`${isFeatured ? 'text-sm' : 'text-xs'} text-muted-foreground leading-relaxed mb-3`}>&ldquo;{t(`testimonials.${tm.id}.quote`)}&rdquo;</p>
-                      <div className="flex items-center gap-1.5 text-[10px] text-violet-500">
-                        <MetricIcon className="w-3 h-3" />
-                        {t(`testimonials.${tm.id}.metric`)}
+                      <p className="text-sm leading-relaxed text-muted-foreground">&ldquo;{t(`testimonials.${tm.id}.quote`)}&rdquo;</p>
+                      <div className="mt-4 flex items-center gap-1.5 text-[10px] text-primary">
+                        <MetricIcon className="h-3.5 w-3.5" /> {t(`testimonials.${tm.id}.metric`)}
                       </div>
                     </CardContent>
-                    <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500 to-violet-500" />
                   </Card>
                 )
               })}
@@ -769,62 +496,47 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ─── Pricing Section ────────────────────────────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          {/* Blue-to-violet gradient top */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/30 to-blue-500/30" />
-          {/* Subtle gradient wash */}
-          <div className="absolute inset-0 bg-gradient-to-b from-violet-500/3 via-transparent to-blue-500/2 pointer-events-none" />
-
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <motion.div
-              {...sectionFadeIn}
-              viewport={{ once: true, margin: '-50px' }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className={`${textAlignClass} mb-10`}
-            >
-              <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
-                <Zap className="w-3 h-3 me-1" /> {t('pricing.badge')}
+        {/* ─── Pricing ─────────────────────────────────────────────── */}
+        <section id="pricing" className="border-y border-border/40 bg-secondary/20 py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-6">
+            <motion.div {...sectionFadeIn} className="mx-auto mb-12 max-w-2xl text-center">
+              <Badge className="mb-3 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <Zap className="h-3 w-3" /> {t('pricing.badge')}
               </Badge>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 {t('pricing.title.pre')}{' '}
                 <span className="gradient-text">{t('pricing.title.highlight')}</span>
               </h2>
-              <p className="text-xs text-muted-foreground max-w-md">
-                {t('pricing.subtitle')}
-              </p>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">{t('pricing.subtitle')}</p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid gap-6 md:grid-cols-3">
               {pricingTiers.map((tier) => {
-                const isHighlighted = tier.highlighted
+                const highlighted = tier.highlighted
                 return (
-                  <Card key={tier.key} className={`relative overflow-hidden transition-all duration-300 ${isHighlighted ? 'border-blue-500/30 shadow-lg shadow-violet-500/10 md:scale-[1.02] mobile-no-scale bg-gradient-to-b from-blue-500/5 to-violet-500/5' : 'border-border/50'}`}>
-                    {isHighlighted && (
-                      <Badge className="absolute top-4 right-4 rtl:right-auto rtl:left-4 bg-gradient-to-r from-blue-500 to-violet-500 text-white text-[9px] px-2 py-0.5 border-0">
-                        {t('pricing.pro.popular')}
-                      </Badge>
-                    )}
-                    <CardContent className={`p-6 ${isHighlighted ? 'pb-8' : ''}`}>
-                      <h3 className="text-sm font-bold text-foreground">{t(`pricing.${tier.key}.name`)}</h3>
-                      <div className="flex items-baseline gap-1 mt-2">
-                        <span className="text-2xl font-bold text-foreground">{t(`pricing.${tier.key}.price`)}</span>
+                  <Card key={tier.key} className={`relative overflow-hidden ${highlighted ? 'border-primary/40 shadow-xl shadow-primary/10 md:scale-[1.04]' : 'border-border/60'}`}>
+                    {highlighted && <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-violet-500" />}
+                    {highlighted && <Badge className="absolute right-4 top-4 border-0 bg-gradient-to-r from-blue-500 to-violet-500 px-2 py-0.5 text-[9px] text-white">{t('pricing.pro.popular')}</Badge>}
+                    <CardContent className="p-6">
+                      <h3 className="text-base font-bold text-foreground">{t(`pricing.${tier.key}.name`)}</h3>
+                      <div className="mt-2 flex items-baseline gap-1">
+                        <span className="text-3xl font-bold text-foreground">{t(`pricing.${tier.key}.price`)}</span>
                         <span className="text-xs text-muted-foreground">{t(`pricing.${tier.key}.period`)}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">{t(`pricing.${tier.key}.desc`)}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">{t(`pricing.${tier.key}.desc`)}</p>
                       <Separator className="my-4" />
                       <ul className="space-y-2.5">
                         {tier.features.map((fKey) => (
                           <li key={fKey} className="flex items-center gap-2 text-xs text-foreground">
-                            <Check className={`w-3.5 h-3.5 ${isHighlighted ? 'text-violet-500' : 'text-[oklch(0.6_0.2_160)]'}`} />
+                            <Check className={`h-3.5 w-3.5 ${highlighted ? 'text-primary' : 'text-muted-foreground'}`} />
                             {t(fKey)}
                           </li>
                         ))}
                       </ul>
                       <Button
                         onClick={handleGetStarted}
-                        className={`w-full mt-6 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${isHighlighted ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 shadow-md shadow-violet-500/15' : 'border-border bg-card text-foreground hover:bg-accent'}`}
-                        variant={isHighlighted ? 'default' : 'outline'}
+                        variant={highlighted ? 'default' : 'outline'}
+                        className={`mt-6 w-full text-xs ${highlighted ? 'border-0 bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600' : ''}`}
                       >
                         {t(`pricing.${tier.key}.cta`)}
                       </Button>
@@ -835,38 +547,25 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-
         {/* ─── FAQ ─────────────────────────────────────────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/20 via-violet-500/15 to-blue-500/20" />
-
-          <div className="relative z-10 max-w-3xl mx-auto px-6">
-            <motion.div
-              {...sectionFadeIn}
-              viewport={{ once: true, margin: '-50px' }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className={`${textAlignClass} mb-6`}
-            >
-              <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
-                <Eye className="w-3 h-3 me-1" /> {t('faq.badge')}
+        <section className="py-16 md:py-24">
+          <div className="mx-auto max-w-3xl px-5 sm:px-6">
+            <motion.div {...sectionFadeIn} className="mb-10 text-center">
+              <Badge className="mb-3 gap-1.5 rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] text-primary">
+                <HelpCircle className="h-3 w-3" /> {t('faq.badge')}
               </Badge>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 {t('faq.title.pre')}{' '}
                 <span className="gradient-text">{t('faq.title.highlight')}</span>
               </h2>
             </motion.div>
-
             <Accordion type="single" collapsible className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <AccordionItem
-                  key={i}
-                  value={`faq-${i}`}
-                  className="border border-border/50 rounded-lg px-4 data-[state=open]:border-blue-500/30 data-[state=open]:bg-gradient-to-r data-[state=open]:from-blue-500/5 data-[state=open]:to-violet-500/5 transition-all"
-                >
-                  <AccordionTrigger className="text-xs font-medium text-foreground hover:no-underline py-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+                <AccordionItem key={i} value={`faq-${i}`} className="rounded-lg border border-border/50 px-4 transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/5">
+                  <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:no-underline">
                     {t(`faq.${i}.q`)}
                   </AccordionTrigger>
-                  <AccordionContent className="text-xs text-muted-foreground leading-relaxed pb-3">
+                  <AccordionContent className="text-xs leading-relaxed text-muted-foreground">
                     {t(`faq.${i}.a`)}
                   </AccordionContent>
                 </AccordionItem>
@@ -875,110 +574,80 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ─── CTA Banner ─────────────────────────────────────────── */}
-        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden">
-          <AbstractBackground isDark={isDark} />
-
-          {/* Blue-to-violet gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/8 via-violet-500/8 to-blue-500/5" />
-          {/* Gradient line at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500/30 via-violet-500/40 to-blue-500/30" />
-
-          <div className="relative z-10 max-w-7xl mx-auto px-6">
-            <motion.div
-              {...sectionFadeIn}
-              viewport={{ once: true, margin: '-50px' }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className={textAlignClass}
-            >
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+        {/* ─── CTA ──────────────────────────────────────────────────── */}
+        <section className="relative overflow-hidden py-20 md:py-28">
+          <AuroraBackground isDark={isDark} />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/8 via-violet-500/8 to-transparent" />
+          <div className="relative z-10 mx-auto max-w-3xl px-5 text-center sm:px-6">
+            <motion.div {...sectionFadeIn}>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
                 {t('cta.title.pre')}{' '}
                 <span className="gradient-text">{t('cta.title.highlight')}</span>
               </h2>
-              <p className="text-xs text-muted-foreground max-w-md mt-2">
-                {t('cta.subtitle')}
-              </p>
-              <div className={`flex flex-wrap gap-3 mt-5 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    onClick={handleGetStarted}
-                    className="bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-600 hover:to-violet-600 border-0 text-xs font-semibold shadow-lg shadow-violet-500/15 px-6 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  >
-                    {t('cta.primary')} <ArrowRight className="w-3 h-3 ms-1 rtl-flip-x" />
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('login')}
-                    className="border-border bg-card text-foreground hover:bg-accent text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  >
-                    {t('cta.secondary')}
-                  </Button>
-                </motion.div>
+              <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">{t('cta.subtitle')}</p>
+              <div className={`mt-8 flex flex-wrap justify-center gap-3 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
+                <Button onClick={handleGetStarted} className="h-12 rounded-xl border-0 bg-gradient-to-r from-blue-500 to-violet-500 px-7 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:from-blue-600 hover:to-violet-600">
+                  {t('cta.primary')} <ArrowRight className="ms-1.5 h-4 w-4 rtl-flip-x" />
+                </Button>
+                <Button variant="outline" onClick={() => navigate('login')} className="h-12 rounded-xl px-7 text-sm">
+                  {t('cta.secondary')}
+                </Button>
               </div>
+              <ul className="mx-auto mt-8 flex max-w-xl flex-wrap justify-center gap-x-6 gap-y-2">
+                {['how.step3.bullet1', 'how.step3.bullet2', 'how.step2.bullet1', 'how.step1.bullet2'].map((key) => (
+                  <li key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Check className="h-3.5 w-3.5 text-primary" /> {t(key)}
+                  </li>
+                ))}
+              </ul>
             </motion.div>
           </div>
         </section>
-      </div>
+      </main>
 
-      {/* ─── Footer — with decorative gradient background ──────── */}
-      <footer className="mt-auto relative overflow-hidden border-t border-border">
-        {/* Gradient background instead of missing image */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-violet-500/5 to-indigo-600/8" />
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/95" />
-        {/* Blue-to-violet gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-violet-500/3 to-blue-500/5" />
-
-        {/* Blue-to-violet accent line above footer */}
-        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent relative z-10" />
-        <div className="h-px bg-gradient-to-l from-transparent via-violet-500/15 to-transparent -mt-px relative z-10" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6 ${isRtlMode ? 'rtl:text-right' : ''}`}>
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Hexagon className="w-4 h-4 text-violet-500" />
-                <span className="font-bold text-sm gradient-text">{t('brand.name')}</span>
+      {/* ─── Footer ─────────────────────────────────────────────────── */}
+      <footer className="border-t border-border/60 bg-secondary/20">
+        <div className="mx-auto max-w-7xl px-5 py-12 sm:px-6">
+          <div className={`grid grid-cols-2 gap-8 md:grid-cols-4 ${isRtlMode ? 'rtl:text-right' : ''}`}>
+            <div className="col-span-2 md:col-span-1">
+              <div className="mb-3 flex items-center gap-2">
+                <Hexagon className="h-5 w-5 text-primary" />
+                <span className="gradient-text text-sm font-bold">{t('brand.name')}</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t('footer.tagline')}
-              </p>
+              <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">{t('footer.tagline')}</p>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.product')}</h4>
-              <div className="space-y-1.5">
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); handleGetStarted() }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.builder')}</a>
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('activity'); navigate('dashboard') }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('common.export')}</a>
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('activity'); navigate('dashboard') }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('nav.templates')}</a>
-                <a href="#main-content" onClick={(e) => { e.preventDefault(); setDashboardTab('deployments'); navigate('dashboard') }} className="block text-xs text-muted-foreground hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded">{t('common.deploy')}</a>
+              <h4 className="mb-3 text-xs font-semibold text-foreground">{t('footer.product')}</h4>
+              <div className="space-y-2">
+                <button onClick={handleGetStarted} className="block text-xs text-muted-foreground transition-colors hover:text-primary">{t('nav.builder')}</button>
+                <button onClick={goTemplates} className="block text-xs text-muted-foreground transition-colors hover:text-primary">{t('nav.templates')}</button>
+                <button onClick={scrollToPricing} className="block text-xs text-muted-foreground transition-colors hover:text-primary">{t('nav.pricing')}</button>
               </div>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.resources')}</h4>
-              <div className="space-y-1.5">
+              <h4 className="mb-3 text-xs font-semibold text-foreground">{t('footer.resources')}</h4>
+              <div className="space-y-2">
                 {[t('footer.docs'), t('footer.blog'), t('footer.changelog'), t('footer.support')].map((item) => (
-                  <span key={item} className="block text-xs text-muted-foreground hover:text-violet-500/70 transition-colors cursor-default">{item}</span>
+                  <span key={item} className="block cursor-default text-xs text-muted-foreground transition-colors hover:text-primary/70">{item}</span>
                 ))}
               </div>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">{t('footer.company')}</h4>
-              <div className="space-y-1.5">
+              <h4 className="mb-3 text-xs font-semibold text-foreground">{t('footer.company')}</h4>
+              <div className="space-y-2">
                 {[t('footer.about'), t('footer.careers'), t('footer.privacy'), t('footer.terms')].map((item) => (
-                  <span key={item} className="block text-xs text-muted-foreground hover:text-violet-500/70 transition-colors cursor-default">{item}</span>
+                  <span key={item} className="block cursor-default text-xs text-muted-foreground transition-colors hover:text-primary/70">{item}</span>
                 ))}
               </div>
             </div>
           </div>
-          <Separator className="mb-4" />
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+          <Separator className="my-6" />
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <span className="text-xs text-muted-foreground">{t('footer.rights')}</span>
             <div className="flex items-center gap-3">
-              <a href="#" className="min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Github className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
-              <a href="#" className="min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Twitter className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
-              <a href="#" className="min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"><Linkedin className="w-3.5 h-3.5 text-muted-foreground hover:text-violet-500 transition-colors" /></a>
+              <a href="#" aria-label="GitHub" className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:text-primary"><Github className="h-4 w-4" /></a>
+              <a href="#" aria-label="Twitter" className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:text-primary"><Twitter className="h-4 w-4" /></a>
+              <a href="#" aria-label="LinkedIn" className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:text-primary"><Linkedin className="h-4 w-4" /></a>
             </div>
           </div>
         </div>
