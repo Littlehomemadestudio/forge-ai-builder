@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 
+/**
+ * POST /api/auth-local
+ * Body: { action: 'register' | 'login', ... }
+ *
+ * A local endpoint for seeding/verifying users in the database BEFORE calling
+ * NextAuth's signIn('credentials'). It intentionally lives OUTSIDE the
+ * `/api/auth/*` namespace so it never conflicts with NextAuth's catch-all
+ * route (`/api/auth/[...nextauth]`), which must own every `/api/auth/*` path
+ * (session, csrf, providers, callback, …).
+ */
 interface RegisterRequest {
   name: string;
   email: string;
@@ -10,21 +20,10 @@ interface RegisterRequest {
 }
 
 interface LoginRequest {
-  identifier: string; // email or username
+  identifier: string;
   password: string;
 }
 
-/**
- * POST /api/auth
- * Body: { action: 'register' | 'login', ... }
- *
- * - register: creates a new user with a bcrypt-hashed password
- * - login:    verifies credentials and returns the user (without passwordHash)
- *
- * This endpoint is called from the RegisterPage and is used to seed the
- * database BEFORE calling NextAuth's signIn('credentials'). The actual
- * session cookie is issued by NextAuth, not by this route.
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   } catch (error) {
-    console.error('Auth route error:', error);
+    console.error('Local auth route error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 },
@@ -54,16 +53,10 @@ export async function POST(request: NextRequest) {
 async function handleRegister({ name, email, username, password }: RegisterRequest) {
   // ── Validation ──────────────────────────────────────────────────────────
   if (!name || !name.trim()) {
-    return NextResponse.json(
-      { error: 'Name is required' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   }
   if (!email || !email.trim()) {
-    return NextResponse.json(
-      { error: 'Email is required' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   }
   if (!password || password.length < 8) {
     return NextResponse.json(
@@ -74,7 +67,6 @@ async function handleRegister({ name, email, username, password }: RegisterReque
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Reject duplicate email
   const existingByEmail = await db.user.findUnique({ where: { email: normalizedEmail } });
   if (existingByEmail) {
     return NextResponse.json(
@@ -83,7 +75,6 @@ async function handleRegister({ name, email, username, password }: RegisterReque
     );
   }
 
-  // Reject duplicate username (if provided)
   const trimmedUsername = username?.trim() || undefined;
   if (trimmedUsername) {
     const existingByUsername = await db.user.findUnique({ where: { username: trimmedUsername } });
@@ -95,7 +86,6 @@ async function handleRegister({ name, email, username, password }: RegisterReque
     }
   }
 
-  // ── Hash password & create user ─────────────────────────────────────────
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await db.user.create({
@@ -136,7 +126,6 @@ async function handleLogin({ identifier, password }: LoginRequest) {
     );
   }
 
-  // Look up by email OR username
   let user = null;
   const trimmed = identifier.trim();
   const lower = trimmed.toLowerCase();

@@ -278,7 +278,7 @@ export function RegisterPage() {
 
     try {
       // Step 1: Register the user in the database (creates bcrypt-hashed password)
-      const registerRes = await fetch('/api/auth', {
+      const registerRes = await fetch('/api/auth-local', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
