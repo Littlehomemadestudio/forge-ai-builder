@@ -1,21 +1,34 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { useAppStore } from '@/lib/store'
+import { isRtl } from '@/lib/i18n'
+import dynamic from 'next/dynamic'
 import {
-  ArrowRight,
-  Check,
-  Code2,
-  Download,
-  Globe2,
-  Hexagon,
-  Layers3,
-  LockKeyhole,
-  Moon,
-  Palette,
-  ShieldCheck,
   Sparkles,
+  Paintbrush,
+  Download,
+  Rocket,
   Sun,
+  Moon,
+  ArrowRight,
+  Zap,
+  Shield,
+  MousePointerClick,
+  Github,
+  Twitter,
+  Linkedin,
+  Hexagon,
+  Eye,
+  LayoutGrid,
+  Globe,
+  TrendingUp,
+  Clock,
+  Users,
+  Star,
+  Play,
+  Palette,
   Wand2,
   Code2,
   Layers,
@@ -26,86 +39,203 @@ import {
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion'
+import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
-import { isRtl } from '@/lib/i18n'
-import { useAppStore } from '@/lib/store'
 import { useTranslation } from '@/lib/useTranslation'
 
-const fadeIn = {
-  initial: { opacity: 0, y: 18 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-80px' },
-  transition: { duration: 0.55, ease: 'easeOut' },
+// Lazy-load heavy interactive components
+const BuilderPlayground = dynamic(() => import('@/components/landing/BuilderPlayground').then(m => ({ default: m.BuilderPlayground })), { ssr: false })
+const ThemePlayground = dynamic(() => import('@/components/landing/ThemePlayground').then(m => ({ default: m.ThemePlayground })), { ssr: false })
+const AIDemo = dynamic(() => import('@/components/landing/AIDemo').then(m => ({ default: m.AIDemo })), { ssr: false })
+
+// ─── Minimal Animation — only 4-5 key moments ────────────────────────
+
+const sectionFadeIn = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 }
 
-const promptSuggestions = [
-  'landing.prompt.saas',
-  'landing.prompt.portfolio',
-  'landing.prompt.restaurant',
-]
+// ─── Animated Counter (kept — deterministic, no Math.random) ──────────
 
-const productPillars = [
-  { icon: Wand2, title: 'landing.pillar.ai.title', desc: 'landing.pillar.ai.desc' },
-  { icon: Palette, title: 'landing.pillar.editor.title', desc: 'landing.pillar.editor.desc' },
-  { icon: Code2, title: 'landing.pillar.export.title', desc: 'landing.pillar.export.desc' },
-  { icon: ShieldCheck, title: 'landing.pillar.production.title', desc: 'landing.pillar.production.desc' },
-]
+function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0)
+  const [triggered, setTriggered] = useState(false)
+  const ref = React.useRef<HTMLSpanElement>(null)
 
-const workflow = [
-  { step: '01', title: 'landing.workflow.describe.title', desc: 'landing.workflow.describe.desc' },
-  { step: '02', title: 'landing.workflow.refine.title', desc: 'landing.workflow.refine.desc' },
-  { step: '03', title: 'landing.workflow.launch.title', desc: 'landing.workflow.launch.desc' },
-]
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !triggered) {
+        setTriggered(true)
+        const startTime = performance.now()
+        const animate = (now: number) => {
+          const elapsed = now - startTime
+          const progress = Math.min(elapsed / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setCount(Math.floor(target * eased))
+          if (progress < 1) requestAnimationFrame(animate)
+        }
+        requestAnimationFrame(animate)
+      }
+    }, { threshold: 0.3 })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [triggered, target, duration])
 
-const proof = [
-  { value: '2.5k+', label: 'landing.proof.sites' },
-  { value: '15k+', label: 'landing.proof.pages' },
-  { value: '99.9%', label: 'landing.proof.uptime' },
-]
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+}
 
-const checklist = [
-  'landing.check.responsive',
-  'landing.check.rtl',
-  'landing.check.export',
-  'landing.check.accessible',
-]
+// ─── Abstract Background — reduced blobs, only used on Hero & CTA ─────
+
+function AbstractBackground({ isDark }: { isDark: boolean }) {
+  const o1 = isDark ? 0.15 : 0.08
+  const o2 = isDark ? 0.10 : 0.05
+  const o3 = isDark ? 0.06 : 0.03
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Blue-to-violet gradient blobs — more prominent */}
+      <div className="absolute top-[10%] left-[5%] w-56 h-56 rounded-full animate-morph" style={{
+        background: `radial-gradient(circle, oklch(0.5 0.25 250 / ${o1}), oklch(0.55 0.3 280 / ${o2}), transparent 70%)`,
+      }} />
+      <div className="absolute bottom-[15%] right-[5%] w-64 h-64 rounded-full animate-morph" style={{
+        background: `radial-gradient(circle, oklch(0.55 0.3 280 / ${o1}), oklch(0.5 0.25 250 / ${o2}), transparent 70%)`,
+        animationDelay: '-3s',
+      }} />
+      <div className="absolute top-[50%] left-[50%] w-48 h-48 rounded-full animate-morph" style={{
+        background: `radial-gradient(circle, oklch(0.55 0.25 270 / ${o3}), transparent 70%)`,
+        animationDelay: '-6s',
+      }} />
+    </div>
+  )
+}
+
+// ─── Accent color constants for each section ──────────────────────────
+
+const ACCENT = {
+  hero: 'primary',       // blue-to-violet (uses gradient overrides)
+  features: 'oklch(0.65 0.2 80)',   // warm amber
+  themePg: 'oklch(0.6 0.2 160)',    // teal/green
+  howItWorks: 'oklch(0.6 0.15 250)', // sky blue
+  aiDemo: 'primary',     // blue-to-violet
+  testimonials: 'oklch(0.65 0.2 350)', // warm rose
+  pricing: 'primary',    // blue-to-violet
+  cta: 'primary',        // blue-to-violet
+}
+
+// ─── Trust logos data ──────────────────────────────────────────────────
+
+const TRUST_LOGOS = ['TechFlow', 'DesignLab', 'CloudNine', 'DataPulse', 'NovaSoft', 'PixelCraft']
+
+// ─── Main Landing Page Component ──────────────────────────────────────
 
 export default function LandingPage() {
-  const navigate = useAppStore((s) => s.navigate)
-  const setBuilderPrompt = useAppStore((s) => s.setBuilderPrompt)
-  const setDashboardTab = useAppStore((s) => s.setDashboardTab)
-  const themeMode = useAppStore((s) => s.themeMode)
-  const setThemeMode = useAppStore((s) => s.setThemeMode)
-  const uiLanguage = useAppStore((s) => s.uiLanguage)
-  const isAuthenticated = useAppStore((s) => s.isAuthenticated)
+  const navigate = useAppStore(s => s.navigate)
+  const setBuilderPrompt = useAppStore(s => s.setBuilderPrompt)
+  const setDashboardTab = useAppStore(s => s.setDashboardTab)
+  const themeMode = useAppStore(s => s.themeMode)
+  const setThemeMode = useAppStore(s => s.setThemeMode)
+  const uiLanguage = useAppStore(s => s.uiLanguage)
+  const isAuthenticated = useAppStore(s => s.isAuthenticated)
   const t = useTranslation()
   const [promptValue, setPromptValue] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isDark = themeMode === 'dark'
   const isRtlMode = isRtl(uiLanguage)
-  const textAlign = isRtlMode ? 'text-right' : 'text-left'
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
   }, [isDark])
 
-  const openBuilder = useCallback((seed?: string) => {
-    const finalPrompt = (seed ?? prompt).trim()
-    if (finalPrompt) setBuilderPrompt(finalPrompt)
-    navigate(isAuthenticated ? 'builder' : 'login')
-  }, [isAuthenticated, navigate, prompt, setBuilderPrompt])
+  const toggleTheme = useCallback(() => {
+    setThemeMode(isDark ? 'light' : 'dark')
+  }, [isDark, setThemeMode])
 
-  const openTemplates = useCallback(() => {
-    setDashboardTab('templates')
-    navigate(isAuthenticated ? 'dashboard' : 'login')
-  }, [isAuthenticated, navigate, setDashboardTab])
+  const handleGenerate = useCallback(() => {
+    if (!promptValue.trim()) return
+    setBuilderPrompt(promptValue)
+    // Check auth before navigating to builder
+    if (!isAuthenticated) {
+      navigate('login')
+      return
+    }
+    navigate('builder')
+  }, [promptValue, setBuilderPrompt, navigate, isAuthenticated])
 
-  const localizedSuggestions = useMemo(() => promptSuggestions.map((key) => t(key)), [t])
+  const handleGetStarted = useCallback(() => {
+    // Check auth before navigating to builder
+    if (!isAuthenticated) {
+      navigate('login')
+      return
+    }
+    navigate('builder')
+  }, [navigate, isAuthenticated])
+
+  // Stats — more startup-realistic
+  const localizedStats = [
+    { value: 2500, suffix: '+', label: t('stats.sitesBuilt'), icon: Globe },
+    { value: 15000, suffix: '+', label: t('stats.pagesGenerated'), icon: LayoutGrid },
+    { value: 99, suffix: '.9%', label: t('stats.uptime'), icon: Shield },
+    { value: 50, suffix: '+', label: t('stats.countries'), icon: Users },
+  ]
+
+  // Features — amber accent
+  const localizedFeatures = [
+    { icon: Sparkles, titleKey: 'features.ai.title', descKey: 'features.ai.desc' },
+    { icon: Paintbrush, titleKey: 'features.editor.title', descKey: 'features.editor.desc' },
+    { icon: Download, titleKey: 'features.export.title', descKey: 'features.export.desc' },
+    { icon: Rocket, titleKey: 'features.deploy.title', descKey: 'features.deploy.desc' },
+  ]
+
+  // Steps — sky blue accent
+  const localizedSteps = [
+    { number: '1', titleKey: 'how.step1.title', descKey: 'how.step1.desc', icon: MousePointerClick, bullets: [{ icon: Monitor, key: 'how.step1.bullet1' }, { icon: Smartphone, key: 'how.step1.bullet2' }] },
+    { number: '2', titleKey: 'how.step2.title', descKey: 'how.step2.desc', icon: Zap, bullets: [{ icon: Code2, key: 'how.step2.bullet1' }, { icon: Layers, key: 'how.step2.bullet2' }] },
+    { number: '3', titleKey: 'how.step3.title', descKey: 'how.step3.desc', icon: Rocket, bullets: [{ icon: Download, key: 'how.step3.bullet1' }, { icon: Rocket, key: 'how.step3.bullet2' }] },
+  ]
+
+  // Testimonials — rose accent, middle featured
+  const localizedTestimonials = [
+    { id: '1', avatar: 'SC', metricIcon: Clock },
+    { id: '2', avatar: 'MR', metricIcon: TrendingUp, featured: true },
+    { id: '3', avatar: 'AP', metricIcon: Globe },
+  ]
+
+  // Pricing tiers
+  const pricingTiers = [
+    { key: 'free', features: ['pricing.free.f1', 'pricing.free.f2', 'pricing.free.f3'] },
+    { key: 'pro', features: ['pricing.pro.f1', 'pricing.pro.f2', 'pricing.pro.f3', 'pricing.pro.f4'], highlighted: true },
+    { key: 'enterprise', features: ['pricing.enterprise.f1', 'pricing.enterprise.f2', 'pricing.enterprise.f3', 'pricing.enterprise.f4'] },
+  ]
+
+  // Suggestion pills
+  const localizedPills = [
+    t('hero.suggestion.saas'),
+    t('hero.suggestion.portfolio'),
+    t('hero.suggestion.restaurant'),
+    t('hero.suggestion.ecommerce'),
+  ]
+
+  // Helper for section accent color (non-purple)
+  const accentBg = (color: string, opacity: number) => `${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`
+  const accentBorder = (color: string, opacity: number) => `${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`
+
+  const textAlignClass = isRtlMode ? 'text-right' : 'text-left'
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-foreground focus:px-4 focus:py-2 focus:text-xs focus:text-background">
-        {t('landing.skip')}
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      {/* ─── Skip to content ────────────────────────────────────────── */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md focus:text-sm">
+        Skip to content
       </a>
 
       {/* ─── Navbar ────────────────────────────────────────────────── */}
@@ -146,8 +276,6 @@ export default function LandingPage() {
             >
               {t('nav.getStarted')}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('login')} className="hidden rounded-full text-xs sm:inline-flex">{t('nav.signin')}</Button>
-            <Button size="sm" onClick={() => openBuilder()} className="rounded-full px-4 text-xs">{t('nav.getStarted')}</Button>
           </div>
           {/* Mobile: hamburger + theme toggle */}
           <div className="flex sm:hidden items-center gap-2">
@@ -216,23 +344,21 @@ export default function LandingPage() {
                 <Sparkles className="w-3 h-3 me-1" /> {t('hero.badge')}
               </Badge>
 
-              <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-7xl">
-                {t('landing.hero.title')}
+              {/* One-line headline */}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mt-6">
+                {t('hero.title.pre')} <span className="gradient-text">{t('hero.title.highlight')}</span>
               </h1>
-              <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                {t('landing.hero.subtitle')}
-              </p>
 
               {/* Professional prompt input — centered, full width */}
               <div className="mt-8 w-full">
                 <div className={`flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/60 shadow-xl shadow-blue-500/5 transition-all duration-300 focus-within:border-blue-500/40 focus-within:shadow-blue-500/10 ${isRtlMode ? 'rtl:flex-row-reverse' : ''}`}>
                   <Sparkles className="w-5 h-5 text-violet-500 shrink-0" />
                   <input
-                    value={prompt}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    onKeyDown={(event) => event.key === 'Enter' && openBuilder()}
-                    placeholder={t('landing.hero.placeholder')}
-                    className={`min-h-12 flex-1 rounded-[1.45rem] bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground/60 ${textAlign}`}
+                    value={promptValue}
+                    onChange={(e) => setPromptValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                    placeholder={t('hero.placeholder')}
+                    className="flex-1 bg-transparent text-foreground text-sm placeholder:text-muted-foreground/60 px-2 py-2 outline-none min-w-0"
                   />
                   <Button
                     onClick={handleGenerate}
@@ -254,47 +380,52 @@ export default function LandingPage() {
                     onClick={() => { setPromptValue(pill); setBuilderPrompt(pill); if (!isAuthenticated) { navigate('login'); return; } navigate('builder') }}
                     className="text-[11px] text-muted-foreground px-4 py-2.5 rounded-full bg-secondary/50 border border-border/50 hover:border-blue-500/30 hover:text-violet-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
-                    {item}
-                  </button>
+                    {pill}
+                  </motion.button>
                 ))}
               </div>
             </motion.div>
+          </div>
 
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, ease: 'easeOut' }} className="relative">
-              <div className="rounded-[2rem] border border-border bg-card p-3 shadow-2xl shadow-primary/10">
-                <div className="rounded-[1.5rem] border border-border bg-background p-4">
-                  <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          {/* Full quality hero image below the prompt */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.5 }}
+            className="relative z-10 max-w-4xl mx-auto px-6 mt-10"
+          >
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-blue-500/10">
+              <div className="absolute inset-0 rounded-2xl p-[2px] bg-gradient-to-br from-blue-500/30 via-violet-500/30 to-blue-500/15 pointer-events-none" />
+              <div className="relative bg-card/90 backdrop-blur-sm flex items-center gap-2 px-4 py-2.5 border-b border-border/50">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[oklch(0.65_0.2_80_/_60%)]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[oklch(0.6_0.2_160_/_60%)]" />
+                </div>
+                <div className="flex-1 h-5 rounded-md bg-secondary flex items-center px-2">
+                  <span className="text-[8px] text-muted-foreground font-mono" dir="ltr">{t('hero.preview.getUrl')}</span>
+                </div>
+              </div>
+              <div className="relative bg-card overflow-hidden rounded-xl">
+                {/* Gradient placeholder for hero preview — no external image needed */}
+                <div className="w-full aspect-[3/2] bg-gradient-to-br from-violet-600/20 via-blue-500/10 to-indigo-600/20 flex items-center justify-center">
+                  <div className="text-center p-8">
+                    <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2 mb-4">
+                      <div className="h-3 w-3 rounded-full bg-emerald-400" />
+                      <span className="text-sm font-medium text-white/80">AI Generated Preview</span>
                     </div>
-                    <span className="rounded-full bg-muted px-3 py-1 text-[10px] text-muted-foreground" dir="ltr">forge.site/preview</span>
-                  </div>
-
-                  <div className={`grid gap-4 ${isRtlMode ? 'text-right' : 'text-left'}`}>
-                    <div className="rounded-3xl bg-foreground p-6 text-background">
-                      <div className="mb-16 flex items-center justify-between text-[10px] uppercase tracking-[0.3em] opacity-70">
-                        <span>{t('landing.preview.brand')}</span>
-                        <span>{t('landing.preview.status')}</span>
+                    <div className="space-y-2 max-w-md mx-auto">
+                      <div className="h-4 bg-white/10 rounded w-3/4 mx-auto" />
+                      <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
+                      <div className="grid grid-cols-3 gap-2 mt-4">
+                        <div className="h-12 bg-white/5 rounded" />
+                        <div className="h-12 bg-white/5 rounded" />
+                        <div className="h-12 bg-white/5 rounded" />
                       </div>
-                      <h2 className="max-w-sm text-3xl font-semibold tracking-tight">{t('landing.preview.title')}</h2>
-                      <div className="mt-5 flex gap-2">
-                        <span className="h-9 w-24 rounded-full bg-background" />
-                        <span className="h-9 w-9 rounded-full border border-background/30" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[Layers3, Zap, LockKeyhole].map((Icon, index) => (
-                        <div key={index} className="rounded-2xl border border-border bg-muted/40 p-4">
-                          <Icon className="mb-7 h-4 w-4 text-primary" />
-                          <div className="h-2 rounded bg-foreground/20" />
-                          <div className="mt-2 h-2 w-2/3 rounded bg-foreground/10" />
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-500/8 via-transparent to-violet-500/5 pointer-events-none" />
               </div>
               <div className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 shadow-lg shadow-violet-500/30 animate-pulse" />
               <div className="absolute -bottom-2 -left-2 w-4 h-4 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 shadow-md shadow-blue-500/20 animate-pulse" style={{ animationDelay: '-1.5s' }} />
@@ -330,81 +461,276 @@ export default function LandingPage() {
                     <Icon className="w-4 h-4 text-violet-500" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium">{t('landing.preview.compat')}</p>
-                    <p className="text-[10px] text-muted-foreground">{t('landing.preview.compatDesc')}</p>
+                    <div className="text-lg sm:text-xl font-bold text-foreground">
+                      <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">{stat.label}</div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
+              )
+            })}
           </div>
         </section>
 
-        <section className="border-y border-border bg-muted/25 px-5 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-3">
-            {proof.map((item) => (
-              <div key={item.label} className="text-center">
-                <div className="text-2xl font-semibold tracking-tight">{item.value}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{t(item.label)}</div>
+        {/* ─── Builder Playground ──────────────────────────────────── */}
+        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
+          <div className="relative z-10 max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+              {/* Left: Heading (2 cols) */}
+              <motion.div
+                {...sectionFadeIn}
+                viewport={{ once: true, margin: '-50px' }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className={`lg:col-span-2 ${textAlignClass}`}
+              >
+                <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
+                  <MousePointerClick className="w-3 h-3 me-1" /> {t('playground.badge')}
+                </Badge>
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                  {t('playground.title.pre')}{' '}
+                  <span className="gradient-text">{t('playground.title.highlight')}</span>
+                </h2>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  {t('playground.subtitle')}
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center">
+                    <Layers className="w-2.5 h-2.5 text-violet-500" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{t('playground.blocks')}</span>
+                </div>
+              </motion.div>
+
+              {/* Right: Playground (3 cols) */}
+              <div className="lg:col-span-3">
+                <BuilderPlayground isDark={isDark} />
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="mx-auto max-w-7xl">
-            <motion.div {...fadeIn} className={`mb-12 max-w-2xl ${textAlign}`}>
-              <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary">{t('landing.section.product')}</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{t('landing.product.title')}</h2>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground">{t('landing.product.subtitle')}</p>
-            </motion.div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {productPillars.map(({ icon: Icon, title, desc }) => (
-                <motion.div key={title} {...fadeIn} className={`rounded-[1.5rem] border border-border bg-card p-6 shadow-sm ${textAlign}`}>
-                  <span className="mb-8 grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="text-base font-semibold">{t(title)}</h3>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{t(desc)}</p>
-                </motion.div>
-              ))}
             </div>
           </div>
         </section>
 
-        <section className="bg-foreground px-5 py-20 text-background sm:px-6 lg:px-8 lg:py-28">
-          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-            <motion.div {...fadeIn} className={textAlign}>
-              <p className="text-xs font-medium uppercase tracking-[0.28em] text-background/60">{t('landing.section.workflow')}</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{t('landing.workflow.title')}</h2>
-              <p className="mt-4 text-sm leading-7 text-background/65">{t('landing.workflow.subtitle')}</p>
+        {/* ─── Blue-to-Violet Accent Divider ──────────────────────── */}
+        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
+        <div className="h-px bg-gradient-to-l from-transparent via-violet-500/30 to-transparent -mt-px" />
+
+        {/* ─── Features Section — warm amber accent ──────────────── */}
+        <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
+          <div className="relative z-10 max-w-7xl mx-auto px-6">
+            {/* Section header */}
+            <motion.div
+              {...sectionFadeIn}
+              viewport={{ once: true, margin: '-50px' }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className={`${textAlignClass} mb-10`}
+            >
+              <Badge className="text-[10px] mb-3" style={{ background: `${ACCENT.features}15`, color: ACCENT.features, borderColor: `${ACCENT.features}25` }}>
+                <Zap className="w-3 h-3 me-1" /> {t('features.badge')}
+              </Badge>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                {t('features.title.pre')}{' '}
+                <span style={{ color: ACCENT.features }}>{t('features.title.highlight')}</span>
+              </h2>
+              <p className="text-xs text-muted-foreground max-w-md">
+                {t('features.subtitle')}
+              </p>
             </motion.div>
-            <div className="grid gap-3">
-              {workflow.map((item) => (
-                <motion.div key={item.step} {...fadeIn} className={`rounded-[1.5rem] border border-background/10 bg-background/[0.06] p-5 ${textAlign}`}>
-                  <div className={`flex gap-5 ${isRtlMode ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-sm font-mono text-background/45">{item.step}</span>
-                    <div>
-                      <h3 className="font-semibold">{t(item.title)}</h3>
-                      <p className="mt-2 text-sm leading-6 text-background/65">{t(item.desc)}</p>
+
+            {/* Features grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl">
+              {localizedFeatures.map((feature) => {
+                const Icon = feature.icon
+                return (
+                  <Card key={feature.titleKey} className="group relative overflow-hidden border-border/50 hover:border-blue-500/20 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5">
+                    <CardContent className="relative z-10 p-5">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
+                          style={{ background: `${ACCENT.features}15`, border: `1px solid ${ACCENT.features}25` }}
+                        >
+                          <Icon className="w-4 h-4" style={{ color: ACCENT.features }} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground mb-1">{t(feature.titleKey)}</h3>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t(feature.descKey)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                    {/* Blue-to-violet gradient accent line at bottom on hover */}
+                    <div className="absolute bottom-0 inset-x-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-blue-500 to-violet-500" />
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Theme Playground — teal/green accent ─────────────── */}
+        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
+          <div className="relative z-10 max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+              {/* Left: Playground (3 cols) */}
+              <div className="lg:col-span-3 order-2 lg:order-1">
+                <ThemePlayground isDark={isDark} />
+              </div>
+
+              {/* Right: Heading (2 cols) */}
+              <motion.div
+                {...sectionFadeIn}
+                viewport={{ once: true, margin: '-50px' }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className={`lg:col-span-2 order-1 lg:order-2 ${textAlignClass} lg:text-right`}
+              >
+                <Badge className="text-[10px] mb-3" style={{ background: `${ACCENT.themePg}15`, color: ACCENT.themePg, borderColor: `${ACCENT.themePg}25` }}>
+                  <Palette className="w-3 h-3 me-1" /> {t('themepg.badge')}
+                </Badge>
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                  {t('themepg.title.pre')}{' '}
+                  <span style={{ color: ACCENT.themePg }}>{t('themepg.title.highlight')}</span>
+                </h2>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  {t('themepg.subtitle')}
+                </p>
+                <div className={`mt-4 flex gap-2 ${textAlignClass === 'text-right' ? 'lg:justify-start' : 'lg:justify-end'}`}>
+                  <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: `${ACCENT.themePg}15` }}>
+                    <Palette className="w-2.5 h-2.5" style={{ color: ACCENT.themePg }} />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{t('themepg.presetsHint')}</span>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── How It Works — sky blue accent ─────────────────── */}
+        <section className="relative py-16 md:py-24 lg:py-28 bg-background overflow-hidden">
+          {/* Blue-to-violet gradient top border */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/20 to-blue-500/30" />
+          {/* Subtle gradient wash */}
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/3 via-transparent to-transparent pointer-events-none" />
+
+          <div className="relative z-10 max-w-7xl mx-auto px-6">
+            <motion.div
+              {...sectionFadeIn}
+              viewport={{ once: true, margin: '-50px' }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className={`${textAlignClass} mb-10`}
+            >
+              <Badge className="text-[10px] mb-3" style={{ background: `${ACCENT.howItWorks}15`, color: ACCENT.howItWorks, borderColor: `${ACCENT.howItWorks}25` }}>
+                <ArrowRight className="w-3 h-3 me-1 rtl-flip-x" /> {t('how.badge')}
+              </Badge>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                {t('how.title.pre')}{' '}
+                <span style={{ color: ACCENT.howItWorks }}>{t('how.title.highlight')}</span>
+              </h2>
+            </motion.div>
+
+            <div className="space-y-8">
+              {localizedSteps.map((step, i) => {
+                const Icon = step.icon
+                const isEven = i % 2 === 0
+                return (
+                  <div key={step.number} className={`grid grid-cols-1 md:grid-cols-2 gap-6 items-center ${!isEven ? 'rtl:[direction:rtl]' : ''}`}>
+                    {/* Visual side */}
+                    <div className={`${!isEven ? 'rtl:[direction:ltr]' : ''}`}>
+                      <div className={`relative rounded-2xl border border-border bg-card p-6 ${isEven ? 'md:ms-8 rtl:me-8 rtl:ms-0' : 'md:me-8 rtl:ms-8 rtl:me-0'}`}>
+                        <div className={`absolute -top-3 ${isRtlMode ? '-right-3' : '-left-3'} w-8 h-8 rounded-full text-white text-sm font-bold flex items-center justify-center shadow-lg shadow-[oklch(0.6_0.15_250)_/_30]`} style={{ background: ACCENT.howItWorks }}>
+                          {step.number}
+                        </div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${ACCENT.howItWorks}15` }}>
+                            <Icon className="w-5 h-5" style={{ color: ACCENT.howItWorks }} />
+                          </div>
+                          <h3 className="text-sm font-bold text-foreground">{t(step.titleKey)}</h3>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{t(step.descKey)}</p>
+                      </div>
+                    </div>
+                    {/* Text side */}
+                    <div className={`${!isEven ? 'rtl:[direction:ltr]' : ''}`}>
+                      <div className={`flex flex-col gap-2 ${isEven ? 'md:justify-end rtl:md:justify-start' : 'md:justify-start rtl:md:justify-end'}`}>
+                        {step.bullets.map((b) => {
+                          const BIcon = b.icon
+                          return (
+                            <div key={b.key} className="flex items-center gap-2">
+                              <BIcon className="w-4 h-4" style={{ color: ACCENT.howItWorks }} />
+                              <span className="text-[10px] text-muted-foreground">{t(b.key)}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </section>
 
-        <section id="pricing" className="px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_0.85fr] lg:items-center">
-            <motion.div {...fadeIn} className={textAlign}>
-              <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary">{t('landing.section.ready')}</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">{t('landing.ready.title')}</h2>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground">{t('landing.ready.subtitle')}</p>
-              <div className={`mt-7 flex flex-wrap gap-3 ${isRtlMode ? 'justify-end' : ''}`}>
-                <Button onClick={() => openBuilder()} className="rounded-full px-6">{t('cta.primary')}<ArrowRight className="ms-2 h-4 w-4 rtl-flip-x" /></Button>
-                <Button variant="outline" onClick={openTemplates} className="rounded-full px-6">{t('nav.templates')}</Button>
+        {/* ─── AI Demo — blue-to-violet gradient accent ─────────── */}
+        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden bg-background">
+          {/* Blue-to-violet gradient top border */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-violet-500/30 to-blue-500/30" />
+          {/* Gradient wash */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-violet-500/5 to-blue-500/3 pointer-events-none" />
+
+          <div className="relative z-10 max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+              {/* Left: Heading (2 cols) */}
+              <motion.div
+                {...sectionFadeIn}
+                viewport={{ once: true, margin: '-50px' }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className={`lg:col-span-2 ${textAlignClass}`}
+              >
+                <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
+                  <Wand2 className="w-3 h-3 me-1" /> {t('aidemo.badge')}
+                </Badge>
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                  {t('aidemo.title.pre')}{' '}
+                  <span className="gradient-text">{t('aidemo.title.highlight')}</span>
+                </h2>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  {t('aidemo.subtitle')}
+                </p>
+                <div className="mt-4 flex items-center gap-2">
+                  <Play className="w-4 h-4 text-violet-500" />
+                  <span className="text-[10px] text-muted-foreground">{t('aidemo.hint')}</span>
+                </div>
+              </motion.div>
+
+              {/* Right: Demo (3 cols) */}
+              <div className="lg:col-span-3">
+                <AIDemo isDark={isDark} />
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Testimonials — decorative gradient background ──────── */}
+        <section className="relative py-16 md:py-24 lg:py-28 overflow-hidden">
+          {/* Gradient background instead of missing image */}
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-blue-500/5 to-indigo-600/10" />
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/85 to-background/90" />
+          {/* Blue-to-violet gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/8 via-violet-500/5 to-blue-500/8" />
+          {/* Blue-to-violet gradient band at top */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500/20 via-violet-500/30 to-blue-500/20 z-10" />
+
+          <div className="relative z-10 max-w-7xl mx-auto px-6">
+            <motion.div
+              {...sectionFadeIn}
+              viewport={{ once: true, margin: '-50px' }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className={`${textAlignClass} mb-10`}
+            >
+              <Badge className="text-[10px] mb-3 bg-gradient-to-r from-blue-500/10 to-violet-500/10 text-violet-500 border-violet-500/20 border">
+                <Star className="w-3 h-3 me-1" /> {t('testimonials.badge')}
+              </Badge>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+                {t('testimonials.title.pre')}{' '}
+                <span className="gradient-text">{t('testimonials.title.highlight')}</span>
+              </h2>
             </motion.div>
 
             {/* Testimonial cards */}
@@ -591,18 +917,23 @@ export default function LandingPage() {
                   </Button>
                 </motion.div>
               </div>
-              <ul className="space-y-3">
-                {checklist.map((key) => (
-                  <li key={key} className={`flex items-center gap-3 text-sm ${isRtlMode ? 'flex-row-reverse text-right' : ''}`}>
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/10 text-primary"><Check className="h-3.5 w-3.5" /></span>
-                    <span>{t(key)}</span>
-                  </li>
-                ))}
-              </ul>
             </motion.div>
           </div>
         </section>
-      </main>
+      </div>
+
+      {/* ─── Footer — with decorative gradient background ──────── */}
+      <footer className="mt-auto relative overflow-hidden border-t border-border">
+        {/* Gradient background instead of missing image */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/8 via-violet-500/5 to-indigo-600/8" />
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/95" />
+        {/* Blue-to-violet gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-violet-500/3 to-blue-500/5" />
+
+        {/* Blue-to-violet accent line above footer */}
+        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent relative z-10" />
+        <div className="h-px bg-gradient-to-l from-transparent via-violet-500/15 to-transparent -mt-px relative z-10" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
           <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6 ${isRtlMode ? 'rtl:text-right' : ''}`}>
