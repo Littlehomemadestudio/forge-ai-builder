@@ -178,7 +178,8 @@ export function DashboardPage() {
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([])
 
   // ─── Data fetching ────────────────────────────────────────────────────────
-  const userId = user?.id || 'demo-user'
+     // Resolve the current authenticated user — never trust a client-supplied id.
+  const sessionUserId = user?.id || null
 
   const buildActivity = (list: ProjectData[]): ActivityItem[] =>
     list.flatMap((p: ProjectData) => [
@@ -212,22 +213,25 @@ export function DashboardPage() {
     }
 
     try {
+      // 2) Fetch from the server. We do NOT pass a client-supplied userId — the
+      //    backend resolves the user from the NextAuth session cookie so a stale
+      //    or fake id can never trigger 401/404 network errors.
       const [projRes, userRes] = await Promise.all([
-        fetch(`/api/projects?userId=${userId}`),
-        fetch(`/api/user?userId=${userId}`),
+        fetch(`/api/projects`),
+        fetch(`/api/user`),
       ])
-      if (!projRes.ok || !userRes.ok) throw new Error('Fetch failed')
-      const projData = await projRes.json()
-      const userDataResp = await userRes.json()
+      // Treat 401 (not authenticated) as "no data" rather than a hard failure.
+      const projData = projRes.ok ? await projRes.json() : { projects: [] }
+      const userDataResp = userRes.ok ? await userRes.json() : { user: null }
       const freshProjects = projData.projects || []
       const freshUser = userDataResp.user || null
       setProjects(freshProjects)
       setUserData(freshUser)
       setActivityItems(buildActivity(freshProjects))
-      // 2) Persist the freshest valid snapshot so a later reload / offline still works.
+      // 3) Persist the freshest valid snapshot so a later reload / offline still works.
       writeLocal(DATA_CACHE_KEY, { projects: freshProjects, user: freshUser })
     } catch {
-      // 3) Server failed (network, user not found, …). The local cache (if any) is
+      // 4) Server failed (network, etc.). The local cache (if any) is
       //    already applied above, so the site still opens with previous data. Only
       //    surface an error when there is truly nothing to show.
       if (!cached) {
@@ -236,7 +240,7 @@ export function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [t, userId])
+  }, [t])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -265,7 +269,6 @@ export function DashboardPage() {
           description: newDescription.trim() || null,
           industry: newIndustry || null,
           theme: newTheme,
-          userId,
         }),
       })
       if (!res.ok) throw new Error('Create failed')
@@ -284,8 +287,8 @@ export function DashboardPage() {
         message: `Created "${data.project.name}"`,
         timestamp: Date.now(),
       }, ...prev])
-      // Refresh user data to update project count
-      const userRes = await fetch(`/api/user?userId=${userId}`)
+            // Refresh user data to update project count (session-resolved server-side)
+      const userRes = await fetch(`/api/user`)
       if (userRes.ok) {
         const ud = await userRes.json()
         setUserData(ud.user || null)
@@ -311,7 +314,7 @@ export function DashboardPage() {
         timestamp: Date.now(),
       }, ...prev])
       setDeleteTarget(null)
-      const userRes = await fetch(`/api/user?userId=${userId}`)
+            const userRes = await fetch(`/api/user`)
       if (userRes.ok) {
         const ud = await userRes.json()
         setUserData(ud.user || null)

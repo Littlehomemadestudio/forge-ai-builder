@@ -2275,10 +2275,10 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
     currentPreviewPage, setCurrentPreviewPage,
     setBuilderPhase, builderPrompt,
     navigate, addProject,
-    builderIndustry, builderStyle,
+        builderIndustry, builderStyle,
     builderAdvancedOptions,
     builderMode, selectedTemplateHtml,
-    addChatEntry,
+    addChatEntry, setGeneratedPages,
   } = useAppStore()
   const t = useTranslation()
 
@@ -2390,8 +2390,30 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
     setBuilderPhase('prompt')
   }
 
-  const handleEdit = () => {
+    const handleEdit = () => {
     if (!currentPage) return
+    // When editing a ready-made template, make sure its HTML is loaded into
+    // generatedPages so the editor finds it by currentPreviewPage instead of
+    // falling back to a generic default site.
+    if (isTemplateMode && selectedTemplateHtml) {
+      setGeneratedPages([{
+        id: 'template',
+        name: t('builder.template'),
+        route: '/',
+        html: selectedTemplateHtml,
+        css: '',
+        js: '',
+        status: 'draft',
+        theme: 'light',
+        framework: 'nextjs',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        thumbnail: null,
+        description: null,
+        prompt: null,
+        industry: null,
+      }])
+    }
     setCurrentPreviewPage(currentPage.id)
     navigate('editor')
   }
