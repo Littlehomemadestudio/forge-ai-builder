@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { COLORS, ANIMATION, ACCESSIBILITY, SHADOWS } from './design-tokens'
+import { COLORS, SPACING, ANIMATION, ACCESSIBILITY, SHADOWS } from './design-tokens'
 import { useAccessibility } from './AccessibilityContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -55,7 +55,7 @@ export function VisualEditorLayout({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: `0 ${COLORS.spacing.lg}`,
+              padding: `0 ${SPACING.lg}`,
               backgroundColor: COLORS.panel,
               borderBottom: `1px solid ${COLORS.border}`,
               zIndex: 200,
@@ -75,10 +75,10 @@ export function VisualEditorLayout({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: `${COLORS.spacing.lg} ${COLORS.spacing.sm}`,
+              padding: `${SPACING.lg} ${SPACING.sm}`,
               backgroundColor: COLORS.panel,
               borderRight: `1px solid ${COLORS.border}`,
-              gap: COLORS.spacing.md,
+              gap: SPACING.md,
               overflowY: 'auto',
               zIndex: 150,
             }}
@@ -241,7 +241,7 @@ export function EditorPanel({
     return (
       <div
         style={{
-          padding: COLORS.spacing.lg,
+          padding: SPACING.lg,
           borderBottom: `1px solid ${COLORS.border}`,
         }}
       >
@@ -251,7 +251,7 @@ export function EditorPanel({
               fontSize: '13px',
               fontWeight: 600,
               color: COLORS.text,
-              marginBottom: COLORS.spacing.md,
+              marginBottom: SPACING.md,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
             }}
@@ -277,7 +277,7 @@ export function EditorPanel({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: `${COLORS.spacing.md} ${COLORS.spacing.lg}`,
+          padding: `${SPACING.md} ${SPACING.lg}`,
           backgroundColor: 'transparent',
           border: 'none',
           cursor: 'pointer',
@@ -307,7 +307,7 @@ export function EditorPanel({
             transition={{ duration: reduceMotion ? 0 : 0.15 }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: `0 ${COLORS.spacing.lg} ${COLORS.spacing.lg}` }}>
+            <div style={{ padding: `0 ${SPACING.lg} ${SPACING.lg}` }}>
               {children}
             </div>
           </motion.div>
