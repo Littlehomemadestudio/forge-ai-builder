@@ -627,20 +627,18 @@ export function RegisterPage() {
                   ) : null}
                   {isLoading ? 'Creating account...' : 'Create account'}
                 </Button>
-              </motion.form>
 
-              {/* Footer link */}
-              <motion.div variants={fadeInUp} className="mt-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Already have an account?{' '}
+                {/* Already have an account link */}
+                <div className="text-center mt-3">
                   <button
+                    type="button"
                     onClick={() => navigate('login')}
-                    className="text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
+                    className="min-h-[44px] inline-flex items-center px-2 text-xs text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
-                    Sign in
+                    Already have an account? Sign in
                   </button>
-                </p>
-              </motion.div>
+                </div>
+              </motion.form>
             </div>
 
             {/* ── Divider (visible on md+) ────────────── */}

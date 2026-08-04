@@ -205,52 +205,61 @@ export function LoginPage() {
 
     setIsLoading(true)
 
-    // Use NextAuth credentials provider for real auth
-    // Note: the field name is "identifier" — it matches the key defined in
-    // CredentialsProvider.credentials in src/lib/auth.ts. Using "email" here
-    // would silently send undefined to authorize() and always return 401.
-    const result = await signIn('credentials', {
-      identifier: email.trim(),
-      password,
-      redirect: false,
-    })
-
-    if (result?.error) {
-      setError('Invalid email or password. Try again or use Google sign-in.')
-      setIsLoading(false)
-      return
-    }
-
-    // If successful, the session will be picked up by the AuthProvider/useSession
-    // The AppRouter useEffect will sync it to the store and redirect
-    // But as a fallback, we can also manually set it
+    // First try to login via the local API to verify credentials
     try {
-      const res = await fetch(`/api/user?userIdByEmail=${encodeURIComponent(email.trim())}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.user) {
-          login({
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            avatarUrl: data.user.avatarUrl,
-            aiCredits: data.user.aiCredits,
-            plan: data.user.plan,
-          })
-          navigate('dashboard')
-        }
+      const loginRes = await fetch('/api/auth-local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'login',
+          identifier: email.trim(),
+          password,
+        }),
+      })
+
+      const loginData = await loginRes.json()
+
+      if (!loginRes.ok) {
+        setError(loginData.error || 'Invalid email or password. Try again.')
+        setIsLoading(false)
+        return
       }
-    } catch {
-      // Fallback: just navigate, session sync will handle it
+
+      // Login successful - now sign in via NextAuth to create session cookie
+      const result = await signIn('credentials', {
+        identifier: email.trim(),
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError('Sign-in failed. Please try again.')
+        setIsLoading(false)
+        return
+      }
+
+      // Update store with user data
+      login({
+        id: loginData.user.id,
+        email: loginData.user.email,
+        name: loginData.user.name,
+        avatarUrl: loginData.user.avatarUrl,
+        aiCredits: loginData.user.aiCredits,
+        plan: loginData.user.plan,
+      })
+
+      toast({
+        title: 'Welcome back',
+        description: 'You\'ve successfully signed in to Forge.',
+      })
+
       navigate('dashboard')
+    } catch (err) {
+      console.error('Login error:', err)
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
-
-    toast({
-      title: 'Welcome back',
-      description: 'You\'ve successfully signed in to Forge.',
-    })
-
-    setIsLoading(false)
   }
 
   const handleGoogleLogin = async () => {
@@ -393,14 +402,21 @@ export function LoginPage() {
                   </div>
                 </div>
 
-                {/* Forgot password */}
-                <div className="flex justify-end">
+                {/* Forgot password + Sign up link */}
+                <div className="flex justify-between items-center">
                   <button
                     type="button"
                     onClick={() => navigate('forgot-password')}
                     className="min-h-[44px] inline-flex items-center px-2 text-xs text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
                     Forgot password?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('register')}
+                    className="min-h-[44px] inline-flex items-center px-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors duration-200"
+                  >
+                    Don't have an account? Sign up
                   </button>
                 </div>
 
@@ -418,19 +434,6 @@ export function LoginPage() {
                   {isLoading ? 'Signing in...' : 'Sign in'}
                 </Button>
               </motion.form>
-
-              {/* Footer link */}
-              <motion.div variants={fadeInUp} className="mt-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Don&apos;t have an account?{' '}
-                  <button
-                    onClick={() => navigate('register')}
-                    className="min-h-[44px] inline-flex items-center px-2 text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
-                  >
-                    Sign up
-                  </button>
-                </p>
-              </motion.div>
             </div>
 
             {/* ── Divider (visible on md+) ────────────── */}
