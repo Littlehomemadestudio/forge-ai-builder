@@ -907,7 +907,7 @@ function EmptyState() {
   )
 }
 
-import { COLORS, RADIUS, SPACING, ANIMATION } from './design-tokens'
+import { COLORS, RADIUS, SPACING, ANIMATION, SHADOWS } from './design-tokens'
 
 // Icon components
 function LayoutIcon({ size }: { size: number }) {
@@ -937,12 +937,6 @@ function MousePointer2({ size }: { size: number }) {
       <path d="m12 19 7-7 3 3V5H2v10l3-3 7 7Z" />
     </svg>
   )
-}
-
-const SHADOWS = {
-  sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-  lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
 }
 
 // Main exported component
