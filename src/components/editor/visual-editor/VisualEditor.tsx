@@ -907,8 +907,6 @@ function EmptyState() {
   )
 }
 
-import { COLORS, RADIUS, SPACING, ANIMATION, SHADOWS } from './design-tokens'
-
 // Icon components
 function LayoutIcon({ size }: { size: number }) {
   return (
