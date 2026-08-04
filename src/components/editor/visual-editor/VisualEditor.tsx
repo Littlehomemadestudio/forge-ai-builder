@@ -25,6 +25,7 @@ import {
   COLORS,
   RADIUS,
   SPACING,
+  ANIMATION,
 } from './index'
 import {
   Monitor, Smartphone, Tablet, Undo2, Redo2, Save, Download, 
