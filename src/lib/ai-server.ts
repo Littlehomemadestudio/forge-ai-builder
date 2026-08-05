@@ -2,9 +2,8 @@
  * Cerebras Cloud SDK — AI provider for the app.
  *
  * All AI text features (page generation, editor suggestions) are routed through
- * the Cerebras Inference API (https://api.cerebras.ai/v1), which is
- * OpenAI-compatible. Requests STREAM token-by-token so answers appear
- * incrementally instead of arriving all at once.
+ * the Cerebras Inference API using the official @cerebras/cerebras_cloud_sdk.
+ * Requests STREAM token-by-token so answers appear incrementally.
  *
  * Configuration:
  *   - CEREBRAS_API_KEY  (required) — your Cerebras API key
@@ -14,6 +13,8 @@
  * Cerebras does not provide an image-generation endpoint, so image features use
  * the curated library / SVG placeholder fallback (see industry/image-provider).
  */
+
+import Cerebras from '@cerebras/cerebras_cloud_sdk';
 
 export interface AiConfig {
   baseUrl: string;
@@ -29,6 +30,7 @@ export interface AiAvailability {
 
 let _cachedConfig: AiConfig | null = null;
 let _cachedCheck: AiAvailability | null = null;
+let _cachedClient: Cerebras | null = null;
 
 const DEFAULT_BASE_URL = 'https://api.cerebras.ai/v1';
 const DEFAULT_MODEL = 'gpt-oss-120b';
@@ -52,6 +54,21 @@ export async function loadAiConfig(): Promise<AiConfig | null> {
     model: process.env.CEREBRAS_MODEL?.trim() || DEFAULT_MODEL,
   };
   return _cachedConfig;
+}
+
+/**
+ * Get or create the Cerebras SDK client singleton.
+ */
+export async function getCerebrasClient(): Promise<Cerebras | null> {
+  if (_cachedClient) return _cachedClient;
+
+  const config = await loadAiConfig();
+  if (!config) return null;
+
+  _cachedClient = new Cerebras({
+    apiKey: config.apiKey,
+  });
+  return _cachedClient;
 }
 
 /**
@@ -81,7 +98,7 @@ export function aiUnavailableMessage(reason?: string): string {
 }
 
 /**
- * Stream chat-completion tokens from the Cerebras (OpenAI-compatible) API.
+ * Stream chat-completion tokens from the Cerebras API using the official SDK.
  *
  * Yields content delta strings as they arrive (real streaming). Throws Error
  * with "timeout"/"aborted" in the message if the request exceeds timeoutMs.
@@ -102,6 +119,11 @@ export async function* streamChatDeltas(
     throw new Error(aiUnavailableMessage('no-config'));
   }
 
+  const client = await getCerebrasClient();
+  if (!client) {
+    throw new Error(aiUnavailableMessage('no-config'));
+  }
+
   const {
     model = cfg.model,
     temperature = 0.7,
@@ -110,23 +132,7 @@ export async function* streamChatDeltas(
     signal,
   } = options;
 
-  const url = `${cfg.baseUrl}/chat/completions`;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${cfg.apiKey}`,
-  };
-
-  const body = JSON.stringify({
-    model,
-    stream: true,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature,
-    max_tokens: maxTokens,
-  });
-
+  // Set up timeout + abort handling
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   if (signal) {
@@ -134,14 +140,22 @@ export async function* streamChatDeltas(
     else signal.addEventListener('abort', () => controller.abort(), { once: true });
   }
 
-  let response: Response;
   try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body,
-      signal: controller.signal,
+    const stream = await client.chat.completions.create({
+      model,
+      stream: true,
+      messages: [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: userPrompt },
+      ],
+      temperature,
+      max_tokens: maxTokens,
     });
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (delta) yield delta;
+    }
   } catch (err: any) {
     clearTimeout(timer);
     const msg = String(err?.message || err);
@@ -149,53 +163,67 @@ export async function* streamChatDeltas(
       throw new Error(`Cerebras request timeout after ${timeoutMs}ms`);
     }
     throw err;
-  }
-
-  if (!response.ok) {
-    clearTimeout(timer);
-    const errorText = await response.text().catch(() => '');
-    throw new Error(`Cerebras API ${response.status}: ${errorText.slice(0, 300)}`);
-  }
-
-  if (!response.body) {
-    clearTimeout(timer);
-    throw new Error('Cerebras API returned no response body');
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      // SSE events are separated by a blank line (\n\n or \r\n\r\n).
-      let match: RegExpMatchArray | null;
-      while ((match = buffer.match(/\r?\n\r?\n/)) !== null) {
-        const rawEvent = buffer.slice(0, match.index!);
-        buffer = buffer.slice(match.index! + match[0].length);
-
-        for (const line of rawEvent.split(/\r?\n/)) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data:')) continue;
-          const data = trimmed.slice(5).trim();
-          if (!data || data === '[DONE]') continue;
-          try {
-            const json = JSON.parse(data);
-            const delta: string | undefined = json?.choices?.[0]?.delta?.content;
-            if (delta) yield delta;
-          } catch {
-            // Partial JSON across chunks — ignore; it completes on the next read.
-          }
-        }
-      }
-    }
   } finally {
     clearTimeout(timer);
-    try { reader.releaseLock(); } catch { /* already released */ }
+  }
+}
+
+/**
+ * Non-streaming chat completion using the Cerebras SDK.
+ * Returns the full response text in one shot.
+ */
+export async function chatComplete(
+  systemPrompt: string,
+  userPrompt: string,
+  options: {
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+    timeoutMs?: number;
+  } = {}
+): Promise<string> {
+  const cfg = await loadAiConfig();
+  if (!cfg) {
+    throw new Error(aiUnavailableMessage('no-config'));
+  }
+
+  const client = await getCerebrasClient();
+  if (!client) {
+    throw new Error(aiUnavailableMessage('no-config'));
+  }
+
+  const {
+    model = cfg.model,
+    temperature = 0.7,
+    maxTokens = 16000,
+    timeoutMs = 180_000,
+  } = options;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      stream: false,
+      messages: [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: userPrompt },
+      ],
+      temperature,
+      max_tokens: maxTokens,
+    });
+
+    const content = response.choices?.[0]?.message?.content || '';
+    return content;
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    if (msg.includes('aborted') || msg.includes('AbortError')) {
+      throw new Error(`Cerebras request timeout after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -203,4 +231,5 @@ export async function* streamChatDeltas(
 export function resetAiCache(): void {
   _cachedConfig = null;
   _cachedCheck = null;
+  _cachedClient = null;
 }

@@ -173,40 +173,14 @@ function EditorShell() {
     if (i < historyRef.current.length - 1) { const next = i + 1; setHistoryIndex(next); setHtml(historyRef.current[next]) }
   }, [])
 
-  // ── Insert HTML from tool panels ────────────────────────────────────
-  const onInsert = useCallback((insertHtml: string, label: string) => {
-    if (!insertHtml) {
-      // Trigger AI generate
-      runAI('Generate a new section for this page')
-      return
-    }
-    const newHtml = htmlRef.current + insertHtml
-    commit(newHtml, `Add ${label}`)
-    showToast(`Added ${label}`)
-  }, [commit, runAI, showToast])
-
-  const onSelectText = useCallback((text: string, label: string) => {
-    commitNode((n) => { n.textContent = text }, label)
-  }, [commitNode])
-  const duplicate = useCallback(() => {
-    commitNode((n) => { const c = n.cloneNode(true) as HTMLElement; n.after(c) }, 'Duplicate')
-  }, [commitNode])
-  const remove = useCallback(() => {
-    const node = findByFid(contentRootRef.current, selectionRef.current?.fid || '')
-    if (node && node.parentElement && node.parentElement !== contentRootRef.current) {
-      node.remove(); setSelection(null)
-      const root = contentRootRef.current
-      if (root) commit(root.innerHTML, 'Delete')
-    } else announce('Nothing to delete')
-  }, [commit])
-  const bold = useCallback(() => {
-    commitNode((n) => { n.style.fontWeight = n.style.fontWeight === '700' ? '400' : '700' }, 'Toggle bold')
-  }, [commitNode])
-  const align = useCallback((a: 'left' | 'center' | 'right') => {
-    commitNode((n) => { n.style.textAlign = a }, `Align ${a}`)
-  }, [commitNode])
+  // ── Toast helper (must come before onInsert which depends on it) ──────
+  const showToast = useCallback((msg: string) => {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 2600)
+  }, [])
 
   // ── AI ────────────────────────────────────────────────────────────────
+  // runAI must be defined before onInsert which depends on it
   const runAI = useCallback(async (prompt: string) => {
     const abort = new AbortController()
     setAiAbortRef(abort)
@@ -321,7 +295,7 @@ function EditorShell() {
         setAiFeedback('AI request cancelled.')
         announce('AI request cancelled')
       } else {
-        setAiFeedback('AI is not configured. Add ZAI_API_KEY to .env to enable AI features.')
+        setAiFeedback('AI is not configured. Add CEREBRAS_API_KEY to .env to enable AI features.')
         announce('AI not configured')
       }
     } finally {
@@ -335,6 +309,39 @@ function EditorShell() {
     setAiBusy(false)
     setAiFeedback('Stopped.')
   }, [aiAbortRef])
+
+  // ── Insert HTML from tool panels ────────────────────────────────────
+  const onInsert = useCallback((insertHtml: string, label: string) => {
+    if (!insertHtml) {
+      // Trigger AI generate
+      runAI('Generate a new section for this page')
+      return
+    }
+    const newHtml = htmlRef.current + insertHtml
+    commit(newHtml, `Add ${label}`)
+    showToast(`Added ${label}`)
+  }, [commit, runAI, showToast])
+
+  const onSelectText = useCallback((text: string, label: string) => {
+    commitNode((n) => { n.textContent = text }, label)
+  }, [commitNode])
+  const duplicate = useCallback(() => {
+    commitNode((n) => { const c = n.cloneNode(true) as HTMLElement; n.after(c) }, 'Duplicate')
+  }, [commitNode])
+  const remove = useCallback(() => {
+    const node = findByFid(contentRootRef.current, selectionRef.current?.fid || '')
+    if (node && node.parentElement && node.parentElement !== contentRootRef.current) {
+      node.remove(); setSelection(null)
+      const root = contentRootRef.current
+      if (root) commit(root.innerHTML, 'Delete')
+    } else announce('Nothing to delete')
+  }, [commit])
+  const bold = useCallback(() => {
+    commitNode((n) => { n.style.fontWeight = n.style.fontWeight === '700' ? '400' : '700' }, 'Toggle bold')
+  }, [commitNode])
+  const align = useCallback((a: 'left' | 'center' | 'right') => {
+    commitNode((n) => { n.style.textAlign = a }, `Align ${a}`)
+  }, [commitNode])
 
   // ── Accessibility audit ───────────────────────────────────────────────
   const runAudit = useCallback(() => {
@@ -367,11 +374,6 @@ function EditorShell() {
     commit(root.innerHTML, 'Fix accessibility issues')
     announce('Accessibility issues fixed')
   }, [commit])
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 2600)
-  }, [])
 
   // ── Keyboard: space = pan ─────────────────────────────────────────────
   useEffect(() => {

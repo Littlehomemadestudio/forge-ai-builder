@@ -1,0 +1,2002 @@
+     1→import { NextRequest, NextResponse } from 'next/server';
+     2→import { checkAiAvailability, aiUnavailableMessage, streamChatDeltas } from '@/lib/ai-server';
+     3→import { db } from '@/lib/db';
+     4→import {
+     5→  detectIndustry as detectIndustryV2,
+     6→  getIndustryById as getIndustryByIdV2,
+     7→  ALL_INDUSTRIES,
+     8→} from '@/lib/industry';
+     9→import { getAllCuratedImages } from '@/lib/industry/curated-library';
+    10→import type { ImageCategory } from '@/lib/industry/types';
+    11→import {
+    12→  buildAnimationBundle,
+    13→  detectAnimations,
+    14→  ANIMATIONS,
+    15→} from '@/lib/animations';
+    16→import type { AnimationId } from '@/lib/animations';
+    17→import { ALL_PALETTES, type ThemePalette } from '@/lib/palettes';
+    18→
+    19→// ─── Types ────────────────────────────────────────────────────────────────
+    20→
+    21→type Industry =
+    22→  | 'portfolio' | 'saas' | 'restaurant' | 'ecommerce'
+    23→  | 'blog' | 'agency' | 'event' | 'personal';
+    24→
+    25→type StyleMode = string; // Now supports any palette ID — falls back to 'dark' for unknown values
+    26→
+    27→type SiteLanguage = 'en' | 'fa' | 'de' | 'es' | 'fr' | 'ar';
+    28→
+    29→interface ParsedPrompt {
+    30→  hexColors: string[];              // extracted hex codes (#0A0A0A, #6C63FF, #FF2D95)
+    31→  themeKeywords: string[];          // ['dark-neon', 'glassmorphism', 'parallax']
+    32→  requiredElements: string[];       // ['cart', 'search', 'login', 'slideshow', 'filter', 'timer']
+    33→  animations: string[];             // ['fade-in-up', 'ripple', 'shake', '360-rotate', 'count-up', 'skeleton']
+    34→  subIndustry?: string;             // 'carpet', 'digital', 'fashion', 'food', 'tech'
+    35→  isRtl: boolean;
+    36→  language: SiteLanguage;
+    37→  isSinglePage: boolean;            // user asked for "single-page" or "one-page"
+    38→  detectedBrandName?: string;
+    39→  _rawPrompt?: string;              // Phase 5: original prompt text for animation detection
+    40→}
+    41→
+    42→interface GeneratePageRequest {
+    43→  prompt: string;
+    44→  industry?: Industry;
+    45→  style?: StyleMode;
+    46→  page: 'home' | 'about' | 'services' | 'contact';
+    47→  siteName?: string;
+    48→  brandColors?: { bg: string; surface: string; text: string; muted: string; accent: string; border: string };
+    49→  industryContext?: string;
+    50→  language?: SiteLanguage;
+    51→  userId?: string;
+    52→  advancedOptions?: {
+    53→    complexity?: string;
+    54→    pageLength?: string;
+    55→    layoutDensity?: string;
+    56→    animationLevel?: string;
+    57→    responsivePriority?: string;
+    58→    contentTone?: string;
+    59→    navigationStyle?: string;
+    60→    seoLevel?: string;
+    61→    accessibilityLevel?: string;
+    62→    imageStyle?: string;
+    63→    ctaStyle?: string;
+    64→    fontFamily?: string;
+    65→    colorScheme?: { primary?: string; accent?: string; background?: string; surface?: string; text?: string; muted?: string };
+    66→    brandName?: string;
+    67→    logoPlacement?: string;
+    68→    includeHero?: boolean;
+    69→    includeFeatures?: boolean;
+    70→    includeTestimonials?: boolean;
+    71→    includePricing?: boolean;
+    72→    includeFAQ?: boolean;
+    73→    includeNewsletter?: boolean;
+    74→    includeCTA?: boolean;
+    75→    includeFooter?: boolean;
+    76→    includeAnimations?: boolean;
+    77→    includeSocialLinks?: boolean;
+    78→    includeContactForm?: boolean;
+    79→    pageConfigs?: { id: string; name: string; enabled: boolean; length: string }[];
+    80→  };
+    81→}
+    82→
+    83→// (Job store removed — generation now streams directly via SSE from /api/generate.)
+    84→
+    85→// ─── Industry descriptors ─────────────────────────────────────────────────
+    86→
+    87→const INDUSTRY_META: Record<Industry, { label: string; navItems: string[]; defaultSiteName: string; contentHint: string }> = {
+    88→  portfolio: {
+    89→    label: 'creative portfolio',
+    90→    navItems: ['Work', 'About', 'Process', 'Contact'],
+    91→    defaultSiteName: 'Studio',
+    92→    contentHint: 'Showcase creative work (design, photography, art). Include project gallery, brief bio, process explanation, and contact details.',
+    93→  },
+    94→  saas: {
+    95→    label: 'SaaS / startup product',
+    96→    navItems: ['Features', 'Pricing', 'About', 'Contact'],
+    97→    defaultSiteName: 'Forge',
+    98→    contentHint: 'Promote a software product. Include hero with CTA, feature grid, pricing tiers, social proof, and contact sales.',
+    99→  },
+   100→  restaurant: {
+   101→    label: 'restaurant / café',
+   102→    navItems: ['Menu', 'About', 'Reservations', 'Contact'],
+   103→    defaultSiteName: 'The Kitchen',
+   104→    contentHint: 'Promote a dining venue. Include menu sections (starters, mains, dessert), story/about, reservation form, hours and location.',
+   105→  },
+   106→  ecommerce: {
+   107→    label: 'e-commerce store',
+   108→    navItems: ['Shop', 'Collections', 'About', 'Contact'],
+   109→    defaultSiteName: 'Market',
+   110→    contentHint: 'Sell products online. Include product grid with prices, featured collections, brand story, and contact/shipping info.',
+   111→  },
+   112→  blog: {
+   113→    label: 'editorial blog',
+   114→    navItems: ['Articles', 'Topics', 'About', 'Contact'],
+   115→    defaultSiteName: 'Journal',
+   116→    contentHint: 'Publish written content. Include recent articles list, featured post, topic categories, about author, and newsletter signup.',
+   117→  },
+   118→  agency: {
+   119→    label: 'agency / studio',
+   120→    navItems: ['Services', 'Work', 'Team', 'Contact'],
+   121→    defaultSiteName: 'Agency',
+   122→    contentHint: 'Promote professional services. Include services list, case studies, team members, client logos, and contact form.',
+   123→  },
+   124→  event: {
+   125→    label: 'event / conference',
+   126→    navItems: ['Schedule', 'Speakers', 'Venue', 'Register'],
+   127→    defaultSiteName: 'Summit',
+   128→    contentHint: 'Promote an upcoming event. Include event schedule, speaker list, venue details, and registration form.',
+   129→  },
+   130→  personal: {
+   131→    label: 'personal / resume site',
+   132→    navItems: ['About', 'Experience', 'Projects', 'Contact'],
+   133→    defaultSiteName: 'Portfolio',
+   134→    contentHint: 'Showcase an individual. Include bio, work experience timeline, projects, skills, and contact info.',
+   135→  },
+   136→};
+   137→
+   138→// ─── Style presets (consistent palette per style) ─────────────────────────
+   139→// These are FALLBACKS only — if the user mentions specific hex codes in
+   140→// their text prompt, those override everything else.
+   141→
+   142→const STYLE_PRESETS: Record<StyleMode, { label: string; colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string }; fontStack: string; mood: string }> = {
+   143→  light: {
+   144→    label: 'light, airy, professional',
+   145→    colors: { bg: '#FFFFFF', surface: '#F8FAFC', text: '#0F172A', muted: '#64748B', accent: '#6366F1', border: '#E2E8F0' },
+   146→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   147→    mood: 'clean, bright, with generous whitespace and subtle shadows',
+   148→  },
+   149→  dark: {
+   150→    label: 'dark, premium, sophisticated',
+   151→    colors: { bg: '#0A0A0F', surface: '#15151F', text: '#F8FAFC', muted: '#94A3B8', accent: '#A855F7', border: '#1E293B' },
+   152→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   153→    mood: 'sophisticated dark theme with subtle gradients and elegant typography',
+   154→  },
+   155→  minimal: {
+   156→    label: 'minimalist, editorial, restrained',
+   157→    colors: { bg: '#FAFAF9', surface: '#FFFFFF', text: '#1C1917', muted: '#78716C', accent: '#1C1917', border: '#E7E5E4' },
+   158→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   159→    mood: 'Swiss-style minimalism, heavy whitespace, single accent color, no gradients',
+   160→  },
+   161→  bold: {
+   162→    label: 'bold, expressive, vibrant',
+   163→    colors: { bg: '#FFFBEB', surface: '#FFFFFF', text: '#1F2937', muted: '#6B7280', accent: '#F59E0B', border: '#FCD34D' },
+   164→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   165→    mood: 'expressive, with strong typography, vibrant accent colors, and confident layouts',
+   166→  },
+   167→  glassmorphism: {
+   168→    label: 'glassmorphism, frosted, translucent',
+   169→    colors: { bg: '#1a1a2e', surface: 'rgba(255,255,255,0.08)', text: '#f8fafc', muted: '#94a3b8', accent: '#a855f7', border: 'rgba(255,255,255,0.12)' },
+   170→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   171→    mood: 'frosted glass cards over a gradient background, translucent surfaces, blurred overlays, neon accent glows',
+   172→  },
+   173→  neobrutalism: {
+   174→    label: 'neo-brutalism, raw, high-contrast',
+   175→    colors: { bg: '#FFF000', surface: '#FFFFFF', text: '#000000', muted: '#555555', accent: '#000000', border: '#000000' },
+   176→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   177→    mood: 'raw brutalist design, thick black borders, solid bright backgrounds, no gradients, no rounded corners, high contrast',
+   178→  },
+   179→  retro: {
+   180→    label: 'retro, vintage, warm',
+   181→    colors: { bg: '#F5E6D3', surface: '#EDE0CC', text: '#3C2415', muted: '#8B7355', accent: '#D2691E', border: '#C4A87C' },
+   182→    fontStack: "'Georgia', 'Playfair Display', serif",
+   183→    mood: 'warm vintage aesthetic, serif typography, earthy tones, decorative borders, nostalgic feel',
+   184→  },
+   185→  gradient: {
+   186→    label: 'gradient, fluid, colorful',
+   187→    colors: { bg: '#0F172A', surface: '#1E293B', text: '#F8FAFC', muted: '#94A3B8', accent: '#6366F1', border: '#334155' },
+   188→    fontStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+   189→    mood: 'rich gradient backgrounds flowing between sections, modern and colorful with smooth transitions, vivid hero areas',
+   190→  },
+   191→};
+   192→
+   193→// ─── Resolve any style/palette ID into a usable preset ──────────────────────
+   194→// The builderStyle can be any palette ID (e.g. 'saffron', 'persian-carpet')
+   195→// which is NOT in STYLE_PRESETS. This function resolves it by:
+   196→// 1. Checking STYLE_PRESETS first (for the 8 core styles)
+   197→// 2. Looking up ALL_PALETTES and constructing a synthetic preset from palette data
+   198→// 3. Falling back to the 'dark' preset if neither found
+   199→
+   200→type ResolvedStylePreset = {
+   201→  label: string;
+   202→  colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string };
+   203→  fontStack: string;
+   204→  mood: string;
+   205→  paletteId?: string; // track the palette ID for advanced options color override
+   206→};
+   207→
+   208→function resolveStylePreset(styleId: string): ResolvedStylePreset {
+   209→  // 1. Direct match in STYLE_PRESETS
+   210→  if (STYLE_PRESETS[styleId]) {
+   211→    return { ...STYLE_PRESETS[styleId], paletteId: styleId };
+   212→  }
+   213→
+   214→  // 2. Look up in ALL_PALETTES
+   215→  const palette = ALL_PALETTES.find(p => p.id === styleId);
+   216→  if (palette) {
+   217→    // Determine a border color from the palette (derive if not explicit)
+   218→    const border = palette.colors.muted || '#E2E8F0';
+   219→    const fontStack = palette.fontSuggestion
+   220→      ? `'${palette.fontSuggestion}', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`
+   221→      : "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+   222→
+   223→    return {
+   224→      label: `${palette.name} — ${palette.mood}`,
+   225→      colors: {
+   226→        bg: palette.colors.background,
+   227→        surface: palette.colors.surface,
+   228→        text: palette.colors.text,
+   229→        muted: palette.colors.muted,
+   230→        accent: palette.colors.primary,
+   231→        border,
+   232→      },
+   233→      fontStack,
+   234→      mood: palette.mood,
+   235→      paletteId: styleId,
+   236→    };
+   237→  }
+   238→
+   239→  // 3. Fallback to dark
+   240→  return { ...STYLE_PRESETS.dark, paletteId: styleId };
+   241→}
+   242→
+   243→// ─── Page definitions ─────────────────────────────────────────────────────
+   244→
+   245→const PAGE_META: Record<GeneratePageRequest['page'], { name: string; route: string; purpose: string }> = {
+   246→  home: {
+   247→    name: 'Home',
+   248→    route: '/',
+   249→    purpose: 'The landing page. Must include: site header with logo + nav, a strong hero section with headline + subheadline + primary CTA, a features/services highlight section (3-6 items), a social proof or showcase section, and a footer with links and copyright. This is the most important page — make it complete and impressive.',
+   250→  },
+   251→  about: {
+   252→    name: 'About',
+   253→    route: '/about',
+   254→    purpose: 'The about page. Must include: site header, a story/mission section with 2-3 paragraphs of real copy, a values or timeline section, an optional team or founder section, and a footer. Use real, meaningful copy based on the brief — no lorem ipsum.',
+   255→  },
+   256→  services: {
+   257→    name: 'Services',
+   258→    route: '/services',
+   259→    purpose: 'The services / menu / pricing page (varies by industry). Must include: site header, the main content section (services list with descriptions, OR menu items with prices, OR pricing tiers), an optional FAQ or comparison section, and a footer. Use real, specific content based on the brief.',
+   260→  },
+   261→  contact: {
+   262→    name: 'Contact',
+   263→    route: '/contact',
+   264→    purpose: 'The contact page. Must include: site header, a contact form (name, email, message) with proper labels, contact information (email, phone, address), an optional map placeholder, social links, and a footer. Form should have visible submit button.',
+   265→  },
+   266→};
+   267→
+   268→const PAGE_ORDER: GeneratePageRequest['page'][] = ['home', 'about', 'services', 'contact'];
+   269→
+   270→// ─── HTML extraction helpers ──────────────────────────────────────────────
+   271→
+   272→function extractHtmlFromResponse(content: string): string {
+   273→  if (!content) return '';
+   274→  const codeBlockMatch = content.match(/```(?:html)?\s*\n([\s\S]*?)```/i);
+   275→  if (codeBlockMatch) {
+   276→    return codeBlockMatch[1].trim();
+   277→  }
+   278→  const htmlStart = content.toLowerCase().indexOf('<!doctype');
+   279→  if (htmlStart !== -1) {
+   280→    const htmlEnd = content.toLowerCase().lastIndexOf('</html>');
+   281→    if (htmlEnd !== -1) {
+   282→      return content.substring(htmlStart, htmlEnd + '</html>'.length).trim();
+   283→    }
+   284→  }
+   285→  const htmlTagStart = content.toLowerCase().indexOf('<html');
+   286→  if (htmlTagStart !== -1) {
+   287→    const htmlEnd = content.toLowerCase().lastIndexOf('</html>');
+   288→    if (htmlEnd !== -1) {
+   289→      return content.substring(htmlTagStart, htmlEnd + '</html>'.length).trim();
+   290→    }
+   291→  }
+   292→  return content.trim();
+   293→}
+   294→
+   295→function extractCssFromHtml(html: string): string {
+   296→  const match = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+   297→  return match ? match[1].trim() : '';
+   298→}
+   299→
+   300→function extractJsFromHtml(html: string): string {
+   301→  const matches = html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+   302→  if (!matches) return '';
+   303→  let js = '';
+   304→  for (const tag of matches) {
+   305→    if (tag.match(/<script[^>]*\bsrc=/i)) continue;
+   306→    const contentMatch = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+   307→    if (contentMatch) js += contentMatch[1] + '\n';
+   308→  }
+   309→  return js.trim();
+   310→}
+   311→
+   312→// ─── Phase 5: Animation Library Injection ─────────────────────────────────
+   313→// Maps the parser's animation IDs (legacy names) to the new library IDs.
+   314→const LEGACY_ANIM_MAP: Record<string, AnimationId> = {
+   315→  'glassmorphism': 'glassmorphism',
+   316→  'parallax': 'parallax',
+   317→  'skeleton-loader': 'skeleton',
+   318→  '360-rotate': 'rotate-360',
+   319→  'count-up': 'count-up',
+   320→  'shake-animation': 'shake-cart',
+   321→};
+   322→
+   323→/**
+   324→ * Build the set of animation IDs that should be injected for this prompt.
+   325→ * Combines:
+   326→ *   1. Animations detected by the new library's keyword matcher
+   327→ *   2. Animations already detected by the legacy parser
+   328→ *   3. Glassmorphism if the parser flagged it as a theme keyword
+   329→ */
+   330→function resolveAnimationIds(parsed: ParsedPrompt): AnimationId[] {
+   331→  const ids = new Set<AnimationId>();
+   332→
+   333→  // From the new library (keyword detection against the raw prompt text)
+   334→  for (const id of detectAnimations(parsed._rawPrompt || '')) {
+   335→    ids.add(id);
+   336→  }
+   337→
+   338→  // From the legacy parser's animation list
+   339→  for (const legacy of parsed.animations) {
+   340→    const mapped = LEGACY_ANIM_MAP[legacy];
+   341→    if (mapped) ids.add(mapped);
+   342→  }
+   343→
+   344→  // Glassmorphism is sometimes flagged as a theme keyword rather than an animation
+   345→  if (parsed.themeKeywords.includes('glassmorphism')) {
+   346→    ids.add('glassmorphism');
+   347→  }
+   348→
+   349→  return Array.from(ids);
+   350→}
+   351→
+   352→/**
+   353→ * Inject the guaranteed-working animation CSS/JS bundle into the AI-generated
+   354→ * HTML. CSS is appended inside the first <style> tag (or a new one is created).
+   355→ * JS is inserted right before </body>.
+   356→ *
+   357→ * The injected CSS uses scoped class names (.forge-glass, .forge-parallax-bg,
+   358→ * .forge-skeleton, .forge-rotate-360, [data-count-target], .forge-shake) so it
+   359→ * never clobbers the AI's own styles. The injected JS self-initializes on
+   360→ * DOMContentLoaded and is safe to include even if no matching elements exist.
+   361→ */
+   362→function injectAnimationBundle(html: string, ids: AnimationId[]): string {
+   363→  if (ids.length === 0) return html;
+   364→  const bundle = buildAnimationBundle(ids);
+   365→  if (!bundle.css && !bundle.js) return html;
+   366→
+   367→  let out = html;
+   368→
+   369→  // ── Inject CSS ──
+   370→  const cssBlock = `\n/* === FORGE ANIMATION LIBRARY (auto-injected) === */\n/* Includes: ${bundle.namesEn.join(', ')} */\n${bundle.css}\n/* === END FORGE ANIMATION LIBRARY === */\n`;
+   371→
+   372→  const styleMatch = out.match(/<style[^>]*>/i);
+   373→  if (styleMatch && styleMatch.index !== undefined) {
+   374→    // Insert right after the opening <style> tag
+   375→    const insertAt = styleMatch.index + styleMatch[0].length;
+   376→    out = out.slice(0, insertAt) + cssBlock + out.slice(insertAt);
+   377→  } else {
+   378→    // No <style> tag — inject one in the <head>
+   379→    const headMatch = out.match(/<head[^>]*>/i);
+   380→    if (headMatch && headMatch.index !== undefined) {
+   381→      const insertAt = headMatch.index + headMatch[0].length;
+   382→      out = out.slice(0, insertAt) + `\n<style id="forge-animations">${cssBlock}</style>\n` + out.slice(insertAt);
+   383→    }
+   384→  }
+   385→
+   386→  // ── Inject JS ──
+   387→  if (bundle.js) {
+   388→    const jsBlock = `\n<script id="forge-animations-js">\n/* === FORGE ANIMATION LIBRARY (auto-injected) === */\n/* Includes: ${bundle.namesEn.join(', ')} */\n${bundle.js}\n/* === END FORGE ANIMATION LIBRARY === */\n</script>\n`;
+   389→    const bodyEnd = out.toLowerCase().lastIndexOf('</body>');
+   390→    if (bodyEnd !== -1) {
+   391→      out = out.slice(0, bodyEnd) + jsBlock + out.slice(bodyEnd);
+   392→    } else {
+   393→      out = out + jsBlock;
+   394→    }
+   395→  }
+   396→
+   397→  return out;
+   398→}
+   399→
+   400→function extractSiteNameFromPrompt(prompt: string, industry: Industry): string {
+   401→  const patterns = [
+   402→    /(?:called|named)\s+["']?([A-Z][\w&'-]+(?:\s+[A-Z][\w&'-]+)?)/,
+   403→    /for\s+(?:a|an|the)\s+(?:coffee shop|cafe|restaurant|studio|agency|brand|company|startup|business|shop|store)\s+(?:called|named)\s+["']?([A-Z][\w&'-]+)/,
+   404→  ];
+   405→  for (const p of patterns) {
+   406→    const m = prompt.match(p);
+   407→    if (m && m[1]) return m[1].trim();
+   408→  }
+   409→  const quoted = prompt.match(/["']([A-Z][\w\s&'-]{2,30})["']/);
+   410→  if (quoted && quoted[1]) return quoted[1].trim();
+   411→  return INDUSTRY_META[industry].defaultSiteName;
+   412→}
+   413→
+   414→// ─── PROMPT PARSER ─────────────────────────────────────────────────────────
+   415→// This is THE critical addition for Phase 1. The parser extracts structured
+   416→// info from the user's free-text prompt so we can drive the AI with explicit
+   417→// requirements instead of hoping it picks up on subtle cues.
+   418→
+   419→function parseUserPrompt(prompt: string, language: SiteLanguage = 'en'): ParsedPrompt {
+   420→  const lower = prompt.toLowerCase();
+   421→  const result: ParsedPrompt = {
+   422→    hexColors: [],
+   423→    themeKeywords: [],
+   424→    requiredElements: [],
+   425→    animations: [],
+   426→    isRtl: language === 'fa' || language === 'ar',
+   427→    language,
+   428→    isSinglePage: false,
+   429→  };
+   430→
+   431→  // 1. Extract hex colors (#RRGGBB)
+   432→  const hexMatches = prompt.match(/#[0-9A-Fa-f]{6}\b/g);
+   433→  if (hexMatches) {
+   434→    result.hexColors = Array.from(new Set(hexMatches.map(c => c.toUpperCase())));
+   435→  }
+   436→
+   437→  // 2. Theme keywords
+   438→  const themeMap: Record<string, string[]> = {
+   439→    'dark-neon': ['dark-neon', 'dark neon', 'neon dark', 'نئون', 'دارک-نئونی', 'دارک نئونی'],
+   440→    'glassmorphism': ['glassmorphism', 'glass morphism', 'افکت شیشه‌ای', 'شیشه‌ای', 'glass effect'],
+   441→    'neumorphism': ['neumorphism', 'neu morphism'],
+   442→    'brutalist': ['brutalist', 'brutalism'],
+   443→    'retro': ['retro', 'vintage', 'رترو'],
+   444→    'cyberpunk': ['cyberpunk', 'cyber punk'],
+   445→    'minimal': ['minimal', 'minimalist', 'مینیمال'],
+   446→    'luxury': ['luxury', 'elegant', 'lux', 'لوکس'],
+   447→  };
+   448→  for (const [theme, keywords] of Object.entries(themeMap)) {
+   449→    if (keywords.some(k => lower.includes(k))) {
+   450→      result.themeKeywords.push(theme);
+   451→    }
+   452→  }
+   453→
+   454→  // 3. Required elements
+   455→  const elementMap: Record<string, string[]> = {
+   456→    'cart': ['cart', 'سبد خرید', 'سبد', 'سبدخرید', 'shopping cart', 'add to cart', 'افزودن به سبد'],
+   457→    'search': ['search', 'جستجو', 'نوار جستجو', 'search bar', 'search input'],
+   458→    'login': ['login', 'sign in', 'ورود', 'ثبت‌نام', 'ثبت نام', 'login/register', 'ورود/ثبت‌نام'],
+   459→    'slideshow': ['slideshow', 'slider', 'carousel', 'اسلایدشو', 'اسلایدر', 'carousel', 'full-screen slideshow', 'اسلایدشو تمام‌صفحه'],
+   460→    'product-cards': ['product card', 'محصول', 'کارت محصول', 'product grid', 'products', 'کارت‌های محصول'],
+   461→    'filter': ['filter', 'فیلتر', 'side filter', 'فیلترهای جانبی', 'filter sidebar'],
+   462→    'price-slider': ['price slider', 'محدوده قیمت', 'price range', 'اسلایدر قیمت'],
+   463→    'countdown-timer': ['countdown', 'timer', 'شمارش معکوس', 'تایمر', 'تایمر شمارش معکوس'],
+   464→    'reviews-carousel': ['reviews carousel', 'نظرات مشتریان', 'customer reviews', 'testimonials carousel', 'کاروسل نظرات'],
+   465→    'newsletter': ['newsletter', 'خبرنامه', 'email signup', 'subscribe'],
+   466→    'social-icons': ['social media', 'social icons', 'شبکه‌های اجتماعی', 'social links'],
+   467→    'sticky-header': ['sticky header', 'هدر چسبان', 'fixed header', 'هدر ثابت'],
+   468→    'hamburger-menu': ['hamburger', 'همبرگری', 'mobile menu', 'منوی همبرگری'],
+   469→    'category-menu': ['category menu', 'منوی دسته‌بندی', 'categories menu', 'دسته‌بندی'],
+   470→    'discount-badge': ['discount badge', 'تخفیف', 'برچسب تخفیف', 'special offer', 'تخفیف ویژه'],
+   471→    'star-rating': ['star rating', 'امتیاز ستاره‌ای', 'stars', 'rating'],
+   472→    'product-zoom': ['zoom', 'زوم', 'image zoom', 'zoom on hover'],
+   473→    'count-up': ['count up', 'شمارنده افزایشی', 'animated counter', 'count animation'],
+   474→    'skeleton-loader': ['skeleton', 'skeleton loader', 'اسکلتون'],
+   475→    'parallax': ['parallax', 'پارالاکس', 'parallax effect'],
+   476→    '360-rotate': ['360 rotation', 'چرخش ۳۶۰', '360 rotate', 'rotate 360'],
+   477→    'shake-animation': ['shake', 'تکان', 'shake animation'],
+   478→    'ripple-effect': ['ripple', 'موج', 'ripple effect'],
+   479→    'fade-in-up': ['fade-in-up', 'fade in up', 'fade-in', 'فید-این'],
+   480→    'float-animation': ['float', 'شناور', 'floating animation', 'float animation'],
+   481→  };
+   482→  for (const [element, keywords] of Object.entries(elementMap)) {
+   483→    if (keywords.some(k => lower.includes(k))) {
+   484→      // Sort into animations vs elements
+   485→      if (['parallax', '360-rotate', 'shake-animation', 'ripple-effect', 'fade-in-up', 'float-animation', 'skeleton-loader', 'count-up'].includes(element)) {
+   486→        result.animations.push(element);
+   487→      } else {
+   488→        result.requiredElements.push(element);
+   489→      }
+   490→    }
+   491→  }
+   492→
+   493→  // 4. Sub-industry detection
+   494→  const subIndustryMap: Record<string, string[]> = {
+   495→    'carpet': ['carpet', 'rug', 'فرش', 'قالی', 'گلیم', 'carpet store', 'rug store'],
+   496→    'fashion': ['fashion', 'clothing', 'پوشاک', 'لباس', 'apparel', 'clothes', 'boutique'],
+   497→    'digital': ['digital', 'electronic', 'دیجیتال', 'الکترونیک', 'gadget', 'tech store'],
+   498→    'food': ['food', 'غذا', 'restaurant', 'cafe', 'coffee', 'قهوه', 'غذای'],
+   499→    'beauty': ['beauty', 'cosmetics', 'آرایشی', 'زیبایی', 'makeup', 'skincare'],
+   500→    'home': ['home goods', 'لوازم خانگی', 'furniture', 'مبل', 'decor', 'دکوراسیون'],
+   501→    'jewelry': ['jewelry', 'جواهر', 'gold', 'طلا', 'silver', 'نقره'],
+   502→    'books': ['book', 'کتاب', 'bookstore', 'کتابفروشی'],
+   503→    'sports': ['sport', 'ورزشی', 'fitness', 'تمرین', 'gym'],
+   504→  };
+   505→  for (const [sub, keywords] of Object.entries(subIndustryMap)) {
+   506→    if (keywords.some(k => lower.includes(k))) {
+   507→      result.subIndustry = sub;
+   508→      break;
+   509→    }
+   510→  }
+   511→
+   512→  // 5. Single-page detection
+   513→  if (lower.includes('single-page') || lower.includes('one-page') || lower.includes('تک‌صفحه') || lower.includes('تک صفحه') || lower.includes('یک صفحه‌ای')) {
+   514→    result.isSinglePage = true;
+   515→  }
+   516→
+   517→  // 6. Brand name detection (look for "called X" or quoted names)
+   518→  result.detectedBrandName = extractSiteNameFromPrompt(prompt, 'portfolio');
+   519→  if (result.detectedBrandName === 'Studio') {
+   520→    result.detectedBrandName = undefined;
+   521→  }
+   522→
+   523→  // Phase 5: Stash the raw prompt so the animation library can do its own
+   524→  // keyword detection (which is more comprehensive than the legacy parser).
+   525→  result._rawPrompt = prompt;
+   526→
+   527→  return result;
+   528→}
+   529→
+   530→// ─── Color override: use user's hex codes if they provided them ────────────
+   531→// Maps the user's mentioned hex colors to the CSS variables.
+   532→
+   533→function applyUserColors(
+   534→  baseColors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string },
+   535→  parsed: ParsedPrompt
+   536→): { bg: string; surface: string; text: string; muted: string; accent: string; border: string; neonPink?: string } {
+   537→  if (parsed.hexColors.length === 0) return baseColors;
+   538→
+   539→  // Heuristic: if 3 colors mentioned, treat them as bg, accent-primary, accent-secondary
+   540→  // If 2: bg + accent
+   541→  // If 1: just accent
+   542→  const colors = { ...baseColors };
+   543→  const extra: { neonPink?: string } = {};
+   544→
+   545→  if (parsed.hexColors.length >= 3) {
+   546→    colors.bg = parsed.hexColors[0];
+   547→    colors.accent = parsed.hexColors[1];
+   548→    extra.neonPink = parsed.hexColors[2];
+   549→    // Derive surface (slightly lighter than bg)
+   550→    colors.surface = lightenColor(parsed.hexColors[0], 8);
+   551→    // Derive text (high contrast with bg)
+   552→    colors.text = isLightColor(parsed.hexColors[0]) ? '#0F172A' : '#F8FAFC';
+   553→    colors.muted = isLightColor(parsed.hexColors[0]) ? '#64748B' : '#94A3B8';
+   554→    colors.border = lightenColor(parsed.hexColors[0], 16);
+   555→  } else if (parsed.hexColors.length === 2) {
+   556→    colors.bg = parsed.hexColors[0];
+   557→    colors.accent = parsed.hexColors[1];
+   558→    colors.surface = lightenColor(parsed.hexColors[0], 8);
+   559→    colors.text = isLightColor(parsed.hexColors[0]) ? '#0F172A' : '#F8FAFC';
+   560→    colors.muted = isLightColor(parsed.hexColors[0]) ? '#64748B' : '#94A3B8';
+   561→    colors.border = lightenColor(parsed.hexColors[0], 16);
+   562→  } else {
+   563→    colors.accent = parsed.hexColors[0];
+   564→  }
+   565→
+   566→  return { ...colors, ...extra };
+   567→}
+   568→
+   569→function hexToRgb(hex: string): [number, number, number] {
+   570→  const h = hex.replace('#', '');
+   571→  return [
+   572→    parseInt(h.substring(0, 2), 16),
+   573→    parseInt(h.substring(2, 4), 16),
+   574→    parseInt(h.substring(4, 6), 16),
+   575→  ];
+   576→}
+   577→
+   578→function lightenColor(hex: string, percent: number): string {
+   579→  const [r, g, b] = hexToRgb(hex);
+   580→  const factor = percent / 100;
+   581→  const nr = Math.min(255, Math.round(r + (255 - r) * factor));
+   582→  const ng = Math.min(255, Math.round(g + (255 - g) * factor));
+   583→  const nb = Math.min(255, Math.round(b + (255 - b) * factor));
+   584→  return '#' + [nr, ng, nb].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+   585→}
+   586→
+   587→function isLightColor(hex: string): boolean {
+   588→  const [r, g, b] = hexToRgb(hex);
+   589→  // Perceived luminance
+   590→  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+   591→  return lum > 0.5;
+   592→}
+   593→
+   594→// ─── Industry sub-context: styling cues for sub-industries ────────────────
+   595→
+   596→const SUB_INDUSTRY_CUES: Record<string, {
+   597→  label: string;
+   598→  fontPairing: string;       // heading + body font suggestion
+   599→  imageryKeywords: string[]; // Unsplash search keywords
+   600→  paletteHint: string;       // description of appropriate color palette
+   601→  patternHint?: string;      // CSS pattern suggestion
+   602→  sampleProducts?: string[]; // sample product names for content
+   603→}> = {
+   604→  carpet: {
+   605→    label: 'traditional Persian carpet & rug store',
+   606→    fontPairing: "'Playfair Display' for headings (serif elegance), 'Inter' for body",
+   607→    imageryKeywords: ['persian carpet', 'oriental rug', 'traditional carpet', 'handwoven rug', 'carpet weaving'],
+   608→    paletteHint: 'warm earth tones — deep red (#8B1A1A), gold (#C5A059), cream (#F5E6C8), dark brown (#3D2817). Avoid cool blues.',
+   609→    patternHint: 'subtle Persian arabesque pattern as background decoration (use SVG or CSS geometric pattern)',
+   610→    sampleProducts: ['Tabriz Silk Rug 3x5', 'Isfahan Wool Carpet 4x6', 'Qashqai Tribal Rug 2x3', 'Kashan Medallion Rug 5x7', 'Heriz Geometric Rug 6x9'],
+   611→  },
+   612→  fashion: {
+   613→    label: 'fashion & clothing boutique',
+   614→    fontPairing: "'Playfair Display' or 'Cormorant Garamond' for headings, 'Inter' for body",
+   615→    imageryKeywords: ['fashion model', 'clothing rack', 'boutique store', 'fashion accessories', 'street style'],
+   616→    paletteHint: 'monochrome with one accent — black, white, beige, with bold accent (red or gold)',
+   617→    sampleProducts: ['Linen Summer Dress', 'Wool Blend Coat', 'Silk Blouse', 'Tailored Trousers', 'Cashmere Sweater'],
+   618→  },
+   619→  digital: {
+   620→    label: 'digital & electronics store',
+   621→    fontPairing: "'Inter' for headings (modern, clean), 'JetBrains Mono' for prices/specs",
+   622→    imageryKeywords: ['smartphone', 'laptop', 'headphones', 'tech gadgets', 'electronics'],
+   623→    paletteHint: 'cool modern — dark navy, electric blue, neon green accents',
+   624→    sampleProducts: ['Wireless Earbuds Pro', '4K Action Camera', 'Smart Watch Series 7', 'Mechanical Keyboard', 'Portable SSD 1TB'],
+   625→  },
+   626→  food: {
+   627→    label: 'food & beverage',
+   628→    fontPairing: "'Playfair Display' for headings, 'Inter' for body",
+   629→    imageryKeywords: ['food photography', 'coffee', 'restaurant interior', 'gourmet dish', 'barista'],
+   630→    paletteHint: 'warm appetizing — terracotta, cream, deep green',
+   631→    sampleProducts: ['Single Origin Ethiopia 250g', 'Ceramic Pour-Over Set', 'Espresso Blend 1kg', 'Cold Brew Bottle', 'Coffee Subscription'],
+   632→  },
+   633→  beauty: {
+   634→    label: 'beauty & cosmetics',
+   635→    fontPairing: "'Cormorant Garamond' for headings (elegant), 'Inter' for body",
+   636→    imageryKeywords: ['cosmetics', 'skincare product', 'makeup', 'beauty', 'perfume bottle'],
+   637→    paletteHint: 'soft pastels — blush pink, cream, rose gold',
+   638→    sampleProducts: ['Vitamin C Serum', 'Hydrating Moisturizer', 'Matte Lipstick', 'Eyeshadow Palette', 'Rose Water Toner'],
+   639→  },
+   640→  home: {
+   641→    label: 'home goods & furniture',
+   642→    fontPairing: "'Inter' for headings (clean), 'Inter' for body",
+   643→    imageryKeywords: ['home decor', 'furniture', 'interior design', 'ceramic vase', 'minimalist home'],
+   644→    paletteHint: 'natural warm — wood tones, sage green, cream, terracotta',
+   645→    sampleProducts: ['Handmade Ceramic Vase', 'Oak Wood Bowl', 'Linen Throw Pillow', 'Brass Candle Holder', 'Wool Area Rug'],
+   646→  },
+   647→  jewelry: {
+   648→    label: 'jewelry & luxury accessories',
+   649→    fontPairing: "'Cormorant Garamond' or 'Playfair Display' for headings, 'Inter' for body",
+   650→    imageryKeywords: ['jewelry', 'gold necklace', 'diamond ring', 'luxury watch', 'gemstone'],
+   651→    paletteHint: 'luxury — black, gold (#D4AF37), cream, with deep jewel tones',
+   652→    sampleProducts: ['18K Gold Necklace', 'Diamond Solitaire Ring', 'Pearl Earrings', 'Silver Bracelet', 'Emerald Pendant'],
+   653→  },
+   654→  books: {
+   655→    label: 'books & publishing',
+   656→    fontPairing: "'Playfair Display' for headings (literary), 'Inter' for body",
+   657→    imageryKeywords: ['books', 'bookstore', 'reading', 'library', 'book cover'],
+   658→    paletteHint: 'scholarly warm — burgundy, cream, dark brown, gold',
+   659→    sampleProducts: ['The Art of Programming', 'Modern Persian Poetry', 'History of Architecture', 'Cookbook: Persian Cuisine', 'Philosophy Essentials'],
+   660→  },
+   661→  sports: {
+   662→    label: 'sports & fitness',
+   663→    fontPairing: "'Inter' for headings (bold, modern), 'Inter' for body",
+   664→    imageryKeywords: ['fitness', 'gym equipment', 'athletic wear', 'running shoes', 'yoga'],
+   665→    paletteHint: 'energetic — black, neon green, electric blue',
+   666→    sampleProducts: ['Running Shoes Pro', 'Yoga Mat Premium', 'Adjustable Dumbbells', 'Resistance Band Set', 'Smart Fitness Tracker'],
+   667→  },
+   668→};
+   669→
+   670→// ─── Language → font mapping for generated sites ──────────────────────────
+   671→
+   672→const LANGUAGE_FONTS: Record<SiteLanguage, { heading: string; body: string; isRtl: boolean; dir: string }> = {
+   673→  en: { heading: "'Inter', sans-serif", body: "'Inter', sans-serif", isRtl: false, dir: 'ltr' },
+   674→  fa: { heading: "'Vazirmatn', sans-serif", body: "'Vazirmatn', sans-serif", isRtl: true, dir: 'rtl' },
+   675→  ar: { heading: "'Vazirmatn', sans-serif", body: "'Vazirmatn', sans-serif", isRtl: true, dir: 'rtl' },
+   676→  de: { heading: "'Inter', sans-serif", body: "'Inter', sans-serif", isRtl: false, dir: 'ltr' },
+   677→  es: { heading: "'Inter', sans-serif", body: "'Inter', sans-serif", isRtl: false, dir: 'ltr' },
+   678→  fr: { heading: "'Inter', sans-serif", body: "'Inter', sans-serif", isRtl: false, dir: 'ltr' },
+   679→};
+   680→
+   681→const LANGUAGE_GOOGLE_FONTS: Record<SiteLanguage, string> = {
+   682→  en: 'Inter',
+   683→  fa: 'Vazirmatn',
+   684→  ar: 'Vazirmatn',
+   685→  de: 'Inter',
+   686→  es: 'Inter',
+   687→  fr: 'Inter',
+   688→};
+   689→
+   690→// ─── System prompt: STRICT mode ────────────────────────────────────────────
+   691→// The new system prompt enforces STRICT adherence to user's text prompt.
+   692→// Every element, color, and animation mentioned MUST be implemented.
+   693→
+   694→function buildSystemPrompt(): string {
+   695→  return `You are Forge, an elite web designer and front-end engineer with 15+ years of experience. You generate production-quality, visually stunning, fully-responsive HTML websites.
+   696→
+   697→═══ CORE PRINCIPLES ═══════════════════════════════════════════════════════
+   698→1. Output ONLY a single, complete, valid HTML5 document. No explanations, no markdown outside the HTML.
+   699→2. Embed ALL CSS in a single <style> tag in the <head>. No external CSS files.
+   700→3. Use semantic HTML5: <header>, <nav>, <main>, <section>, <article>, <footer>, <aside>.
+   701→4. Mobile-first responsive design. Use CSS Grid and Flexbox. Test mentally at 375px, 768px, 1280px.
+   702→5. Use Google Fonts via <link> tags in <head>.
+   703→6. Use real, meaningful, specific copy based on the brief — NEVER lorem ipsum, NEVER placeholder text.
+   704→7. Use https://images.unsplash.com/photo-XXXX format URLs for images (real Unsplash photo IDs from the list provided), OR pure CSS gradients/patterns/shapes for visuals.
+   705→8. WCAG 2.1 AA compliant: proper color contrast, alt text, semantic markup, keyboard-focusable.
+   706→9. The page must be COMPLETE — every section fully fleshed out with real content. No "TODO", no "coming soon".
+   707→10. Use CSS custom properties (variables) in :root for the color palette.
+   708→11. The HTML must be self-contained and render perfectly when opened directly in a browser.
+   709→12. JavaScript allowed for: form validation, mobile menu toggle, slideshow, cart counter, countdown timer, filter toggling. Embed in a <script> at end of <body>.
+   710→
+   711→═══ STRICT PROMPT ADHERENCE (CRITICAL) ═════════════════════════════════════
+   712→You MUST follow EVERY instruction in the user's brief. Do NOT substitute, simplify, or skip anything.
+   713→
+   714→• COLORS: If the brief specifies hex color codes (e.g., #0A0A0A, #6C63FF, #FF2D95), you MUST use those EXACT codes in the CSS. Do not "interpret" or "approximate" them. If the brief says "black matte background with neon-pink buttons", the background is #0A0A0A (or whatever was specified) and buttons are #FF2D95.
+   715→
+   716→• THEME: If the brief says "dark-neon theme", the page MUST be dark (black/matte background, light text, glowing neon accents). Do NOT default to a light theme because it's "easier" — follow the brief.
+   717→
+   718→• ELEMENTS: If the brief lists required elements (header with cart, search, login; slideshow; product cards; filters; countdown; reviews carousel; newsletter footer), you MUST implement ALL of them. Each element must be FULLY functional with real content. Skipping any element is a critical failure.
+   719→
+   720→• ANIMATIONS: If the brief mentions specific animations (glassmorphism, parallax, skeleton, 360-rotation, shake, ripple, fade-in-up, count-up), you MUST implement each one. Use CSS @keyframes for most, JS only when needed.
+   721→
+   722→• INDUSTRY: If the brief specifies an industry sub-context (e.g., "we sell carpets"), use imagery, copy, and styling appropriate to that sub-industry. Do not use generic imagery.
+   723→
+   724→═══ HEADER / FOOTER CONSISTENCY ═════════════════════════════════════════════
+   725→The HEADER and FOOTER HTML will be provided to you VERBATIM. You MUST include them EXACTLY as given, character-for-character. Do NOT modify them, do NOT "improve" them, do NOT add/remove elements. The same header and footer will appear on every page of the site so navigation feels consistent.
+   726→
+   727→═══ OUTPUT FORMAT ═══════════════════════════════════════════════════════════
+   728→Return the HTML wrapped in a single \`\`\`html code fence. Start with <!DOCTYPE html>. End with </html>. No commentary before or after.`;
+   729→}
+   730→
+   731→// ─── Build the SHARED header/footer HTML (server-controlled, deterministic) ─
+   732→// This is generated ONCE per site (based on industry + parsed prompt) and
+   733→// reused on every page. This guarantees header/footer consistency.
+   734→
+   735→function buildSharedHeaderFooter(
+   736→  industry: Industry,
+   737→  siteName: string,
+   738→  navItems: string[],
+   739→  colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string; neonPink?: string },
+   740→  parsed: ParsedPrompt,
+   741→  language: SiteLanguage
+   742→): { headerHtml: string; footerHtml: string; cssForHeaderFooter: string } {
+   743→  const isRtl = LANGUAGE_FONTS[language].isRtl;
+   744→  const dir = LANGUAGE_FONTS[language].dir;
+   745→  const fontBody = LANGUAGE_FONTS[language].body;
+   746→  const fontHeading = LANGUAGE_FONTS[language].heading;
+   747→  const neonPink = (colors as any).neonPink || colors.accent;
+   748→
+   749→  const isEcommerce = industry === 'ecommerce' || parsed.requiredElements.includes('cart');
+   750→  const needsSearch = parsed.requiredElements.includes('search') || isEcommerce;
+   751→  const needsLogin = parsed.requiredElements.includes('login') || isEcommerce;
+   752→  const needsCart = parsed.requiredElements.includes('cart') || isEcommerce;
+   753→  const needsSticky = parsed.requiredElements.includes('sticky-header') || true; // sticky by default
+   754→  const needsGlassmorphism = parsed.themeKeywords.includes('glassmorphism') || parsed.animations.includes('parallax');
+   755→
+   756→  // Nav links
+   757→  const navLinksHtml = navItems.map((label, i) => {
+   758→    const route = PAGE_ORDER[i] ? PAGE_META[PAGE_ORDER[i]].route : '/';
+   759→    return `<a href="${route}" class="nav-link">${label}</a>`;
+   760→  }).join('\n              ');
+   761→
+   762→  // Header inner content
+   763→  let headerExtras = '';
+   764→  if (needsSearch) {
+   765→    headerExtras += `
+   766→              <div class="header-search">
+   767→                <input type="search" placeholder="${language === 'fa' ? 'جستجو...' : 'Search...'}" aria-label="Search" />
+   768→                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+   769→              </div>`;
+   770→  }
+   771→  if (needsCart) {
+   772→    const cartLabel = language === 'fa' ? 'سبد خرید' : 'Cart';
+   773→    headerExtras += `
+   774→              <button class="header-cart" aria-label="${cartLabel}" data-cart-count="0">
+   775→                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+   776→                <span class="cart-count">0</span>
+   777→              </button>`;
+   778→  }
+   779→  if (needsLogin) {
+   780→    const loginLabel = language === 'fa' ? 'ورود' : 'Login';
+   781→    const signupLabel = language === 'fa' ? 'ثبت‌نام' : 'Sign Up';
+   782→    headerExtras += `
+   783→              <div class="header-auth">
+   784→                <a href="#" class="auth-login">${loginLabel}</a>
+   785→                <a href="#" class="auth-signup">${signupLabel}</a>
+   786→              </div>`;
+   787→  }
+   788→
+   789→  const headerHtml = `<header class="site-header${needsSticky ? ' sticky' : ''}${needsGlassmorphism ? ' glass' : ''}" role="banner">
+   790→          <div class="header-inner">
+   791→            <a href="/" class="site-logo" aria-label="${siteName} home">
+   792→              <span class="logo-mark" aria-hidden="true">${siteName.charAt(0)}</span>
+   793→              <span class="logo-text">${siteName}</span>
+   794→            </a>
+   795→            <nav class="site-nav" role="navigation" aria-label="Main">
+   796→              ${navLinksHtml}
+   797→            </nav>
+   798→            <div class="header-actions">
+   799→              ${headerExtras}
+   800→              <button class="header-menu-toggle" aria-label="Menu" aria-expanded="false">
+   801→                <span></span><span></span><span></span>
+   802→              </button>
+   803→            </div>
+   804→          </div>
+   805→        </header>`;
+   806→
+   807→  // Footer columns
+   808→  const aboutText = language === 'fa'
+   809→    ? `${siteName} با هدف ارائه بهترین محصولات و خدمات به مشتریان عزیز، تلاش می‌کند تجربه‌ای متفاوت و لذت‌بخش برای شما رقم بزند.`
+   810→    : `${siteName} is dedicated to bringing you the finest products and exceptional service. We believe in quality, craftsmanship, and customer satisfaction.`;
+   811→
+   812→  const quickLinksTitle = language === 'fa' ? 'لینک‌های سریع' : 'Quick Links';
+   813→  const socialTitle = language === 'fa' ? 'شبکه‌های اجتماعی' : 'Connect';
+   814→  const newsletterTitle = language === 'fa' ? 'خبرنامه' : 'Newsletter';
+   815→  const newsletterPlaceholder = language === 'fa' ? 'ایمیل شما' : 'Your email';
+   816→  const subscribeLabel = language === 'fa' ? 'عضویت' : 'Subscribe';
+   817→  const newsletterDesc = language === 'fa'
+   818→    ? 'برای دریافت آخرین اخبار و تخفیف‌ها عضو شوید.'
+   819→    : 'Get the latest updates and exclusive offers.';
+   820→
+   821→  const quickLinksHtml = navItems.map((label, i) => {
+   822→    const route = PAGE_ORDER[i] ? PAGE_META[PAGE_ORDER[i]].route : '/';
+   823→    return `<li><a href="${route}">${label}</a></li>`;
+   824→  }).join('\n                ');
+   825→
+   826→  const year = new Date().getFullYear();
+   827→  const copyrightText = language === 'fa'
+   828→    ? `© ${year} ${siteName}. تمامی حقوق محفوظ است.`
+   829→    : `© ${year} ${siteName}. All rights reserved.`;
+   830→
+   831→  const footerHtml = `<footer class="site-footer" role="contentinfo">
+   832→          <div class="footer-inner">
+   833→            <div class="footer-col footer-about">
+   834→              <h3 class="footer-heading">${siteName}</h3>
+   835→              <p>${aboutText}</p>
+   836→            </div>
+   837→            <div class="footer-col footer-links">
+   838→              <h4 class="footer-heading">${quickLinksTitle}</h4>
+   839→              <ul>
+   840→                ${quickLinksHtml}
+   841→              </ul>
+   842→            </div>
+   843→            <div class="footer-col footer-social">
+   844→              <h4 class="footer-heading">${socialTitle}</h4>
+   845→              <div class="social-icons">
+   846→                <a href="#" aria-label="Twitter" class="social-icon">
+   847→                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22 5.8a8.49 8.49 0 0 1-2.36.64 4.13 4.13 0 0 0 1.81-2.27 8.21 8.21 0 0 1-2.61 1 4.1 4.1 0 0 0-7 3.74 11.64 11.64 0 0 1-8.45-4.29 4.16 4.16 0 0 0-.55 2.07 4.09 4.09 0 0 0 1.82 3.41 4.05 4.05 0 0 1-1.86-.51v.05a4.1 4.1 0 0 0 3.3 4 4.1 4.1 0 0 1-1.86.07 4.11 4.11 0 0 0 3.83 2.84A8.22 8.22 0 0 1 3 18.34a11.59 11.59 0 0 0 6.29 1.85A11.59 11.59 0 0 0 21 8.45v-.53a8.43 8.43 0 0 0 2-2.12Z"/></svg>
+   848→                </a>
+   849→                <a href="#" aria-label="Instagram" class="social-icon">
+   850→                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37Z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+   851→                </a>
+   852→                <a href="#" aria-label="Facebook" class="social-icon">
+   853→                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12Z"/></svg>
+   854→                </a>
+   855→                <a href="#" aria-label="YouTube" class="social-icon">
+   856→                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23 12s0-3.78-.48-5.59a3 3 0 0 0-2.12-2.12C18.59 3.81 12 3.81 12 3.81s-6.59 0-8.4.48A3 3 0 0 0 1.48 6.41C1 8.22 1 12 1 12s0 3.78.48 5.59a3 3 0 0 0 2.12 2.12c1.81.48 8.4.48 8.4.48s6.59 0 8.4-.48a3 3 0 0 0 2.12-2.12C23 15.78 23 12 23 12ZM9.75 15.02V8.98L15.5 12Z"/></svg>
+   857→                </a>
+   858→              </div>
+   859→            </div>
+   860→            <div class="footer-col footer-newsletter">
+   861→              <h4 class="footer-heading">${newsletterTitle}</h4>
+   862→              <p>${newsletterDesc}</p>
+   863→              <form class="newsletter-form" onsubmit="return false;">
+   864→                <input type="email" placeholder="${newsletterPlaceholder}" aria-label="${newsletterPlaceholder}" required />
+   865→                <button type="submit">${subscribeLabel}</button>
+   866→              </form>
+   867→            </div>
+   868→          </div>
+   869→          <div class="footer-bottom">
+   870→            <p>${copyrightText}</p>
+   871→          </div>
+   872→        </footer>`;
+   873→
+   874→  // CSS for header & footer (also reused verbatim on every page)
+   875→  const cssForHeaderFooter = `
+   876→  /* ─── Shared Header (consistent across all pages) ─── */
+   877→  .site-header {
+   878→    position: relative;
+   879→    z-index: 50;
+   880→    background: ${colors.bg};
+   881→    border-bottom: 1px solid ${colors.border};
+   882→    width: 100%;
+   883→  }
+   884→  .site-header.sticky {
+   885→    position: sticky;
+   886→    top: 0;
+   887→  }
+   888→  .site-header.glass {
+   889→    background: ${isLightColor(colors.bg) ? 'rgba(255,255,255,0.7)' : 'rgba(10,10,15,0.7)'};
+   890→    backdrop-filter: blur(12px) saturate(180%);
+   891→    -webkit-backdrop-filter: blur(12px) saturate(180%);
+   892→  }
+   893→  .header-inner {
+   894→    max-width: 1280px;
+   895→    margin: 0 auto;
+   896→    padding: 1rem 1.5rem;
+   897→    display: flex;
+   898→    align-items: center;
+   899→    justify-content: space-between;
+   900→    gap: 1.5rem;
+   901→  }
+   902→  .site-logo {
+   903→    display: flex;
+   904→    align-items: center;
+   905→    gap: 0.5rem;
+   906→    text-decoration: none;
+   907→    color: ${colors.text};
+   908→    font-family: ${fontHeading};
+   909→    font-weight: 700;
+   910→    font-size: 1.25rem;
+   911→    letter-spacing: -0.02em;
+   912→  }
+   913→  .logo-mark {
+   914→    display: inline-flex;
+   915→    align-items: center;
+   916→    justify-content: center;
+   917→    width: 32px;
+   918→    height: 32px;
+   919→    background: ${colors.accent};
+   920→    color: ${isLightColor(colors.accent) ? '#0F172A' : '#FFFFFF'};
+   921→    border-radius: 8px;
+   922→    font-weight: 800;
+   923→    font-size: 1rem;
+   924→  }
+   925→  .site-nav {
+   926→    display: flex;
+   927→    gap: 1.75rem;
+   928→    align-items: center;
+   929→  }
+   930→  .nav-link {
+   931→    color: ${colors.muted};
+   932→    text-decoration: none;
+   933→    font-size: 0.95rem;
+   934→    font-weight: 500;
+   935→    transition: color 200ms ease;
+   936→    position: relative;
+   937→  }
+   938→  .nav-link:hover {
+   939→    color: ${colors.text};
+   940→  }
+   941→  .nav-link::after {
+   942→    content: '';
+   943→    position: absolute;
+   944→    bottom: -6px;
+   945→    left: 0;
+   946→    width: 0;
+   947→    height: 2px;
+   948→    background: ${colors.accent};
+   949→    transition: width 200ms ease;
+   950→  }
+   951→  .nav-link:hover::after {
+   952→    width: 100%;
+   953→  }
+   954→  .header-actions {
+   955→    display: flex;
+   956→    align-items: center;
+   957→    gap: 1rem;
+   958→  }
+   959→  .header-search {
+   960→    position: relative;
+   961→    display: flex;
+   962→    align-items: center;
+   963→  }
+   964→  .header-search input {
+   965→    background: ${colors.surface};
+   966→    border: 1px solid ${colors.border};
+   967→    color: ${colors.text};
+   968→    padding: 0.5rem 2.5rem 0.5rem 1rem;
+   969→    border-radius: 999px;
+   970→    font-size: 0.875rem;
+   971→    width: 200px;
+   972→    transition: border-color 200ms ease, width 200ms ease;
+   973→    font-family: ${fontBody};
+   974→  }
+   975→  .header-search input:focus {
+   976→    outline: none;
+   977→    border-color: ${colors.accent};
+   978→    width: 240px;
+   979→  }
+   980→  .header-search svg {
+   981→    position: absolute;
+   982→    right: 0.85rem;
+   983→    color: ${colors.muted};
+   984→    pointer-events: none;
+   985→  }
+   986→  .header-cart {
+   987→    position: relative;
+   988→    background: none;
+   989→    border: none;
+   990→    color: ${colors.text};
+   991→    cursor: pointer;
+   992→    padding: 0.5rem;
+   993→    transition: transform 200ms ease;
+   994→  }
+   995→  .header-cart:hover { transform: scale(1.1); }
+   996→  .header-cart.shake { animation: cart-shake 400ms ease; }
+   997→  @keyframes cart-shake {
+   998→    0%, 100% { transform: translateX(0); }
+   999→    20% { transform: translateX(-4px) rotate(-5deg); }
+  1000→    40% { transform: translateX(4px) rotate(5deg); }
+  1001→    60% { transform: translateX(-3px) rotate(-3deg); }
+  1002→    80% { transform: translateX(3px) rotate(3deg); }
+  1003→  }
+  1004→  .cart-count {
+  1005→    position: absolute;
+  1006→    top: 0;
+  1007→    right: 0;
+  1008→    background: ${neonPink};
+  1009→    color: ${isLightColor(neonPink) ? '#0F172A' : '#FFFFFF'};
+  1010→    font-size: 0.7rem;
+  1011→    font-weight: 700;
+  1012→    min-width: 18px;
+  1013→    height: 18px;
+  1014→    border-radius: 9px;
+  1015→    display: flex;
+  1016→    align-items: center;
+  1017→    justify-content: center;
+  1018→    padding: 0 5px;
+  1019→    transform: scale(0);
+  1020→    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  1021→  }
+  1022→  .cart-count.visible { transform: scale(1); }
+  1023→  .header-auth {
+  1024→    display: flex;
+  1025→    gap: 0.5rem;
+  1026→    align-items: center;
+  1027→  }
+  1028→  .auth-login, .auth-signup {
+  1029→    color: ${colors.text};
+  1030→    text-decoration: none;
+  1031→    font-size: 0.875rem;
+  1032→    font-weight: 500;
+  1033→    padding: 0.5rem 1rem;
+  1034→    border-radius: 8px;
+  1035→    transition: background 200ms ease;
+  1036→  }
+  1037→  .auth-login:hover { background: ${colors.surface}; }
+  1038→  .auth-signup {
+  1039→    background: ${colors.accent};
+  1040→    color: ${isLightColor(colors.accent) ? '#0F172A' : '#FFFFFF'};
+  1041→  }
+  1042→  .auth-signup:hover { opacity: 0.9; }
+  1043→  .header-menu-toggle {
+  1044→    display: none;
+  1045→    background: none;
+  1046→    border: none;
+  1047→    cursor: pointer;
+  1048→    flex-direction: column;
+  1049→    gap: 4px;
+  1050→    padding: 0.5rem;
+  1051→  }
+  1052→  .header-menu-toggle span {
+  1053→    width: 24px;
+  1054→    height: 2px;
+  1055→    background: ${colors.text};
+  1056→    transition: transform 200ms ease, opacity 200ms ease;
+  1057→  }
+  1058→
+  1059→  /* ─── Shared Footer (consistent across all pages) ─── */
+  1060→  .site-footer {
+  1061→    background: ${isLightColor(colors.bg) ? darkenColor(colors.bg, 4) : colors.bg};
+  1062→    border-top: 1px solid ${colors.border};
+  1063→    padding: 4rem 1.5rem 2rem;
+  1064→    margin-top: auto;
+  1065→  }
+  1066→  .footer-inner {
+  1067→    max-width: 1280px;
+  1068→    margin: 0 auto;
+  1069→    display: grid;
+  1070→    grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  1071→    gap: 3rem;
+  1072→  }
+  1073→  .footer-heading {
+  1074→    font-family: ${fontHeading};
+  1075→    color: ${colors.text};
+  1076→    font-size: 1.125rem;
+  1077→    font-weight: 700;
+  1078→    margin-bottom: 1rem;
+  1079→    letter-spacing: -0.01em;
+  1080→  }
+  1081→  .footer-col p {
+  1082→    color: ${colors.muted};
+  1083→    font-size: 0.9rem;
+  1084→    line-height: 1.6;
+  1085→  }
+  1086→  .footer-col ul {
+  1087→    list-style: none;
+  1088→    padding: 0;
+  1089→    margin: 0;
+  1090→  }
+  1091→  .footer-col ul li {
+  1092→    margin-bottom: 0.5rem;
+  1093→  }
+  1094→  .footer-col ul li a {
+  1095→    color: ${colors.muted};
+  1096→    text-decoration: none;
+  1097→    font-size: 0.9rem;
+  1098→    transition: color 200ms ease;
+  1099→  }
+  1100→  .footer-col ul li a:hover { color: ${colors.accent}; }
+  1101→  .social-icons {
+  1102→    display: flex;
+  1103→    gap: 0.75rem;
+  1104→  }
+  1105→  .social-icon {
+  1106→    display: inline-flex;
+  1107→    align-items: center;
+  1108→    justify-content: center;
+  1109→    width: 36px;
+  1110→    height: 36px;
+  1111→    border-radius: 50%;
+  1112→    background: ${colors.surface};
+  1113→    color: ${colors.muted};
+  1114→    transition: all 200ms ease;
+  1115→  }
+  1116→  .social-icon:hover {
+  1117→    background: ${colors.accent};
+  1118→    color: ${isLightColor(colors.accent) ? '#0F172A' : '#FFFFFF'};
+  1119→    transform: translateY(-2px);
+  1120→  }
+  1121→  .newsletter-form {
+  1122→    display: flex;
+  1123→    gap: 0.5rem;
+  1124→    margin-top: 0.75rem;
+  1125→  }
+  1126→  .newsletter-form input {
+  1127→    flex: 1;
+  1128→    background: ${colors.surface};
+  1129→    border: 1px solid ${colors.border};
+  1130→    color: ${colors.text};
+  1131→    padding: 0.625rem 0.875rem;
+  1132→    border-radius: 8px;
+  1133→    font-size: 0.875rem;
+  1134→    font-family: ${fontBody};
+  1135→  }
+  1136→  .newsletter-form input:focus {
+  1137→    outline: none;
+  1138→    border-color: ${colors.accent};
+  1139→  }
+  1140→  .newsletter-form button {
+  1141→    background: ${colors.accent};
+  1142→    color: ${isLightColor(colors.accent) ? '#0F172A' : '#FFFFFF'};
+  1143→    border: none;
+  1144→    padding: 0.625rem 1.25rem;
+  1145→    border-radius: 8px;
+  1146→    font-weight: 600;
+  1147→    font-size: 0.875rem;
+  1148→    cursor: pointer;
+  1149→    transition: opacity 200ms ease;
+  1150→    font-family: ${fontBody};
+  1151→  }
+  1152→  .newsletter-form button:hover { opacity: 0.9; }
+  1153→  .footer-bottom {
+  1154→    max-width: 1280px;
+  1155→    margin: 2rem auto 0;
+  1156→    padding-top: 2rem;
+  1157→    border-top: 1px solid ${colors.border};
+  1158→    text-align: center;
+  1159→  }
+  1160→  .footer-bottom p {
+  1161→    color: ${colors.muted};
+  1162→    font-size: 0.85rem;
+  1163→  }
+  1164→
+  1165→  /* RTL adjustments */
+  1166→  [dir="rtl"] .header-search svg { right: auto; left: 0.85rem; }
+  1167→  [dir="rtl"] .header-search input { padding: 0.5rem 1rem 0.5rem 2.5rem; }
+  1168→  [dir="rtl"] .cart-count { right: auto; left: 0; }
+  1169→
+  1170→  /* Mobile responsive */
+  1171→  @media (max-width: 768px) {
+  1172→    .header-inner { flex-wrap: wrap; gap: 0.75rem; }
+  1173→    .site-nav {
+  1174→      display: none;
+  1175→      position: absolute;
+  1176→      top: 100%;
+  1177→      left: 0;
+  1178→      right: 0;
+  1179→      background: ${colors.bg};
+  1180→      border-bottom: 1px solid ${colors.border};
+  1181→      flex-direction: column;
+  1182→      padding: 1rem 1.5rem;
+  1183→      gap: 1rem;
+  1184→    }
+  1185→    .site-nav.open { display: flex; }
+  1186→    .header-search { display: none; }
+  1187→    .header-menu-toggle { display: flex; }
+  1188→    .footer-inner { grid-template-columns: 1fr; gap: 2rem; }
+  1189→  }
+  1190→`;
+  1191→
+  1192→  return { headerHtml, footerHtml, cssForHeaderFooter };
+  1193→}
+  1194→
+  1195→function darkenColor(hex: string, percent: number): string {
+  1196→  const [r, g, b] = hexToRgb(hex);
+  1197→  const factor = percent / 100;
+  1198→  const nr = Math.max(0, Math.round(r * (1 - factor)));
+  1199→  const ng = Math.max(0, Math.round(g * (1 - factor)));
+  1200→  const nb = Math.max(0, Math.round(b * (1 - factor)));
+  1201→  return '#' + [nr, ng, nb].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+  1202→}
+  1203→
+  1204→// ─── Build advanced options block for prompt injection ────────────────────────
+  1205→
+  1206→function buildAdvancedOptionsBlock(opts?: GeneratePageRequest['advancedOptions']): string {
+  1207→  if (!opts) return '';
+  1208→
+  1209→  const lines: string[] = [];
+  1210→  lines.push('═══ ADVANCED CONFIGURATION (USER EXPLICITLY SET THESE — OBEY EVERY ONE) ══════════════════');
+  1211→
+  1212→  // Brand
+  1213→  if (opts.brandName) {
+  1214→    lines.push(`- Brand name: "${opts.brandName}" — use this as the site title, logo text, and in all hero headings.`);
+  1215→  }
+  1216→  if (opts.fontFamily) {
+  1217→    lines.push(`- Font family: "${opts.fontFamily}" — use this for ALL body text and headings. Include it via Google Fonts in <head>.`);
+  1218→  }
+  1219→  if (opts.logoPlacement) {
+  1220→    lines.push(`- Logo placement in header: ${opts.logoPlacement}`);
+  1221→  }
+  1222→
+  1223→  // Color scheme override
+  1224→  if (opts.colorScheme) {
+  1225→    const cs = opts.colorScheme;
+  1226→    lines.push('- CUSTOM COLOR SCHEME (overrides style preset — use these EXACT values):');
+  1227→    if (cs.primary) lines.push(`  Primary/accent color: ${cs.primary}`);
+  1228→    if (cs.accent) lines.push(`  Secondary accent: ${cs.accent}`);
+  1229→    if (cs.background) lines.push(`  Background: ${cs.background}`);
+  1230→    if (cs.surface) lines.push(`  Surface/cards: ${cs.surface}`);
+  1231→    if (cs.text) lines.push(`  Text color: ${cs.text}`);
+  1232→    if (cs.muted) lines.push(`  Muted/secondary text: ${cs.muted}`);
+  1233→    lines.push('  Map these to CSS custom properties (:root { --accent, --bg, --surface, --text, --muted }) and use them throughout ALL elements.');
+  1234→  }
+  1235→
+  1236→  // Layout & complexity
+  1237→  if (opts.complexity) {
+  1238→    const descriptions: Record<string, string> = {
+  1239→      simple: 'Minimal sections, basic layout, quick generation',
+  1240→      standard: 'Balanced layout with key sections',
+  1241→      advanced: 'Rich layout, multiple sections, detailed content',
+  1242→      comprehensive: 'Full-featured site with every section fleshed out',
+  1243→    };
+  1244→    lines.push(`- Complexity level: ${opts.complexity} — ${descriptions[opts.complexity] || 'Balanced layout'}`);
+  1245→  }
+  1246→  if (opts.pageLength) {
+  1247→    const descriptions: Record<string, string> = {
+  1248→      short: '1-2 sections, minimal scroll',
+  1249→      medium: '3-4 sections, balanced content',
+  1250→      long: '5-7 sections, detailed content',
+  1251→      extended: '8+ sections, comprehensive coverage',
+  1252→    };
+  1253→    lines.push(`- Page length: ${opts.pageLength} — ${descriptions[opts.pageLength] || 'Balanced content'}`);
+  1254→  }
+  1255→  if (opts.layoutDensity) {
+  1256→    const descriptions: Record<string, string> = {
+  1257→      compact: 'Tight spacing, dense layout, smaller fonts',
+  1258→      comfortable: 'Normal spacing, readable, balanced',
+  1259→      spacious: 'Generous whitespace, larger typography',
+  1260→      'ultra-spacious': 'Maximum whitespace, premium feel',
+  1261→    };
+  1262→    lines.push(`- Layout density: ${opts.layoutDensity} — ${descriptions[opts.layoutDensity] || 'Normal spacing'}`);
+  1263→  }
+  1264→  if (opts.contentTone) {
+  1265→    const descriptions: Record<string, string> = {
+  1266→      professional: 'Formal, business-like, authoritative language',
+  1267→      casual: 'Friendly, conversational, approachable',
+  1268→      playful: 'Fun, quirky, lighthearted',
+  1269→      elegant: 'Sophisticated, refined, graceful',
+  1270→      technical: 'Precise, detailed, factual',
+  1271→      warm: 'Caring, empathetic, welcoming',
+  1272→    };
+  1273→    lines.push(`- Content tone: ${opts.contentTone} — ${descriptions[opts.contentTone] || 'Professional language'}. Write ALL headings, descriptions, and copy in this tone.`);
+  1274→  }
+  1275→
+  1276→  // Sections — EXPLICIT toggles
+  1277→  const sectionToggles: { key: string; label: string }[] = [
+  1278→    { key: 'includeHero', label: 'Hero section' },
+  1279→    { key: 'includeFeatures', label: 'Features/Services section' },
+  1280→    { key: 'includeTestimonials', label: 'Testimonials section' },
+  1281→    { key: 'includePricing', label: 'Pricing section' },
+  1282→    { key: 'includeFAQ', label: 'FAQ section' },
+  1283→    { key: 'includeNewsletter', label: 'Newsletter signup' },
+  1284→    { key: 'includeCTA', label: 'Call-to-action (CTA) section' },
+  1285→    { key: 'includeFooter', label: 'Footer' },
+  1286→    { key: 'includeAnimations', label: 'Animations' },
+  1287→    { key: 'includeSocialLinks', label: 'Social media links' },
+  1288→    { key: 'includeContactForm', label: 'Contact form' },
+  1289→  ];
+  1290→  const enabledSections = sectionToggles.filter(s => opts[s.key as keyof typeof opts] === true).map(s => s.label);
+  1291→  const disabledSections = sectionToggles.filter(s => opts[s.key as keyof typeof opts] === false).map(s => s.label);
+  1292→  if (enabledSections.length > 0) {
+  1293→    lines.push(`- INCLUDE these sections: ${enabledSections.join(', ')}`);
+  1294→  }
+  1295→  if (disabledSections.length > 0) {
+  1296→    lines.push(`- EXCLUDE these sections (DO NOT generate them at all): ${disabledSections.join(', ')}`);
+  1297→  }
+  1298→
+  1299→  // UX preferences
+  1300→  if (opts.navigationStyle) {
+  1301→    const descriptions: Record<string, string> = {
+  1302→      top: 'Standard top navigation bar',
+  1303→      sticky: 'Sticky/fixed header that stays visible on scroll',
+  1304→      sidebar: 'Sidebar navigation (common for dashboards)',
+  1305→      centered: 'Centered navigation links',
+  1306→      minimal: 'Minimal navigation, few links',
+  1307→    };
+  1308→    lines.push(`- Navigation style: ${opts.navigationStyle} — ${descriptions[opts.navigationStyle] || 'Standard'}`);
+  1309→  }
+  1310→  if (opts.ctaStyle) {
+  1311→    const descriptions: Record<string, string> = {
+  1312→      button: 'Standard button CTAs',
+  1313→      pill: 'Rounded pill-shaped CTAs',
+  1314→      link: 'Simple text link CTAs',
+  1315→      gradient: 'Gradient background CTAs',
+  1316→      outlined: 'Outlined/bordered CTAs',
+  1317→    };
+  1318→    lines.push(`- CTA button style: ${opts.ctaStyle} — ${descriptions[opts.ctaStyle] || 'Standard buttons'}`);
+  1319→  }
+  1320→  if (opts.animationLevel) {
+  1321→    const descriptions: Record<string, string> = {
+  1322→      none: 'No animations at all — static page',
+  1323→      subtle: 'Subtle hover effects and gentle fade-ins',
+  1324→      moderate: 'Noticeable transitions, scroll animations',
+  1325→      energetic: 'Vivid animations, parallax, bold hover effects',
+  1326→      immersive: 'Full parallax, complex scroll animations, micro-interactions everywhere',
+  1327→    };
+  1328→    lines.push(`- Animation level: ${opts.animationLevel} — ${descriptions[opts.animationLevel] || 'Subtle effects'}`);
+  1329→  }
+  1330→  if (opts.responsivePriority) {
+  1331→    const descriptions: Record<string, string> = {
+  1332→      'mobile-first': 'Design primarily for mobile, then scale up',
+  1333→      'desktop-first': 'Design primarily for desktop, then adapt for mobile',
+  1334→      universal: 'Equally prioritize all screen sizes',
+  1335→    };
+  1336→    lines.push(`- Responsive priority: ${opts.responsivePriority} — ${descriptions[opts.responsivePriority] || 'All screen sizes'}`);
+  1337→  }
+  1338→  if (opts.imageStyle) {
+  1339→    const descriptions: Record<string, string> = {
+  1340→      illustrations: 'Use SVG illustrations instead of photos',
+  1341→      photos: 'Use real photographs',
+  1342→      icons: 'Use icon-based visuals',
+  1343→      abstract: 'Use abstract/geometric patterns',
+  1344→      mixed: 'Mix photos and illustrations',
+  1345→      none: 'No images — pure text/layout',
+  1346→    };
+  1347→    lines.push(`- Image style: ${opts.imageStyle} — ${descriptions[opts.imageStyle] || 'Mixed visuals'}`);
+  1348→  }
+  1349→
+  1350→  // SEO & accessibility
+  1351→  if (opts.seoLevel) {
+  1352→    lines.push(`- SEO level: ${opts.seoLevel}${opts.seoLevel === 'advanced' ? ' — include meta description, Open Graph tags, structured data, semantic headings hierarchy' : opts.seoLevel === 'standard' ? ' — include meta description and semantic headings' : ''}`);
+  1353→  }
+  1354→  if (opts.accessibilityLevel) {
+  1355→    lines.push(`- Accessibility level: ${opts.accessibilityLevel}${opts.accessibilityLevel === 'maximum' ? ' — WCAG AAA compliance, ARIA labels everywhere, skip links, focus indicators' : opts.accessibilityLevel === 'enhanced' ? ' — WCAG AA compliance, proper alt text, ARIA labels on interactive elements' : ''}`);
+  1356→  }
+  1357→
+  1358→  lines.push('');
+  1359→  lines.push('IMPORTANT: These advanced settings were explicitly set by the user. They OVERRIDE defaults. You MUST respect every setting above. If a section is marked EXCLUDE, do NOT include it even if it seems natural for the industry. If a color scheme is given, use those EXACT colors. If content tone is specified, write in that tone throughout.');
+  1360→
+  1361→  return lines.join('\n');
+  1362→}
+  1363→
+  1364→// ─── Build page-specific prompt with parsed spec + shared header/footer ────
+  1365→
+  1366→function buildPagePrompt(
+  1367→  req: GeneratePageRequest,
+  1368→  parsed: ParsedPrompt,
+  1369→  colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string; neonPink?: string },
+  1370→  headerFooter: { headerHtml: string; footerHtml: string; cssForHeaderFooter: string },
+  1371→  advancedOptions?: GeneratePageRequest['advancedOptions']
+  1372→): string {
+  1373→  const meta = INDUSTRY_META[req.industry || 'portfolio'];
+  1374→  const stylePreset = resolveStylePreset(req.style || 'dark');
+  1375→  const pageMeta = PAGE_META[req.page];
+  1376→  const siteName = req.siteName || meta.defaultSiteName;
+  1377→  const language = req.language || 'en';
+  1378→  const langFont = LANGUAGE_FONTS[language];
+  1379→  const subIndustryCues = parsed.subIndustry ? SUB_INDUSTRY_CUES[parsed.subIndustry] : null;
+  1380→
+  1381→  const otherPagesBrief = PAGE_ORDER
+  1382→    .filter(p => p !== req.page)
+  1383→    .map(p => `${PAGE_META[p].name} (at ${PAGE_META[p].route})`)
+  1384→    .join(', ');
+  1385→
+  1386→  // ── Build the "REQUIRED ELEMENTS" checklist from parsed prompt ──
+  1387→  const requiredElementsList = parsed.requiredElements.length > 0
+  1388→    ? parsed.requiredElements.map(el => `  □ ${el}`).join('\n')
+  1389→    : '  (none specifically requested beyond industry defaults)';
+  1390→
+  1391→  // ── Build the "REQUIRED ANIMATIONS" checklist ──
+  1392→  const requiredAnimationsList = parsed.animations.length > 0
+  1393→    ? parsed.animations.map(a => `  □ ${a}`).join('\n')
+  1394→    : '  (none specifically requested beyond defaults)';
+  1395→
+  1396→  // ── Build the "REQUIRED COLORS" section ──
+  1397→  const requiredColorsList = parsed.hexColors.length > 0
+  1398→    ? parsed.hexColors.map(c => `  □ ${c}`).join('\n')
+  1399→    : '  (none specifically requested — use style preset)';
+  1400→
+  1401→  // ── Industry defaults (always-on requirements based on industry) ──
+  1402→  const industryDefaults: string[] = [];
+  1403→  if (req.industry === 'ecommerce') {
+  1404→    industryDefaults.push(
+  1405→      '  □ product cards with image, name, price (with discount), star rating, add-to-cart button',
+  1406→      '  □ shopping cart icon in header with item count badge',
+  1407→      '  □ search bar in header',
+  1408→      '  □ login/register buttons in header',
+  1409→      '  □ category navigation in header',
+  1410→      '  □ product grid (minimum 6-8 products) with realistic product names, prices, descriptions',
+  1411→      '  □ discount badges on at least 2 products ("Special Offer" or "New")',
+  1412→      '  □ star ratings (4.0-5.0) on each product card'
+  1413→    );
+  1414→  }
+  1415→  if (parsed.themeKeywords.includes('dark-neon')) {
+  1416→    industryDefaults.push(
+  1417→      '  □ DARK NEON THEME: matte black background (#0A0A0A or as specified), light text, glowing neon accents',
+  1418→      '  □ neon glow effect on CTAs and headers (use box-shadow with neon color)',
+  1419→      '  □ vibrant accent colors (electric purple, neon pink) for interactive elements'
+  1420→    );
+  1421→  }
+  1422→  if (parsed.themeKeywords.includes('glassmorphism') || parsed.animations.includes('parallax')) {
+  1423→    industryDefaults.push(
+  1424→      '  □ GLASSMORPHISM on header and cards: add class="forge-glass" to the element. The Forge Animation Library (auto-injected) provides the backdrop-filter, translucent background, and inner glow. Optionally use forge-glass dark or forge-glass solid modifiers.'
+  1425→    );
+  1426→  }
+  1427→
+  1428→  // ── Animation specs ──
+  1429→  // Phase 5: All Forge animations are backed by an auto-injected library.
+  1430→  // The AI just needs to use the right class names / data attributes — the
+  1431→  // CSS and JS are guaranteed to be present.
+  1432→  const animationSpecs: string[] = [];
+  1433→  if (parsed.animations.includes('fade-in-up')) {
+  1434→    animationSpecs.push(
+  1435→      '  □ fade-in-up on scroll for all major sections: use IntersectionObserver in JS to add .visible class when section enters viewport. CSS: opacity:0; transform:translateY(30px); transition:all 600ms ease. .visible { opacity:1; transform:none; }. Add transition-delay incrementally (0ms, 100ms, 200ms...) for staggered effect.'
+  1436→    );
+  1437→  }
+  1438→  if (parsed.animations.includes('parallax') || detectAnimations(parsed._rawPrompt || '').includes('parallax')) {
+  1439→    animationSpecs.push(
+  1440→      '  □ PARALLAX on hero background image: wrap the hero in <div class="forge-parallax"> and put the background image in a <div class="forge-parallax-bg" style="background-image:url(...)"></div>. The Forge Animation Library auto-initializes scroll-based parallax on these elements. Content sits in a sibling div with position:relative;z-index:1.'
+  1441→    );
+  1442→  }
+  1443→  if (parsed.animations.includes('skeleton-loader') || detectAnimations(parsed._rawPrompt || '').includes('skeleton')) {
+  1444→    animationSpecs.push(
+  1445→      '  □ SKELETON LOADER for product grid: while products load, render placeholder cards using <div class="forge-skeleton forge-skeleton-block"></div> for the image area and <span class="forge-skeleton forge-skeleton-line"></span> for text lines. The Forge Animation Library provides the shimmer animation. After products arrive, replace the placeholders with real content.'
+  1446→    );
+  1447→  }
+  1448→  if (parsed.animations.includes('360-rotate') || detectAnimations(parsed._rawPrompt || '').includes('rotate-360')) {
+  1449→    animationSpecs.push(
+  1450→      '  □ 360 ROTATION on product image hover: wrap each product image in <div class="forge-rotate-stage"> and add class="forge-rotate-360" to the <img>. The Forge Animation Library auto-rotates the image 360° on hover and once on entrance into the viewport.'
+  1451→    );
+  1452→  }
+  1453→  if (parsed.animations.includes('count-up') || detectAnimations(parsed._rawPrompt || '').includes('count-up')) {
+  1454→    animationSpecs.push(
+  1455→      '  □ COUNT-UP animation for stats/sales numbers: render each stat as <div class="forge-count-up" data-count-target="12847" data-count-suffix="+">0</div>. Optional attributes: data-count-prefix="$", data-count-decimals="1", data-count-duration="2000", data-count-group="off". The Forge Animation Library auto-animates the number from 0 to target when the element scrolls into view.'
+  1456→    );
+  1457→  }
+  1458→  if (parsed.animations.includes('ripple-effect')) {
+  1459→    animationSpecs.push(
+  1460→      '  □ RIPPLE effect on button clicks: JS adds <span class="ripple"> at click position, CSS animates scale from 0 to 4 with opacity fade.'
+  1461→    );
+  1462→  }
+  1463→  if (parsed.animations.includes('shake-animation') || detectAnimations(parsed._rawPrompt || '').includes('shake-cart')) {
+  1464→    animationSpecs.push(
+  1465→      '  □ SHAKE animation on cart when product added: give the cart icon an id (e.g., id="cart-icon") and add data-shake-target="#cart-icon" to every "Add to cart" button. The Forge Animation Library auto-wires these — clicking the button shakes the cart icon. You can also call window.forgeShake(el, { pop: true }) directly from any JS handler.'
+  1466→    );
+  1467→  }
+  1468→  if (parsed.animations.includes('float-animation')) {
+  1469→    animationSpecs.push(
+  1470→      '  □ FLOAT animation on CTA buttons: @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } } with 3s ease-in-out infinite.'
+  1471→    );
+  1472→  }
+  1473→
+  1474→  // ── Phase 5: Animation library reminder ──
+  1475→  const detectedForgeAnims = detectAnimations(parsed._rawPrompt || '');
+  1476→  if (detectedForgeAnims.length > 0) {
+  1477→    animationSpecs.push(
+  1478→      `  □ FORGE ANIMATION LIBRARY is auto-injected for: ${detectedForgeAnims.map(id => ANIMATIONS[id].nameEn).join(', ')}.`,
+  1479→      '    The CSS and JS for these effects are GUARANTEED to be present in the final HTML.',
+  1480→      '    You MUST use the exact class names / data attributes listed above. Do NOT reinvent the CSS — just use the right markup.',
+  1481→      '    If you forget the class names, the library will still work for elements that have the data-* attributes, but visual effects (glassmorphism, parallax) require the class.'
+  1482→    );
+  1483→  }
+  1484→
+  1485→  // ── E-commerce-specific page requirements ──
+  1486→  let pageSpecificEcommerce = '';
+  1487→  if (req.industry === 'ecommerce' && req.page === 'home') {
+  1488→    pageSpecificEcommerce = `
+  1489→ECOMMERCE HOME PAGE — REQUIRED SECTIONS (in this order):
+  1490→1. Hero section: full-screen slideshow/banner with 3 slides, navigation arrows + dots, parallax background
+  1491→2. Featured products: grid of 6-8 product cards with skeleton loader animation, 360-rotate on hover
+  1492→3. Special offers: countdown timer section with 3-4 high-discount products
+  1493→4. Categories: visual category cards (e.g., Electronics, Clothing, Home — adapted to sub-industry)
+  1494→5. Customer reviews: carousel with profile photos, names, ratings, testimonial text
+  1495→6. Stats: count-up animated numbers (customers, products, satisfaction %)
+  1496→7. Newsletter CTA in footer (already provided)`;
+  1497→  }
+  1498→  if (req.industry === 'ecommerce' && req.page === 'services') {
+  1499→    pageSpecificEcommerce = `
+  1500→ECOMMERCE SERVICES/SHOP PAGE — REQUIRED SECTIONS:
+  1501→1. Page header with breadcrumb
+  1502→2. Sidebar filters (left or right based on RTL): category checkboxes, price range slider (dual-handle), brand checkboxes, color swatches
+  1503→3. Main product grid: 8-12 products with image, name, original price (strikethrough), discounted price, star rating, add-to-cart button, discount badge
+  1504→4. Sort dropdown (price low-high, high-low, newest, rating)
+  1505→5. Pagination or "Load more" button
+  1506→6. "Compare products" feature (optional)`;
+  1507→  }
+  1508→
+  1509→  // ── Sub-industry context (from new comprehensive library) ──
+  1510→  // Try the new V2 industry detector first; fall back to old SUB_INDUSTRY_CUES
+  1511→  const v2Detection = detectIndustryV2(req.prompt);
+  1512→  const v2IndustryMeta = v2Detection.industry;
+  1513→  const v2SubIndustry = v2Detection.detectedSubIndustry;
+  1514→
+  1515→  let subIndustrySection = '';
+  1516→  if (v2IndustryMeta && v2IndustryMeta.id !== 'generic-business') {
+  1517→    // Build categorized image URL list (hero/product/lifestyle/team/workspace/detail)
+  1518→    const allCategorized = getAllCuratedImages(v2IndustryMeta.id, 4);
+  1519→    const imgLines: string[] = [];
+  1520→    for (const cat of ['hero', 'product', 'lifestyle', 'team', 'workspace', 'detail'] as ImageCategory[]) {
+  1521→      const urls = allCategorized[cat] || [];
+  1522→      if (urls.length > 0) {
+  1523→        imgLines.push(`  ${cat.toUpperCase()} (use for ${cat} sections):`);
+  1524→        urls.forEach(u => imgLines.push(`    ${u}`));
+  1525→      }
+  1526→    }
+  1527→
+  1528→    const subLabel = v2SubIndustry
+  1529→      ? v2IndustryMeta.subIndustries.find(s => s.id === v2SubIndustry)?.nameEn
+  1530→      : undefined;
+  1531→
+  1532→    subIndustrySection = `
+  1533→INDUSTRY CONTEXT (auto-detected): ${v2IndustryMeta.nameEn}${subLabel ? ` · ${subLabel}` : ''}
+  1534→- Persian name: ${v2IndustryMeta.nameFa}
+  1535→- Industry group: ${v2IndustryMeta.group}
+  1536→- Suggested font pairing: ${v2IndustryMeta.fontPairing}
+  1537→${v2IndustryMeta.patternHint ? `- Decorative pattern: ${v2IndustryMeta.patternHint}` : ''}
+  1538→- Suggested sections for this industry: ${v2IndustryMeta.suggestedSections.join(', ')}
+  1539→- Sample products/services (use as content inspiration): ${v2IndustryMeta.sampleProducts.join(', ')}
+  1540→- Suggested color palette (light): bg=${v2IndustryMeta.palette.light.bg}, accent=${v2IndustryMeta.palette.light.accent}, text=${v2IndustryMeta.palette.light.text}
+  1541→- Suggested color palette (dark):  bg=${v2IndustryMeta.palette.dark.bg}, accent=${v2IndustryMeta.palette.dark.accent}, text=${v2IndustryMeta.palette.dark.text}
+  1542→
+  1543→CATEGORIZED IMAGE LIBRARY (use these EXACT URLs — they are pre-verified):
+  1544→- For each section below, pick the most appropriate image from the matching category.
+  1545→- Hero images go in hero/banner sections. Product images go in product cards. Lifestyle images go in editorial sections. Team images go in "About"/"Team" sections. Workspace images go in "Studio"/"Office" sections. Detail images go in close-up/texture sections.
+  1546→${imgLines.join('\n')}
+  1547→
+  1548→IMPORTANT: Use the URLs above verbatim. Do NOT invent Unsplash photo IDs — only use IDs from the list provided. If a section needs a different image type (e.g., hero section needs a banner), use a hero-category image. If the section type is ambiguous, use a product image.
+  1549→`;
+  1550→  } else if (subIndustryCues) {
+  1551→    // Fallback to old SUB_INDUSTRY_CUES for backward compatibility
+  1552→    subIndustrySection = `
+  1553→INDUSTRY SUB-CONTEXT (detected from prompt): ${parsed.subIndustry}
+  1554→- This is a ${subIndustryCues.label}.
+  1555→- Use font pairing: ${subIndustryCues.fontPairing}
+  1556→- Color palette hint: ${subIndustryCues.paletteHint}
+  1557→${subIndustryCues.patternHint ? `- Decorative pattern: ${subIndustryCues.patternHint}` : ''}
+  1558→- Sample products to use as content inspiration: ${subIndustryCues.sampleProducts?.join(', ')}
+  1559→- Use Unsplash images matching: ${subIndustryCues.imageryKeywords.join(', ')}
+  1560→- IMPORTANT: Use REAL Unsplash photo IDs. Sample working IDs you can use:
+  1561→  ${getUnsplashImagesForSubIndustry(parsed.subIndustry).slice(0, 8).join('\n  ')}
+  1562→`;
+  1563→  }
+  1564→
+  1565→  // ── Single-page mode ──
+  1566→  const singlePageNote = parsed.isSinglePage
+  1567→    ? `\nSINGLE-PAGE MODE: The user requested a single-page site. Even though this is the ${pageMeta.name} page, generate it as a COMPLETE standalone landing page with ALL sections (hero, products, about, contact) on ONE page. Other pages will still be generated separately but this page should be self-sufficient.`
+  1568→    : '';
+  1569→
+  1570→  // ── Color spec ──
+  1571→  const colorSpec = parsed.hexColors.length > 0
+  1572→    ? `COLORS (USER-SPECIFIED — use EXACT codes):
+  1573→${requiredColorsList}
+  1574→
+  1575→Map these to CSS variables:
+  1576→:root {
+  1577→  --bg: ${colors.bg};          ${colors.bg !== parsed.hexColors[0] ? `/* user specified */` : ''}
+  1578→  --surface: ${colors.surface};  /* derived */
+  1579→  --text: ${colors.text};        /* derived for contrast */
+  1580→  --muted: ${colors.muted};       /* derived for contrast */
+  1581→  --accent: ${colors.accent};    ${parsed.hexColors.length >= 2 ? `/* user specified */` : ''}
+  1582→  ${colors.neonPink ? `--neon-pink: ${colors.neonPink};    /* user specified — use for CTAs, highlights, cart count */` : ''}
+  1583→  --border: ${colors.border};
+  1584→  --font-sans: ${langFont.body};
+  1585→  --font-heading: ${langFont.heading};
+  1586→}`
+  1587→    : `COLORS (from style preset — ${stylePreset.label}):
+  1588→:root {
+  1589→  --bg: ${colors.bg};
+  1590→  --surface: ${colors.surface};
+  1591→  --text: ${colors.text};
+  1592→  --muted: ${colors.muted};
+  1593→  --accent: ${colors.accent};
+  1594→  --border: ${colors.border};
+  1595→  --font-sans: ${langFont.body};
+  1596→  --font-heading: ${langFont.heading};
+  1597→}`;
+  1598→
+  1599→  // ── Language / RTL ──
+  1600→  const languageSpec = `
+  1601→SITE LANGUAGE: ${language.toUpperCase()} (${langFont.dir.toUpperCase()})
+  1602→- <html lang="${language}" dir="${langFont.dir}">
+  1603→- Font: ${LANGUAGE_GOOGLE_FONTS[language]} from Google Fonts
+  1604→- ${langFont.isRtl ? 'RTL: text and layouts flow right-to-left. Use logical properties (margin-inline-start, padding-inline-end) where possible.' : 'LTR: standard left-to-right.'}
+  1605→`;
+  1606→
+  1607→  return `Generate the **${pageMeta.name}** page for a ${meta.label} website.
+  1608→
+  1609→═══ PROJECT BRIEF (USER'S EXACT PROMPT) ════════════════════════════════════
+  1610→"${req.prompt}"
+  1611→
+  1612→The user's brief is the SOURCE OF TRUTH. Every instruction in it must be implemented faithfully. Do NOT simplify, skip, or "interpret" anything away.
+  1613→
+  1614→═══ SITE INFORMATION ═════════════════════════════════════════════════════════
+  1615→- Site name: ${siteName}
+  1616→- Industry: ${meta.label}
+  1617→- Visual style preset: ${stylePreset.label}
+  1618→- Mood: ${stylePreset.mood}
+  1619→- Other pages in the site (for context — do NOT generate them, but use the same fonts/colors/look):
+  1620→  ${otherPagesBrief}
+  1621→${singlePageNote}
+  1622→
+  1623→═══ PARSED REQUIREMENTS (extracted from user's brief) ═══════════════════════
+  1624→The user's brief was automatically analyzed. The following elements/colors/animations were detected and MUST be implemented:
+  1625→
+  1626→REQUIRED ELEMENTS:
+  1627→${requiredElementsList}
+  1628→
+  1629→INDUSTRY-DEFAULT ELEMENTS (always required for this industry):
+  1630→${industryDefaults.map(e => '  ' + e).join('\n') || '  (none)'}
+  1631→
+  1632→REQUIRED ANIMATIONS (must implement each one with real CSS/JS):
+  1633→${requiredAnimationsList}
+  1634→
+  1635→${colorSpec}
+  1636→${languageSpec}
+  1637→${subIndustrySection}
+  1638→${pageSpecificEcommerce}
+  1639→${animationSpecs.length > 0 ? `ANIMATION IMPLEMENTATION SPECS (follow these precisely):
+  1640→${animationSpecs.join('\n')}
+  1641→` : ''}
+  1642→═══ SHARED HEADER & FOOTER (USE VERBATIM) ═══════════════════════════════════
+  1643→The header and footer below are SHARED across all 4 pages of this site. Include them EXACTLY as given — do not modify, add, remove, or "improve" anything. This ensures consistent navigation across all pages.
+  1644→
+  1645→─── HEADER HTML (paste verbatim right after <body>) ───
+  1646→${headerFooter.headerHtml}
+  1647→
+  1648→─── FOOTER HTML (paste verbatim right before </body>) ───
+  1649→${headerFooter.footerHtml}
+  1650→
+  1651→─── HEADER/FOOTER CSS (include in your <style> tag, in addition to page-specific CSS) ───
+  1652→${headerFooter.cssForHeaderFooter}
+  1653→
+  1654→═══ PAGE PURPOSE ═══════════════════════════════════════════════════════════
+  1655→${pageMeta.purpose}
+  1656→
+  1657→CONTENT GUIDANCE:
+  1658→${meta.contentHint}
+  1659→
+  1660→${buildAdvancedOptionsBlock(advancedOptions)}
+  1661→═══ FINAL REQUIREMENTS ═════════════════════════════════════════════════════
+  1662→1. Return ONLY the complete ${pageMeta.name} page HTML, starting with <!DOCTYPE html>.
+  1663→2. <html> tag must have lang="${language}" dir="${langFont.dir}".
+  1664→3. Include Google Fonts link in <head>: <link href="https://fonts.googleapis.com/css2?family=${LANGUAGE_GOOGLE_FONTS[language].replace(/ /g, '+')}:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  1665→4. The header and footer MUST be the verbatim HTML provided above — character for character.
+  1666→5. The header/footer CSS MUST be included in your <style> tag, in addition to page-specific CSS.
+  1667→6. Implement EVERY element listed in "REQUIRED ELEMENTS" and "INDUSTRY-DEFAULT ELEMENTS".
+  1668→7. Implement EVERY animation listed in "REQUIRED ANIMATIONS" using the specs provided.
+  1669→8. Use the EXACT hex color codes from "COLORS" — do not substitute or "approximate".
+  1670→9. Generate real, specific, believable content (product names, prices, descriptions, customer names) based on the brief.
+  1671→10. Page-specific main content goes in <main> between header and footer.
+  1672→11. Mobile-responsive: hamburger menu, stacked grids, etc.
+  1673→
+  1674→OUTPUT: A single \`\`\`html code fence containing the complete HTML document. Start with <!DOCTYPE html>. End with </html>. No commentary.`;
+  1675→}
+  1676→
+  1677→// ─── Unsplash image library per sub-industry ──────────────────────────────
+  1678→// Real, verified Unsplash photo URLs. Using these ensures images always load.
+  1679→
+  1680→function getUnsplashImagesForSubIndustry(subIndustry?: string): string[] {
+  1681→  const libraries: Record<string, string[]> = {
+  1682→    carpet: [
+  1683→      'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=800',
+  1684→      'https://images.unsplash.com/photo-1584153009330-5d2c2c5b3b1f?w=800',
+  1685→      'https://images.unsplash.com/photo-1567016432779-094069958ea5?w=800',
+  1686→      'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800',
+  1687→      'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=800',
+  1688→      'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800',
+  1689→      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
+  1690→      'https://images.unsplash.com/photo-1528465424850-54d22f092f9d?w=800',
+  1691→    ],
+  1692→    fashion: [
+  1693→      'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800',
+  1694→      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800',
+  1695→      'https://images.unsplash.com/photo-1445205170230-053b83016050?w=800',
+  1696→      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800',
+  1697→      'https://images.unsplash.com/photo-1485518882345-15568b007407?w=800',
+  1698→      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800',
+  1699→      'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800',
+  1700→      'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800',
+  1701→    ],
+  1702→    digital: [
+  1703→      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800',
+  1704→      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800',
+  1705→      'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800',
+  1706→      'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800',
+  1707→      'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=800',
+  1708→      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800',
+  1709→      'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800',
+  1710→      'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=800',
+  1711→    ],
+  1712→    food: [
+  1713→      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800',
+  1714→      'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=800',
+  1715→      'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=800',
+  1716→      'https://images.unsplash.com/photo-1495774856032-8b90bbb32b32?w=800',
+  1717→      'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=800',
+  1718→      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=800',
+  1719→      'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=800',
+  1720→      'https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=800',
+  1721→    ],
+  1722→    beauty: [
+  1723→      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800',
+  1724→      'https://images.unsplash.com/photo-1522335789203-aaa2f6f72e2c?w=800',
+  1725→      'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=800',
+  1726→      'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800',
+  1727→      'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800',
+  1728→      'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=800',
+  1729→      'https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=800',
+  1730→      'https://images.unsplash.com/photo-1556228852-80b6e5eeff06?w=800',
+  1731→    ],
+  1732→    home: [
+  1733→      'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800',
+  1734→      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800',
+  1735→      'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800',
+  1736→      'https://images.unsplash.com/photo-1567016432779-094069958ea5?w=800',
+  1737→      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
+  1738→      'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800',
+  1739→      'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=800',
+  1740→      'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?w=800',
+  1741→    ],
+  1742→    jewelry: [
+  1743→      'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=800',
+  1744→      'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800',
+  1745→      'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=800',
+  1746→      'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800',
+  1747→      'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800',
+  1748→      'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?w=800',
+  1749→      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800',
+  1750→      'https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=800',
+  1751→    ],
+  1752→    books: [
+  1753→      'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800',
+  1754→      'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800',
+  1755→      'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=800',
+  1756→      'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800',
+  1757→      'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800',
+  1758→      'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800',
+  1759→      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
+  1760→      'https://images.unsplash.com/photo-1510172951991-856a654063f9?w=800',
+  1761→    ],
+  1762→    sports: [
+  1763→      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
+  1764→      'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800',
+  1765→      'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800',
+  1766→      'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=800',
+  1767→      'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=800',
+  1768→      'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800',
+  1769→      'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=800',
+  1770→      'https://images.unsplash.com/photo-1434596922112-19c563067271?w=800',
+  1771→    ],
+  1772→  };
+  1773→  return libraries[subIndustry || ''] || libraries.digital;
+  1774→}
+  1775→
+  1776→// ─── Streaming AI generation (Cerebras) ────────────────────────────────────
+  1777→
+  1778→const MAX_RETRIES = 4;
+  1779→const AI_MAX_TOKENS = 16000; // Cerebras / gpt-oss-120b handles large streamed outputs
+  1780→const AI_REQUEST_TIMEOUT_MS = 180_000; // 3 minutes hard cap per AI call
+  1781→
+  1782→function sleep(ms: number) {
+  1783→  return new Promise<void>(resolve => setTimeout(resolve, ms));
+  1784→}
+  1785→
+  1786→/**
+  1787→ * Stream the AI completion for a page, retrying transient errors (429 / 5xx /
+  1788→ * timeout) but only BEFORE the first token is yielded — once streaming has
+  1789→ * started we cannot safely retry without duplicating output.
+  1790→ */
+  1791→async function streamPageContent(
+  1792→  systemPrompt: string,
+  1793→  userPrompt: string,
+  1794→  onDelta: (chunk: string) => void
+  1795→): Promise<string> {
+  1796→  let lastError: any = null;
+  1797→
+  1798→  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  1799→    let yieldedAny = false;
+  1800→    try {
+  1801→      let acc = '';
+  1802→      for await (const chunk of streamChatDeltas(systemPrompt, userPrompt, {
+  1803→        maxTokens: AI_MAX_TOKENS,
+  1804→        timeoutMs: AI_REQUEST_TIMEOUT_MS,
+  1805→      })) {
+  1806→        yieldedAny = true;
+  1807→        acc += chunk;
+  1808→        onDelta(chunk);
+  1809→      }
+  1810→      if (acc.length < 200) {
+  1811→        throw new Error(`AI returned empty or too-short content (len=${acc.length})`);
+  1812→      }
+  1813→      return acc;
+  1814→    } catch (err: any) {
+  1815→      lastError = err;
+  1816→      const msg = String(err?.message || err);
+  1817→      const is429 = msg.includes('429') || msg.includes('Too many requests') || /rate/i.test(msg);
+  1818→      const is5xx = ['502', '503', '504', '500'].some(c => msg.includes(c));
+  1819→      const isTimeout =
+  1820→        msg.includes('timeout') || msg.includes('aborted') || msg.includes('ECONNRESET') || msg.includes('AbortError');
+  1821→      if (attempt < MAX_RETRIES - 1 && !yieldedAny && (is429 || is5xx || isTimeout)) {
+  1822→        const wait = 3000 * Math.pow(2, attempt);
+  1823→        console.log(`[generate] attempt ${attempt + 1} failed (${msg.slice(0, 120)}), retrying in ${wait}ms`);
+  1824→        await sleep(wait);
+  1825→        continue;
+  1826→      }
+  1827→      throw err;
+  1828→    }
+  1829→  }
+  1830→  throw lastError || new Error('AI generation failed after retries');
+  1831→}
+  1832→
+  1833→// ─── Page generation pipeline (streaming) ────────────────────────────────────
+  1834→
+  1835→interface PageGenResult {
+  1836→  page: { id: string; name: string; route: string; html: string; css: string; js: string };
+  1837→  siteName: string;
+  1838→  industry: string;
+  1839→  style: string;
+  1840→  projectId?: string;
+  1841→}
+  1842→
+  1843→/**
+  1844→ * Run the full generation pipeline for one page. Calls onDelta for every
+  1845→ * streamed AI chunk, then returns the structured result (html/css/js extracted
+  1846→ * and persisted to the DB when a userId is supplied).
+  1847→ */
+  1848→async function generatePageStream(
+  1849→  req: GeneratePageRequest,
+  1850→  resolvedSiteName: string,
+  1851→  userId: string | undefined,
+  1852→  onDelta: (chunk: string) => void
+  1853→): Promise<PageGenResult> {
+  1854→  const parsed = parseUserPrompt(req.prompt, req.language || 'en');
+  1855→
+  1856→  const styleFallback = resolveStylePreset(req.style || 'dark').colors;
+  1857→  const baseColors = { ...styleFallback };
+  1858→  if (req.advancedOptions?.colorScheme) {
+  1859→    const cs = req.advancedOptions.colorScheme;
+  1860→    if (cs.background) baseColors.bg = cs.background;
+  1861→    if (cs.surface) baseColors.surface = cs.surface;
+  1862→    if (cs.text) baseColors.text = cs.text;
+  1863→    if (cs.muted) baseColors.muted = cs.muted;
+  1864→    if (cs.primary) baseColors.accent = cs.primary;
+  1865→    if (cs.accent && !cs.primary) baseColors.accent = cs.accent;
+  1866→  }
+  1867→  const colors = applyUserColors(baseColors, parsed);
+  1868→
+  1869→  const meta = INDUSTRY_META[req.industry || 'portfolio'];
+  1870→  const headerFooter = buildSharedHeaderFooter(
+  1871→    req.industry || 'portfolio',
+  1872→    resolvedSiteName,
+  1873→    meta.navItems,
+  1874→    colors,
+  1875→    parsed,
+  1876→    req.language || 'en'
+  1877→  );
+  1878→
+  1879→  console.log(`[generate] ${req.page} parsed: hexColors=${parsed.hexColors.length} elements=${parsed.requiredElements.length} animations=${parsed.animations.length} subIndustry=${parsed.subIndustry || 'none'} language=${parsed.language}`);
+  1880→
+  1881→  const v2Det = detectIndustryV2(req.prompt);
+  1882→  console.log(`[generate] industry-v2: ${v2Det.industry.id} (confidence=${v2Det.confidence.toFixed(2)}, matched=${v2Det.matchedKeywords.length} keywords, subIndustry=${v2Det.detectedSubIndustry || 'none'})`);
+  1883→
+  1884→  const systemPrompt = buildSystemPrompt();
+  1885→  const userPrompt = buildPagePrompt(req, parsed, colors, headerFooter, req.advancedOptions);
+  1886→  const promptBytes = Buffer.byteLength(systemPrompt + userPrompt, 'utf8');
+  1887→  console.log(`[generate] ${req.page} prompt size: ${promptBytes} bytes (sys=${systemPrompt.length} user=${userPrompt.length})`);
+  1888→
+  1889→  const content = await streamPageContent(systemPrompt, userPrompt, onDelta);
+  1890→
+  1891→  const htmlRaw = extractHtmlFromResponse(content);
+  1892→  if (!htmlRaw || htmlRaw.length < 200) {
+  1893→    throw new Error(`AI returned empty or invalid HTML for ${req.page} page`);
+  1894→  }
+  1895→
+  1896→  const animationIds = resolveAnimationIds(parsed);
+  1897→  let html = htmlRaw;
+  1898→  if (animationIds.length > 0) {
+  1899→    html = injectAnimationBundle(htmlRaw, animationIds);
+  1900→    console.log(`[generate] phase5: injected ${animationIds.length} animation(s): ${animationIds.join(', ')}`);
+  1901→  }
+  1902→
+  1903→  const css = extractCssFromHtml(html);
+  1904→  const js = extractJsFromHtml(html);
+  1905→  const pageMeta = PAGE_META[req.page];
+  1906→
+  1907→  let projectId: string | undefined;
+  1908→  if (userId) {
+  1909→    try {
+  1910→      const project = await db.project.create({
+  1911→        data: {
+  1912→          name: `${resolvedSiteName} — ${pageMeta.name}`,
+  1913→          description: req.prompt,
+  1914→          prompt: req.prompt,
+  1915→          framework: 'html',
+  1916→          userId,
+  1917→          status: 'generated',
+  1918→          theme: req.style || 'dark',
+  1919→        },
+  1920→      });
+  1921→      await db.page.create({
+  1922→        data: {
+  1923→          name: pageMeta.name,
+  1924→          route: pageMeta.route,
+  1925→          html, css, js,
+  1926→          projectId: project.id,
+  1927→        },
+  1928→      });
+  1929→      await db.version.create({
+  1930→        data: {
+  1931→          name: `Initial — ${pageMeta.name}`,
+  1932→          snapshot: html,
+  1933→          projectId: project.id,
+  1934→        },
+  1935→      });
+  1936→      projectId = project.id;
+  1937→    } catch (dbError) {
+  1938→      console.error('[generate] DB persist failed:', dbError);
+  1939→    }
+  1940→  }
+  1941→
+  1942→  return {
+  1943→    page: { id: `page-${req.page}`, name: pageMeta.name, route: pageMeta.route, html, css, js },
+  1944→    siteName: resolvedSiteName,
+  1945→    industry: req.industry || 'portfolio',
+  1946→    style: req.style || 'dark',
+  1947→    projectId,
+  1948→  };
+  1949→}
+  1950→
+  1951→// ─── Route handlers ────────────────────────────────────────────────────────
+  1952→
+  1953→export const runtime = 'nodejs';
+  1954→export const maxDuration = 300;
+  1955→
+  1956→function sseEncode(event: string, data: unknown): Uint8Array {
+  1957→  return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  1958→}
+  1959→
+  1960→export async function POST(request: NextRequest) {
+  1961→  try {
+  1962→    const body = await request.json();
+  1963→    const {
+  1964→      prompt,
+  1965→      industry = 'portfolio',
+  1966→      style = 'dark',
+  1967→      page,
+  1968→      siteName,
+  1969→      language = 'en',
+  1970→      advancedOptions,
+  1971→    } = body as GeneratePageRequest;
+  1972→    const userId = (body as any)?.userId;
+  1973→
+  1974→    if (!prompt || typeof prompt !== 'string') {
+  1975→      return NextResponse.json({ error: 'prompt is required' }, { status: 400 });
+  1976→    }
+  1977→    if (!page || !PAGE_META[page]) {
+  1978→      return NextResponse.json(
+  1979→        { error: 'page is required and must be one of: home, about, services, contact' },
+  1980→        { status: 400 }
+  1981→      );
+  1982→    }
+  1983→
+  1984→    const av = await checkAiAvailability();
+  1985→    if (!av.available) {
+  1986→      return NextResponse.json({ error: aiUnavailableMessage(av.reason) }, { status: 503 });
+  1987→    }
+  1988→
+  1989→    const resolvedSiteName =
+  1990→      siteName || advancedOptions?.brandName || extractSiteNameFromPrompt(prompt, industry);
+  1991→    const parsed = parseUserPrompt(prompt, language);
+  1992→
+  1993→    const req: GeneratePageRequest = {
+  1994→      prompt,
+  1995→      industry,
+  1996→      style,
+  1997→      page,
+  1998→      siteName: resolvedSiteName,
+  1999→      language,
+  2000→      advancedOptions,
+
+[showing lines 1-2000 of 2083; use offset=2001 with limit to continue reading]
