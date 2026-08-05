@@ -9,7 +9,7 @@ import * as React from 'react'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
 import { AccessibilityProvider, useAccessibility } from './AccessibilityContext'
-import { COLORS, RADIUS, SPACING, SHADOWS } from './design-tokens'
+import { COLORS, RADIUS, SPACING, SHADOWS, DARK_COLORS } from './design-tokens'
 import { TopNav } from './TopNav'
 import { IconToolbar } from './IconToolbar'
 import { Canvas, type SelectionInfo } from './Canvas'
@@ -72,10 +72,48 @@ function EditorShell() {
   const [aiFeedback, setAiFeedback] = useState('')
   const [auditResults, setAuditResults] = useState<string[]>([])
   const [toast, setToast] = useState<string | null>(null)
+  const [darkMode, setDarkMode] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [toolbarVisible, setToolbarVisible] = useState(true)
+  const [aiAbortRef, setAiAbortRef] = useState<AbortController | null>(null)
 
   const contentRootRef = useRef<HTMLElement | null>(null)
 
+  // ── Dark mode: swap CSS custom properties on the shell ────────────────
+  useEffect(() => {
+    const shell = document.querySelector('.ve-shell')
+    if (!shell) return
+    if (darkMode) {
+      (shell as HTMLElement).style.setProperty('--ve-bg', DARK_COLORS.background)
+      ;(shell as HTMLElement).style.setProperty('--ve-panel', DARK_COLORS.panel)
+      ;(shell as HTMLElement).style.setProperty('--ve-border', DARK_COLORS.border)
+      ;(shell as HTMLElement).style.setProperty('--ve-text', DARK_COLORS.text)
+      ;(shell as HTMLElement).style.setProperty('--ve-text-sec', DARK_COLORS.textSecondary)
+      ;(shell as HTMLElement).style.setProperty('--ve-text-ter', DARK_COLORS.textTertiary)
+      ;(shell as HTMLElement).classList.add('ve-dark')
+    } else {
+      (shell as HTMLElement).style.removeProperty('--ve-bg')
+      ;(shell as HTMLElement).style.removeProperty('--ve-panel')
+      ;(shell as HTMLElement).style.removeProperty('--ve-border')
+      ;(shell as HTMLElement).style.removeProperty('--ve-text')
+      ;(shell as HTMLElement).style.removeProperty('--ve-text-sec')
+      ;(shell as HTMLElement).style.removeProperty('--ve-text-ter')
+      ;(shell as HTMLElement).classList.remove('ve-dark')
+    }
+  }, [darkMode])
+
+  // ── Responsive: auto-hide inspector on small screens ──────────────────
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    setInspectorOpen(!mq.matches)
+    const handler = (e: MediaQueryListEvent) => setInspectorOpen(!e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
   // ── Load the document (template / generated page) from the store ──────
+  // Also react to selectedTemplateHtml and generatedPages changes
   useEffect(() => {
     let initialHtml = ''
     let initialCss = ''
@@ -92,8 +130,7 @@ function EditorShell() {
     } else {
       setHtml(''); setCss(''); setHistory([]); setHistoryIndex(-1)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedTemplateHtml, generatedPages, currentPreviewPage])
 
   // Refs mirror state so callbacks/effects can read latest values without re-binding.
   const historyRef = useRef<string[]>([])
@@ -111,6 +148,9 @@ function EditorShell() {
     setHistoryIndex(next.length - 1)
     setHtml(nextHtml)
     announce(label || 'Updated')
+    // Saving indicator
+    setSaving(true)
+    window.setTimeout(() => setSaving(false), 1200)
   }, [])
 
   /** Mutate the selected DOM node, then snapshot + push history. */
@@ -154,13 +194,15 @@ function EditorShell() {
 
   // ── AI ────────────────────────────────────────────────────────────────
   const runAI = useCallback(async (prompt: string) => {
+    const abort = new AbortController()
+    setAiAbortRef(abort)
     setAiBusy(true)
     setAiFeedback('')
     announce('AI is thinking…')
     const node = findByFid(contentRootRef.current, selectionRef.current?.fid || '')
     const elementHtml = node ? node.outerHTML.slice(0, 4000) : (htmlRef.current || '').slice(0, 4000)
     try {
-            const res = await fetch('/api/editor-suggest', {
+      const res = await fetch('/api/editor-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -170,6 +212,7 @@ function EditorShell() {
           siteContext: prompt || 'professional website',
           language: 'en',
         }),
+        signal: abort.signal,
       })
 
       if (!res.ok) {
@@ -183,8 +226,8 @@ function EditorShell() {
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let suggestion: any = null
-      let firstMsgShown = false
+      let suggestion: { suggestions?: Array<{ description?: string; newHtml?: string }> } | null = null
+      let streamingText = ''
 
       consume: while (true) {
         const { done, value } = await reader.read()
@@ -204,22 +247,23 @@ function EditorShell() {
           }
           if (dataLines.length === 0) continue
           const dataStr = dataLines.join('\n')
-          let data: any
+          let data: unknown
           try { data = JSON.parse(dataStr) } catch { data = dataStr }
 
           switch (ev) {
-            case 'delta':
-              if (!firstMsgShown) {
-                setAiFeedback('AI is thinking…')
-                firstMsgShown = true
-              }
+            case 'delta': {
+              const chunk = (data as { chunk?: string })?.chunk || ''
+              streamingText += chunk
+              setAiFeedback(streamingText.length > 200 ? streamingText.slice(0, 200) + '…' : streamingText || 'AI is thinking…')
               break
+            }
             case 'result':
-              suggestion = data
+              suggestion = data as typeof suggestion
               break consume
             case 'error':
               {
-                const m = data?.message || data?.error || 'AI failed.'
+                const errData = data as { message?: string; error?: string }
+                const m = errData?.message || errData?.error || 'AI failed.'
                 setAiFeedback(m)
                 announce(m)
                 return
@@ -232,16 +276,51 @@ function EditorShell() {
         }
       }
 
+      // Apply AI-generated HTML if present
+      if (suggestion?.suggestions?.[0]?.newHtml) {
+        const newHtml = suggestion.suggestions[0].newHtml
+        if (node && node.parentElement && node.parentElement !== contentRootRef.current) {
+          // Replace selected element
+          const temp = document.createElement('div')
+          temp.innerHTML = newHtml
+          const replacement = temp.firstElementChild as HTMLElement | null
+          if (replacement) {
+            node.replaceWith(replacement)
+            const root = contentRootRef.current
+            if (root) commit(root.innerHTML, 'AI: replace element')
+          }
+        } else {
+          // Append to canvas
+          const root = contentRootRef.current
+          if (root) {
+            root.innerHTML += newHtml
+            commit(root.innerHTML, 'AI: append content')
+          }
+        }
+      }
+
       const msg = suggestion?.suggestions?.[0]?.description || 'AI responded.'
       setAiFeedback(msg)
       announce(msg)
-    } catch {
-      setAiFeedback('AI is not configured. Add ZAI_API_KEY to .env to enable AI features.')
-      announce('AI not configured')
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setAiFeedback('AI request cancelled.')
+        announce('AI request cancelled')
+      } else {
+        setAiFeedback('AI is not configured. Add ZAI_API_KEY to .env to enable AI features.')
+        announce('AI not configured')
+      }
     } finally {
       setAiBusy(false)
+      setAiAbortRef(null)
     }
-  }, [])
+  }, [commit])
+
+  const stopAI = useCallback(() => {
+    aiAbortRef?.abort()
+    setAiBusy(false)
+    setAiFeedback('Stopped.')
+  }, [aiAbortRef])
 
   // ── Accessibility audit ───────────────────────────────────────────────
   const runAudit = useCallback(() => {
@@ -351,6 +430,8 @@ function EditorShell() {
       case 'accessibility': runAudit(); break
       case 'publish': onPublish(); break
       case 'shortcuts': setShortcutsOpen(true); break
+      case 'toggle-dark': setDarkMode((d) => !d); break
+      case 'toggle-inspector': setInspectorOpen((o) => !o); break
     }
   }, [undo, redo, duplicate, remove, commit, runAI, runAudit, onPublish])
 
@@ -358,9 +439,26 @@ function EditorShell() {
   const hasContent = html.trim().length > 0
   const baseFont = fontSizeScale === 'small' ? 14 : fontSizeScale === 'large' ? 18 : fontSizeScale === 'extra-large' ? 20 : 16
 
+  // Context-aware AI suggestions
+  const aiSuggestions = React.useMemo(() => {
+    const base = [{ id: 'improve', label: '✨ Improve selected' }]
+    if (selection?.isImage) base.push({ id: 'alt', label: '✨ Add alt text' })
+    if (selection?.isText) base.push({ id: 'rewrite', label: '✨ Rewrite text' })
+    base.push({ id: 'contrast', label: '✨ Fix contrast' })
+    return base
+  }, [selection])
+
   return (
-    <div className="ve-shell" style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontSize: baseFont }}>
+    <div className={`ve-shell${darkMode ? ' ve-dark' : ''}`} style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontSize: baseFont }}>
       <LiveRegion />
+
+      {/* Saving indicator */}
+      {saving && (
+        <div aria-live="polite" style={{ position: 'fixed', top: 60, right: 16, zIndex: 600, background: COLORS.primary, color: '#FFF', padding: '6px 14px', borderRadius: RADIUS.lg, fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="ve-spinner" style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#FFF', borderRadius: '50%', display: 'inline-block' }} />
+          Saving…
+        </div>
+      )}
 
       <TopNav
         projectName={projectName}
@@ -379,16 +477,19 @@ function EditorShell() {
         onCommandPalette={() => setCmdOpen(true)}
         onShortcuts={() => setShortcutsOpen(true)}
         onPublish={onPublish}
+        onToggleToolbar={() => setToolbarVisible((v) => !v)}
       />
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <IconToolbar
-          active={activeTool}
-          onSelect={(id) => {
-            setActiveTool(id)
-            if (id === 'ai') announce('AI: describe a request in the assistant bar below')
-          }}
-        />
+        {toolbarVisible && (
+          <IconToolbar
+            active={activeTool}
+            onSelect={(id) => {
+              setActiveTool(id)
+              if (id === 'ai') announce('AI: describe a request in the assistant bar below')
+            }}
+          />
+        )}
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ flex: 1, display: 'flex', position: 'relative', minHeight: 0 }}>
@@ -406,7 +507,7 @@ function EditorShell() {
                 onContentReady={(el) => { contentRootRef.current = el }}
               />
             ) : (
-              <div style={{ flex: 1, background: COLORS.background, overflow: 'auto' }}>
+              <div style={{ flex: 1, background: darkMode ? DARK_COLORS.background : COLORS.background, overflow: 'auto' }}>
                 <EmptyCanvas onAction={onEmptyAction} />
               </div>
             )}
@@ -422,44 +523,48 @@ function EditorShell() {
           </div>
 
           <AIAssistantBar
-            onSubmit={(p) => runAI(p)}
+            onSubmit={(prompt) => runAI(prompt)}
             isBusy={aiBusy}
-            suggestions={[
-              { id: 'improve', label: '✨ Improve selected' },
-              { id: 'alt', label: '✨ Add alt text' },
-              { id: 'contrast', label: '✨ Fix contrast' },
-            ]}
+            onStop={stopAI}
+            onRegenerate={() => runAI('Improve this element')}
+            lastResponse={aiFeedback}
+            suggestions={aiSuggestions}
           />
           {aiFeedback && (
-            <div role="status" aria-live="polite" style={{ padding: '8px 16px', background: COLORS.primaryLight, color: COLORS.primary, fontSize: 13, borderTop: `1px solid ${COLORS.selectionLight}` }}>
+            <div role="status" aria-live="polite" style={{ padding: '8px 16px', background: darkMode ? DARK_COLORS.primaryLight : COLORS.primaryLight, color: darkMode ? DARK_COLORS.primary : COLORS.primary, fontSize: 13, borderTop: `1px solid ${darkMode ? DARK_COLORS.selectionLight : COLORS.selectionLight}` }}>
               ✨ {aiFeedback}
             </div>
           )}
           {auditResults.length > 0 && (
-            <div role="status" style={{ padding: '8px 16px', background: COLORS.warningLight, color: '#92400E', fontSize: 13, borderTop: `1px solid ${COLORS.warning}` }}>
+            <div role="status" style={{ padding: '8px 16px', background: darkMode ? DARK_COLORS.warningLight : COLORS.warningLight, color: '#92400E', fontSize: 13, borderTop: `1px solid ${darkMode ? DARK_COLORS.warning : COLORS.warning}` }}>
               <strong style={{ fontWeight: 600 }}>A11y audit:</strong> {auditResults.map((r) => <span key={r} style={{ display: 'inline-block', marginRight: 12 }}>• {r}</span>)}
             </div>
           )}
         </div>
 
-        <Inspector
-          selection={selection}
-          onApply={commitNode}
-          onSelectText={onSelectText}
-          onDeleteSelection={remove}
-          onDuplicateSelection={duplicate}
-          onRunAccessibilityAudit={runAudit}
-          onFixAccessibility={fixAccessibility}
-          onExport={onExport}
-          onAI={(p) => runAI(p)}
-        />
+        {inspectorOpen && (
+          <Inspector
+            selection={selection}
+            onApply={commitNode}
+            onSelectText={onSelectText}
+            onDeleteSelection={remove}
+            onDuplicateSelection={duplicate}
+            onRunAccessibilityAudit={runAudit}
+            onFixAccessibility={fixAccessibility}
+            onExport={onExport}
+            onAI={(prompt) => runAI(prompt)}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode((d) => !d)}
+            onToggleInspector={() => setInspectorOpen(false)}
+          />
+        )}
       </div>
 
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} onRun={runCommand} />
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       {toast && (
-        <div role="status" style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: COLORS.text, color: '#FFF', padding: '10px 18px', borderRadius: RADIUS.lg, boxShadow: SHADOWS.lg, zIndex: 500, fontSize: 14, fontWeight: 500 }}>
+        <div role="status" style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: darkMode ? DARK_COLORS.text : COLORS.text, color: '#FFF', padding: '10px 18px', borderRadius: RADIUS.lg, boxShadow: SHADOWS.lg, zIndex: 500, fontSize: 14, fontWeight: 500 }}>
           {toast}
         </div>
       )}
@@ -474,5 +579,3 @@ export function VisualEditor() {
     </AccessibilityProvider>
   )
 }
-
-

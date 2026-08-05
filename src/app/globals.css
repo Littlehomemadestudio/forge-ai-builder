@@ -550,9 +550,22 @@ body.rtl-ui {
   outline: 2px solid #3B82F6 !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+  position: relative;
+}
+/* Resize handles at corners of selected element */
+.ve-selected::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 4px at 0% 0%, #3B82F6 45%, transparent 50%),
+    radial-gradient(circle 4px at 100% 0%, #3B82F6 45%, transparent 50%),
+    radial-gradient(circle 4px at 0% 100%, #3B82F6 45%, transparent 50%),
+    radial-gradient(circle 4px at 100% 100%, #3B82F6 45%, transparent 50%);
 }
 .ve-hover-target:hover {
-  outline: 1px solid rgba(59, 130, 246, 0.6) !important;
+  outline: 1px dashed rgba(59, 130, 246, 0.5) !important;
   outline-offset: 1px !important;
   cursor: pointer;
 }
@@ -565,5 +578,133 @@ body.rtl-ui {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─── Editor dark mode overrides ─────────────────────────────────────────── */
+.ve-dark {
+  background: #0F172A !important;
+  color: #F1F5F9 !important;
+}
+.ve-dark .ve-icobtn:focus-visible {
+  box-shadow: 0 0 0 2px #0F172A, 0 0 0 4px rgba(96, 165, 250, 0.5);
+}
+.ve-dark .ve-selected {
+  outline-color: #60A5FA !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3) !important;
+}
+.ve-dark .ve-hover-target:hover {
+  outline-color: rgba(96, 165, 250, 0.5) !important;
+}
+.ve-dark .ve-canvas {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ─── Editor panel scrollbar ─────────────────────────────────────────────── */
+.ve-inspector {
+  scrollbar-width: thin;
+  scrollbar-color: #D4D4D8 transparent;
+}
+.ve-inspector::-webkit-scrollbar {
+  width: 5px;
+}
+.ve-inspector::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ve-inspector::-webkit-scrollbar-thumb {
+  background: #D4D4D8;
+  border-radius: 3px;
+}
+.ve-dark .ve-inspector {
+  scrollbar-color: #475569 transparent;
+}
+.ve-dark .ve-inspector::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+/* ─── AI spinner animation ───────────────────────────────────────────────── */
+@keyframes ve-spin {
+  to { transform: rotate(360deg); }
+}
+.ve-spinner {
+  animation: ve-spin 0.7s linear infinite;
+}
+
+/* ─── Empty canvas animated gradient ─────────────────────────────────────── */
+@keyframes ve-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.ve-empty-canvas {
+  background-size: 300% 300%;
+}
+
+/* ─── TopNav responsive ──────────────────────────────────────────────────── */
+.ve-topnav-hamburger {
+  display: none !important;
+}
+.ve-topnav-slash {
+  display: inline;
+}
+.ve-topnav-font {
+  display: flex;
+}
+.ve-topnav-zoom {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .ve-topnav-name {
+    width: 100px !important;
+  }
+  .ve-topnav-slash {
+    display: none !important;
+  }
+  .ve-topnav-font {
+    display: none !important;
+  }
+  .ve-topnav-zoom {
+    display: none !important;
+  }
+  .ve-topnav-hamburger {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ve-topnav-name {
+    display: none !important;
+  }
+  .ve-topnav-center {
+    gap: 4px !important;
+  }
+}
+
+/* ─── Canvas viewport scrollbar ──────────────────────────────────────────── */
+.ve-canvas-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #D4D4D8 transparent;
+}
+.ve-canvas-viewport::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.ve-canvas-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ve-canvas-viewport::-webkit-scrollbar-thumb {
+  background: #D4D4D8;
+  border-radius: 4px;
+}
+.ve-dark .ve-canvas-viewport {
+  scrollbar-color: #475569 transparent;
+}
+.ve-dark .ve-canvas-viewport::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+/* ─── Floating selection bar mobile ──────────────────────────────────────── */
+.ve-floating-bar-mobile {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 

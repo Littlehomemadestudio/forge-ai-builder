@@ -204,6 +204,3 @@ export function resetAiCache(): void {
   _cachedConfig = null;
   _cachedCheck = null;
 }
-  }
-  return 'AI features are not configured.';
-}

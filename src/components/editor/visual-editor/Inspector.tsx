@@ -1,6 +1,6 @@
-﻿// ─── Right Context Inspector ───────────────────────────────────────────────
+// ─── Right Context Inspector ───────────────────────────────────────────────
 import * as React from 'react'
-import { Sparkles, Wand2, ScanEye, Accessibility, FileDown, Search } from 'lucide-react'
+import { Sparkles, Wand2, ScanEye, Accessibility, FileDown, Trash2, Moon, Sun, PanelRightClose } from 'lucide-react'
 import { COLORS, SPACING, RADIUS } from './design-tokens'
 import { useAccessibility } from './AccessibilityContext'
 import { ActionButton, CollapsibleSection, ColorField, Field, SegmentedControl, SelectField, SliderField, IconButton } from './primitives'
@@ -16,6 +16,9 @@ export interface InspectorProps {
   onFixAccessibility: () => void
   onExport: () => void
   onAI: (prompt: string) => void
+  darkMode?: boolean
+  onToggleDarkMode?: () => void
+  onToggleInspector?: () => void
 }
 
 const FONTS = [
@@ -26,18 +29,52 @@ const FONTS = [
   { value: 'Arial, sans-serif', label: 'Arial' },
 ]
 
+const BORDER_STYLES = [
+  { value: 'none', label: 'None' },
+  { value: 'solid', label: 'Solid' },
+  { value: 'dashed', label: 'Dashed' },
+  { value: 'dotted', label: 'Dotted' },
+  { value: 'double', label: 'Double' },
+]
+
+const FLEX_JUSTIFY = [
+  { value: 'flex-start', label: 'Start' },
+  { value: 'center', label: 'Center' },
+  { value: 'flex-end', label: 'End' },
+  { value: 'space-between', label: 'Between' },
+  { value: 'space-around', label: 'Around' },
+  { value: 'space-evenly', label: 'Evenly' },
+]
+
+const FLEX_ALIGN = [
+  { value: 'flex-start', label: 'Start' },
+  { value: 'center', label: 'Center' },
+  { value: 'flex-end', label: 'End' },
+  { value: 'stretch', label: 'Stretch' },
+]
+
 export function Inspector(p: InspectorProps) {
   const { fontSizeScale, setFontSizeScale } = useAccessibility()
   return (
-    <aside role="complementary" aria-label="Inspector" style={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column', background: COLORS.panel, borderLeft: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
+    <aside role="complementary" aria-label="Inspector" className="ve-inspector" style={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column', background: COLORS.panel, borderLeft: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
       <div style={{ minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `0 ${SPACING.lg}`, borderBottom: `1px solid ${COLORS.border}` }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, margin: 0 }}>{p.selection ? `Edit ${p.selection.tag}` : 'Page'}</h2>
-        {p.selection && (
-          <div style={{ display: 'flex', gap: 2 }}>
-            <IconButton label="Duplicate selection" onClick={p.onDuplicateSelection} size={36}><Wand2 size={16} /></IconButton>
-            <IconButton label="Delete selection" onClick={p.onDeleteSelection} size={36} danger><Search size={16} /></IconButton>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 2 }}>
+          {p.onToggleDarkMode && (
+            <IconButton label={p.darkMode ? 'Light mode' : 'Dark mode'} onClick={p.onToggleDarkMode} size={36}>
+              {p.darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </IconButton>
+          )}
+          {p.onToggleInspector && (
+            <IconButton label="Close inspector" onClick={p.onToggleInspector} size={36}><PanelRightClose size={16} /></IconButton>
+          )}
+          {p.selection && (
+            <>
+              <IconButton label="Duplicate selection" onClick={p.onDuplicateSelection} size={36}><Wand2 size={16} /></IconButton>
+              <IconButton label="Delete selection" onClick={p.onDeleteSelection} size={36} danger><Trash2 size={16} /></IconButton>
+            </>
+          )}
+        </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {p.selection ? (
@@ -105,6 +142,9 @@ function SelectionInspector({ selection, onApply, onSelectText, onAI }: Inspecto
             <SegmentedControl label="Alignment" value="left" options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]} onChange={(v) => apply((el) => { el.style.textAlign = v }, 'Change alignment')} />
           </Field>
         </CollapsibleSection>
+        <MarginSection apply={apply} />
+        <BorderSection apply={apply} />
+        <BoxShadowSection apply={apply} />
         <CollapsibleSection title="Accessibility">
           <p style={{ fontSize: 13, color: COLORS.textSecondary, margin: 0 }}>Check color contrast for WCAG AA readability.</p>
           <ActionButton icon={<Wand2 size={16} />} onClick={() => onAI(`Rewrite this text in clearer, more readable language, keeping it concise: "${selection.text}"`)}>Rewrite with AI</ActionButton>
@@ -121,6 +161,9 @@ function SelectionInspector({ selection, onApply, onSelectText, onAI }: Inspecto
           <SliderField label="Opacity" value={100} min={10} max={100} suffix="%" onChange={(v) => apply((el) => { el.style.opacity = String(v / 100) }, 'Image opacity')} />
           <SliderField label="Width" value={100} min={10} max={100} suffix="%" onChange={(v) => apply((el) => { el.style.width = `${v}%` }, 'Image width')} />
         </CollapsibleSection>
+        <MarginSection apply={apply} />
+        <BorderSection apply={apply} />
+        <BoxShadowSection apply={apply} />
         <CollapsibleSection title="Accessibility" defaultOpen>
           <Field label="Alt text" hint="Required for screen readers. AI can write it for you.">
             <input aria-label="Alt text" className="ve-icobtn" onBlur={(e) => apply((el) => { el.setAttribute('alt', e.target.value) }, 'Set alt text')} style={{ minHeight: 44, padding: '0 10px', border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.lg, fontSize: 14, color: COLORS.text, background: COLORS.panel, width: '100%' }} />
@@ -145,6 +188,9 @@ function SelectionInspector({ selection, onApply, onSelectText, onAI }: Inspecto
           <SliderField label="Radius" value={12} min={0} max={999} suffix="px" onChange={(v) => apply((el) => { el.style.borderRadius = `${v}px` }, 'Button radius')} />
           <SliderField label="Padding" value={16} min={0} max={64} suffix="px" onChange={(v) => apply((el) => { el.style.padding = `${v / 2}px ${v}px` }, 'Button padding')} />
         </CollapsibleSection>
+        <MarginSection apply={apply} />
+        <BorderSection apply={apply} />
+        <BoxShadowSection apply={apply} />
         <CollapsibleSection title="Accessibility">
           <p style={{ fontSize: 13, color: COLORS.textSecondary, margin: 0 }}>Contrast validation runs automatically. Keep the label clear and specific.</p>
           <ActionButton icon={<Wand2 size={16} />} onClick={() => onAI('Suggest a clearer, more compelling call-to-action label')}>Better CTA</ActionButton>
@@ -157,10 +203,15 @@ function SelectionInspector({ selection, onApply, onSelectText, onAI }: Inspecto
       <CollapsibleSection title="Layout" defaultOpen>
         <SelectField label="Direction" value="column" options={[{ value: 'column', label: 'Stack (column)' }, { value: 'row', label: 'Row' }]} onChange={(v) => apply((el) => { el.style.display = 'flex'; el.style.flexDirection = v }, 'Set layout')} />
         <SliderField label="Gap" value={16} min={0} max={96} suffix="px" onChange={(v) => apply((el) => { el.style.display = 'flex'; el.style.gap = `${v}px` }, 'Set gap')} />
+        <SelectField label="Justify" value="flex-start" options={FLEX_JUSTIFY} onChange={(v) => apply((el) => { el.style.display = 'flex'; el.style.justifyContent = v }, 'Set justify')} />
+        <SelectField label="Align" value="stretch" options={FLEX_ALIGN} onChange={(v) => apply((el) => { el.style.display = 'flex'; el.style.alignItems = v }, 'Set align')} />
       </CollapsibleSection>
       <CollapsibleSection title="Spacing">
         <SliderField label="Padding" value={24} min={0} max={160} suffix="px" onChange={(v) => apply((el) => { el.style.padding = `${v}px` }, 'Set padding')} />
       </CollapsibleSection>
+      <MarginSection apply={apply} />
+      <BorderSection apply={apply} />
+      <BoxShadowSection apply={apply} />
       <CollapsibleSection title="Background">
         <ColorField label="Background" value={selection.bgColor || '#FFFFFF'} onChange={(v) => apply((el) => { el.style.backgroundColor = v }, 'Set background')} />
       </CollapsibleSection>
@@ -171,6 +222,67 @@ function SelectionInspector({ selection, onApply, onSelectText, onAI }: Inspecto
     </>
   )
 }
+
+// ── Margin controls (per side) ────────────────────────────────────────────
+function MarginSection({ apply }: { apply: (m: (el: HTMLElement) => void, l: string) => void }) {
+  const [mt, setMt] = React.useState(0)
+  const [mr, setMr] = React.useState(0)
+  const [mb, setMb] = React.useState(0)
+  const [ml, setMl] = React.useState(0)
+  const setAll = (v: number) => {
+    setMt(v); setMr(v); setMb(v); setMl(v)
+    apply((el) => { el.style.margin = `${v}px` }, 'Set margin')
+  }
+  return (
+    <CollapsibleSection title="Margin">
+      <SliderField label="All sides" value={mt} min={0} max={160} suffix="px" onChange={setAll} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <SliderField label="Top" value={mt} min={0} max={160} suffix="px" onChange={(v) => { setMt(v); apply((el) => { el.style.marginTop = `${v}px` }, 'Margin top') }} />
+        <SliderField label="Right" value={mr} min={0} max={160} suffix="px" onChange={(v) => { setMr(v); apply((el) => { el.style.marginRight = `${v}px` }, 'Margin right') }} />
+        <SliderField label="Bottom" value={mb} min={0} max={160} suffix="px" onChange={(v) => { setMb(v); apply((el) => { el.style.marginBottom = `${v}px` }, 'Margin bottom') }} />
+        <SliderField label="Left" value={ml} min={0} max={160} suffix="px" onChange={(v) => { setMl(v); apply((el) => { el.style.marginLeft = `${v}px` }, 'Margin left') }} />
+      </div>
+    </CollapsibleSection>
+  )
+}
+
+// ── Border controls ──────────────────────────────────────────────────────
+function BorderSection({ apply }: { apply: (m: (el: HTMLElement) => void, l: string) => void }) {
+  const [bw, setBw] = React.useState(0)
+  const [bs, setBs] = React.useState('solid')
+  const [bc, setBc] = React.useState('#000000')
+  return (
+    <CollapsibleSection title="Border">
+      <SliderField label="Width" value={bw} min={0} max={20} suffix="px" onChange={(v) => { setBw(v); apply((el) => { el.style.borderWidth = `${v}px`; el.style.borderStyle = bs; el.style.borderColor = bc }, 'Border width') }} />
+      <SelectField label="Style" value={bs} options={BORDER_STYLES} onChange={(v) => { setBs(v); apply((el) => { el.style.borderStyle = v; el.style.borderWidth = `${bw}px`; el.style.borderColor = bc }, 'Border style') }} />
+      <ColorField label="Color" value={bc} onChange={(v) => { setBc(v); apply((el) => { el.style.borderColor = v; el.style.borderWidth = `${bw}px`; el.style.borderStyle = bs }, 'Border color') }} />
+    </CollapsibleSection>
+  )
+}
+
+// ── Box-shadow controls ──────────────────────────────────────────────────
+function BoxShadowSection({ apply }: { apply: (m: (el: HTMLElement) => void, l: string) => void }) {
+  const [ox, setOx] = React.useState(0)
+  const [oy, setOy] = React.useState(0)
+  const [blur, setBlur] = React.useState(0)
+  const [spread, setSpread] = React.useState(0)
+  const [sc, setSc] = React.useState('#000000')
+  const applyShadow = (nox: number, noy: number, nb: number, ns: number, nc: string) => {
+    apply((el) => { el.style.boxShadow = `${no}px ${noy}px ${nb}px ${ns}px ${nc}` }, 'Box shadow')
+  }
+  return (
+    <CollapsibleSection title="Box Shadow">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <SliderField label="X" value={ox} min={-50} max={50} suffix="px" onChange={(v) => { setOx(v); applyShadow(v, oy, blur, spread, sc) }} />
+        <SliderField label="Y" value={oy} min={-50} max={50} suffix="px" onChange={(v) => { setOy(v); applyShadow(ox, v, blur, spread, sc) }} />
+        <SliderField label="Blur" value={blur} min={0} max={100} suffix="px" onChange={(v) => { setBlur(v); applyShadow(ox, oy, v, spread, sc) }} />
+        <SliderField label="Spread" value={spread} min={-50} max={50} suffix="px" onChange={(v) => { setSpread(v); applyShadow(ox, oy, blur, v, sc) }} />
+      </div>
+      <ColorField label="Color" value={sc} onChange={(v) => { setSc(v); applyShadow(ox, oy, blur, spread, v) }} />
+    </CollapsibleSection>
+  )
+}
+
 function px(v?: string): number {
   if (!v) return 16
   const n = parseFloat(v)

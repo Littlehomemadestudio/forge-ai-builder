@@ -98,6 +98,8 @@ ${stylesSnippet || '(none provided)'}
 Site context: ${body.siteContext || '(general website)'}
 Current text content: ${body.currentText || '(empty)'}
 
+Suggest 2-3 improvements. Output STRICT JSON only.`;
+
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const send = (event: string, data: unknown) => {
@@ -167,6 +169,3 @@ Current text content: ${body.currentText || '(empty)'}
     );
   }
 }
-
-
-Suggest 2-3 improvements. Output STRICT JSON only.`;

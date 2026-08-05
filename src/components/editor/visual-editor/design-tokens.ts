@@ -1,6 +1,8 @@
 // Design Tokens for the Visual Editor
 // Inspired by Linear, Framer, Canva, and Apple HIG
 
+import * as React from 'react'
+
 export const COLORS = {
   // Backgrounds
   background: '#FAFAFA',
@@ -39,6 +41,46 @@ export const COLORS = {
   dangerLight: '#FEE2E2',
   info: '#0EA5E9',
   infoLight: '#E0F2FE',
+} as const
+
+export const DARK_COLORS = {
+  // Backgrounds
+  background: '#0F172A',
+  panel: '#1E293B',
+  panelHover: '#253347',
+  
+  // Borders
+  border: '#334155',
+  borderHover: '#475569',
+  
+  // Primary Accent
+  primary: '#60A5FA',
+  primaryHover: '#3B82F6',
+  primaryLight: '#1E3A5F',
+  
+  // Selection
+  selection: '#60A5FA',
+  selectionLight: '#1E3A5F',
+  
+  // States
+  hover: '#1E293B',
+  active: '#334155',
+  
+  // Text
+  text: '#F1F5F9',
+  textSecondary: '#94A3B8',
+  textTertiary: '#64748B',
+  textMuted: '#475569',
+  
+  // Semantic
+  success: '#4ADE80',
+  successLight: '#14532D',
+  warning: '#FBBF24',
+  warningLight: '#78350F',
+  danger: '#F87171',
+  dangerLight: '#7F1D1D',
+  info: '#38BDF8',
+  infoLight: '#0C4A6E',
 } as const
 
 export const SPACING = {
@@ -139,3 +181,20 @@ export const BREAKPOINTS = {
   desktop: '1280px',
   wide: '1920px',
 } as const
+
+// ── Theme helper using CSS custom properties ─────────────────────────────
+export function useTheme() {
+  const [dark, setDark] = React.useState(false)
+
+  const toggle = React.useCallback(() => {
+    setDark((prev) => {
+      const next = !prev
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.toggle('dark', next)
+      }
+      return next
+    })
+  }, [])
+
+  return { dark, toggle }
+}

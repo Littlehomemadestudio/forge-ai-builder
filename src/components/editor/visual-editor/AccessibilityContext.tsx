@@ -25,13 +25,13 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   // Check system preference for reduced motion
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mediaQuery.matches) {
-      setReduceMotion(true)
-    }
 
     const handleChange = (e: MediaQueryListEvent) => {
       setReduceMotion(e.matches)
     }
+
+    // Set initial value via the change handler to avoid synchronous setState in effect
+    handleChange(mediaQuery as unknown as MediaQueryListEvent)
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)

@@ -72,6 +72,43 @@ function findByFid(root: HTMLElement, fid: string): HTMLElement | null {
   return el as HTMLElement
 }
 
+// Editor-specific CSS injected into the canvas for selection highlights & hover outlines
+const EDITOR_CSS = `
+.ve-selected {
+  outline: 2px solid #3B82F6 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+  position: relative;
+}
+.ve-selected::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.ve-hover-target {
+  cursor: pointer;
+}
+.ve-hover-target:hover {
+  outline: 1px dashed rgba(59, 130, 246, 0.5) !important;
+  outline-offset: 1px !important;
+}
+/* Resize handle indicators at corners */
+.ve-selected::after {
+  content: '';
+  position: absolute;
+  top: -5px; left: -5px; right: -5px; bottom: -5px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 4px at 0% 0%, #3B82F6 50%, transparent 50%),
+    radial-gradient(circle 4px at 100% 0%, #3B82F6 50%, transparent 50%),
+    radial-gradient(circle 4px at 0% 100%, #3B82F6 50%, transparent 50%),
+    radial-gradient(circle 4px at 100% 100%, #3B82F6 50%, transparent 50%);
+}
+`
+
 export function Canvas(p: CanvasProps) {
   const vpRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -100,13 +137,38 @@ export function Canvas(p: CanvasProps) {
       el.setAttribute('data-ve-sel', p.selectedFid)
       selToken.current = p.selectedFid
       p.onRenderNode?.(el.getBoundingClientRect(), p.selectedFid)
+      // Scroll to element
+      const vp = vpRef.current
+      if (vp) {
+        const elRect = el.getBoundingClientRect()
+        const vpRect = vp.getBoundingClientRect()
+        if (elRect.top < vpRect.top || elRect.bottom > vpRect.bottom ||
+            elRect.left < vpRect.left || elRect.right > vpRect.right) {
+          el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'nearest' })
+        }
+      }
     }
-  }, [p.selectedFid, p.html])
+  }, [p.selectedFid, p.html, p.onRenderNode, reduceMotion])
 
   // Expose the content root for imperative mutation (inspector/delete/AI).
   useEffect(() => {
     p.onContentReady?.(contentRef.current)
-  })
+  }, [p.onContentReady])
+
+  // Add hover outlines to selectable elements
+  useEffect(() => {
+    const root = contentRef.current
+    if (!root) return
+    const elements = root.querySelectorAll(SELECTABLE)
+    elements.forEach((el) => {
+      (el as HTMLElement).classList.add('ve-hover-target')
+    })
+    return () => {
+      elements.forEach((el) => {
+        (el as HTMLElement).classList.remove('ve-hover-target')
+      })
+    }
+  }, [p.html])
 
   const readInfo = useCallback((el: HTMLElement, root: HTMLElement): SelectionInfo | null => {
     const fid = buildFid(el, root)
@@ -202,12 +264,16 @@ export function Canvas(p: CanvasProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [p.selectedFid, p.onChangeHtml, p.onSelect])
 
+  // Merge editor CSS with user CSS
+  const fullCss = EDITOR_CSS + (p.css || '')
+
   return (
     <div
       ref={vpRef}
       onPointerDown={startPan}
       onClick={handleClick}
       role="region" aria-label="Design canvas"
+      className="ve-canvas-viewport"
       style={{
         position: 'relative', flex: 1, overflow: 'auto', background: COLORS.background,
         cursor: p.spaceHeld ? 'grab' : 'default',
@@ -223,7 +289,7 @@ export function Canvas(p: CanvasProps) {
             overflow: 'hidden',
           }}
         >
-          <style dangerouslySetInnerHTML={{ __html: p.css || '' }} />
+          <style dangerouslySetInnerHTML={{ __html: fullCss }} />
           {p.hasContent ? (
             <div ref={contentRef} dangerouslySetInnerHTML={{ __html: p.html || '' }} style={{ minHeight: 900, padding: 0 }} />
           ) : null}
@@ -232,4 +298,3 @@ export function Canvas(p: CanvasProps) {
     </div>
   )
 }
-

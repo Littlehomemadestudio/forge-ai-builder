@@ -1,7 +1,7 @@
 // ─── Top Navigation ────────────────────────────────────────────────────────
 import * as React from 'react'
 import { Code2, Undo2, Redo2, Monitor, Tablet, Smartphone, Minus, Plus, Maximize2,
-  Search, Keyboard, ArrowLeft } from 'lucide-react'
+  Search, Keyboard, ArrowLeft, Menu } from 'lucide-react'
 import { COLORS, RADIUS, SPACING, ACCESSIBILITY } from './design-tokens'
 import { FontSizeScale, useAccessibility } from './AccessibilityContext'
 import { IconButton, SegmentedControl } from './primitives'
@@ -23,6 +23,7 @@ export interface TopNavProps {
   onCommandPalette: () => void
   onShortcuts: () => void
   onPublish: () => void
+  onToggleToolbar?: () => void
 }
 
 const FONT_LABELS: Record<FontSizeScale, string> = {
@@ -31,6 +32,7 @@ const FONT_LABELS: Record<FontSizeScale, string> = {
 
 export function TopNav(p: TopNavProps) {
   const { fontSizeScale, setFontSizeScale } = useAccessibility()
+  const [mobileMenu, setMobileMenu] = React.useState(false)
 
   return (
     <header role="banner" aria-label="Editor top bar"
@@ -47,6 +49,7 @@ export function TopNav(p: TopNavProps) {
         <input
           value={p.projectName} aria-label="Project name"
           onChange={(e) => p.onProjectNameChange(e.target.value)}
+          className="ve-topnav-name"
           style={{
             minHeight: ACCESSIBILITY.minTouchTarget, border: '1px solid transparent', background: 'transparent',
             borderRadius: RADIUS.lg, padding: '0 12px', fontSize: 15, fontWeight: 600, color: COLORS.text, width: 200,
@@ -54,12 +57,12 @@ export function TopNav(p: TopNavProps) {
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = COLORS.border; (e.currentTarget as HTMLElement).style.background = COLORS.hover }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
         />
-        <span style={{ color: COLORS.textTertiary, fontSize: 13 }}>/</span>
-        <span style={{ color: COLORS.textSecondary, fontSize: 13 }}>index.html</span>
+        <span className="ve-topnav-slash" style={{ color: COLORS.textTertiary, fontSize: 13 }}>/</span>
+        <span className="ve-topnav-slash" style={{ color: COLORS.textSecondary, fontSize: 13 }}>index.html</span>
       </div>
 
       {/* Center: undo/redo + device + zoom */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.md }}>
+      <div className="ve-topnav-center" style={{ display: 'flex', alignItems: 'center', gap: SPACING.md }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton label="Undo (Ctrl+Z)" onClick={p.onUndo} disabled={!p.canUndo}><Undo2 size={18} /></IconButton>
           <IconButton label="Redo (Ctrl+Shift+Z)" onClick={p.onRedo} disabled={!p.canRedo}><Redo2 size={18} /></IconButton>
@@ -76,9 +79,18 @@ export function TopNav(p: TopNavProps) {
           ]}
         />
 
+        {/* Zoom controls */}
+        <div className="ve-topnav-zoom" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton label="Zoom out" onClick={p.onZoomOut}><Minus size={16} /></IconButton>
+          <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.textSecondary, minWidth: 36, textAlign: 'center' }}>{p.zoom}%</span>
+          <IconButton label="Zoom in" onClick={p.onZoomIn}><Plus size={16} /></IconButton>
+          <IconButton label="Fit to screen" onClick={p.onFit}><Maximize2 size={15} /></IconButton>
+        </div>
+      </div>
+
       {/* Right: font scale, commands, shortcuts, publish */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="ve-topnav-right" style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm }}>
+        <label className="ve-topnav-font" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, color: COLORS.textSecondary }}>Aa</span>
           <select aria-label="Font size scale" value={fontSizeScale}
             onChange={(e) => setFontSizeScale(e.target.value as FontSizeScale)}
@@ -101,7 +113,9 @@ export function TopNav(p: TopNavProps) {
         >
           Publish
         </button>
-      </div>
+
+        {/* Mobile hamburger */}
+        <IconButton label="Toggle toolbar" className="ve-topnav-hamburger" onClick={() => { setMobileMenu(!mobileMenu); p.onToggleToolbar?.() }}><Menu size={18} /></IconButton>
       </div>
     </header>
   )

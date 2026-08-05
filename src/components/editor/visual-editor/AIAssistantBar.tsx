@@ -1,9 +1,9 @@
-// ─── Bottom AI Assistant Bar ───────────────────────────────────────────────
+// ─── Bottom ai Assistant Bar ───────────────────────────────────────────────
 // Always-visible AI entry point (not a separate page). Suggests context-aware
-// actions, keyboard accessible, shows progress feedback.
+// actions, keyboard accessible, shows progress feedback, streaming, stop/regen.
 
 import * as React from 'react'
-import { Sparkles, Send, Loader2 } from 'lucide-react'
+import { Sparkles, Send, Loader2, Square, RotateCcw } from 'lucide-react'
 import { COLORS, RADIUS, SPACING } from './design-tokens'
 import { ActionButton } from './primitives'
 
@@ -11,9 +11,12 @@ export interface AIAssistantBarProps {
   onSubmit: (prompt: string) => void
   isBusy: boolean
   suggestions: { id: string; label: string }[]
+  onStop?: () => void
+  onRegenerate?: () => void
+  lastResponse?: string
 }
 
-export function AIAssistantBar({ onSubmit, isBusy, suggestions }: AIAssistantBarProps) {
+export function AIAssistantBar({ onSubmit, isBusy, suggestions, onStop, onRegenerate, lastResponse }: AIAssistantBarProps) {
   const [value, setValue] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
 
@@ -53,7 +56,19 @@ export function AIAssistantBar({ onSubmit, isBusy, suggestions }: AIAssistantBar
         </button>
       ))}
 
-      <ActionButton variant="primary" icon={isBusy ? <Loader2 size={16} className="spinner" /> : <Send size={16} />}
+      {isBusy && onStop && (
+        <ActionButton variant="primary" icon={<Square size={16} />} onClick={onStop}>
+          Stop
+        </ActionButton>
+      )}
+
+      {!isBusy && lastResponse && onRegenerate && (
+        <ActionButton icon={<RotateCcw size={16} />} onClick={onRegenerate}>
+          Regenerate
+        </ActionButton>
+      )}
+
+      <ActionButton variant="primary" icon={isBusy ? <Loader2 size={16} className="ve-spinner" /> : <Send size={16} />}
         onClick={() => send()} disabled={isBusy}>
         {isBusy ? 'Thinking…' : 'Go'}
       </ActionButton>
