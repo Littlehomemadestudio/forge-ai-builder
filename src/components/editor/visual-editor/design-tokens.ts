@@ -5,25 +5,25 @@ import * as React from 'react'
 
 export const COLORS = {
   // Backgrounds
-  background: '#FAFAFA',
+  background: '#F8F9FA',
   panel: '#FFFFFF',
   panelHover: '#F9FAFB',
   
   // Borders
-  border: '#EAEAEA',
-  borderHover: '#D4D4D8',
+  border: '#E8E8ED',
+  borderHover: '#D1D1D6',
   
-  // Primary Accent
+  // Primary Accent (deep blue)
   primary: '#2563EB',
   primaryHover: '#1D4ED8',
   primaryLight: '#EFF6FF',
   
   // Selection
-  selection: '#3B82F6',
+  selection: '#2563EB',
   selectionLight: '#DBEAFE',
   
   // States
-  hover: '#F3F4F6',
+  hover: '#F1F2F4',
   active: '#E5E7EB',
   
   // Text

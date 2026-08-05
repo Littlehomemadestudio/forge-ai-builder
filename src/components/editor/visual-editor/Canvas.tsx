@@ -75,37 +75,38 @@ function findByFid(root: HTMLElement, fid: string): HTMLElement | null {
 // Editor-specific CSS injected into the canvas for selection highlights & hover outlines
 const EDITOR_CSS = `
 .ve-selected {
-  outline: 2px solid #3B82F6 !important;
+  outline: 2px solid #2563EB !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15), 0 0 0 2px rgba(37, 99, 235, 0.3) !important;
   position: relative;
+  border-radius: 2px;
 }
 .ve-selected::before {
   content: '';
   position: absolute;
-  inset: -5px;
-  border: 1px dashed rgba(59, 130, 246, 0.4);
-  border-radius: 2px;
+  inset: -6px;
+  border: 1px dashed rgba(37, 99, 235, 0.35);
+  border-radius: 3px;
   pointer-events: none;
 }
 .ve-hover-target {
   cursor: pointer;
 }
 .ve-hover-target:hover {
-  outline: 1px dashed rgba(59, 130, 246, 0.5) !important;
-  outline-offset: 1px !important;
+  outline: 1.5px solid rgba(37, 99, 235, 0.4) !important;
+  outline-offset: 2px !important;
 }
 /* Resize handle indicators at corners */
 .ve-selected::after {
   content: '';
   position: absolute;
-  top: -5px; left: -5px; right: -5px; bottom: -5px;
+  top: -6px; left: -6px; right: -6px; bottom: -6px;
   pointer-events: none;
   background:
-    radial-gradient(circle 4px at 0% 0%, #3B82F6 50%, transparent 50%),
-    radial-gradient(circle 4px at 100% 0%, #3B82F6 50%, transparent 50%),
-    radial-gradient(circle 4px at 0% 100%, #3B82F6 50%, transparent 50%),
-    radial-gradient(circle 4px at 100% 100%, #3B82F6 50%, transparent 50%);
+    radial-gradient(circle 4px at 0% 0%, #2563EB 48%, transparent 50%),
+    radial-gradient(circle 4px at 100% 0%, #2563EB 48%, transparent 50%),
+    radial-gradient(circle 4px at 0% 100%, #2563EB 48%, transparent 50%),
+    radial-gradient(circle 4px at 100% 100%, #2563EB 48%, transparent 50%);
 }
 `
 
@@ -267,6 +268,13 @@ export function Canvas(p: CanvasProps) {
   // Merge editor CSS with user CSS
   const fullCss = EDITOR_CSS + (p.css || '')
 
+  // Dot grid background for the viewport
+  const dotGridSize = 20
+  const dotGridStyle = {
+    backgroundImage: `radial-gradient(circle, #D1D5DB 1px, transparent 1px)`,
+    backgroundSize: `${dotGridSize}px ${dotGridSize}px`,
+  }
+
   return (
     <div
       ref={vpRef}
@@ -277,9 +285,30 @@ export function Canvas(p: CanvasProps) {
       style={{
         position: 'relative', flex: 1, overflow: 'auto', background: COLORS.background,
         cursor: p.spaceHeld ? 'grab' : 'default',
+        ...dotGridStyle,
       }}
     >
       <div style={{ width: worldSize.w, height: Math.max(worldSize.h, 1400), position: 'relative', padding: 48 }}>
+        {/* Device frame label */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          marginBottom: 12,
+        }}>
+          <span style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: COLORS.textTertiary,
+            background: COLORS.panel,
+            padding: '2px 8px',
+            borderRadius: RADIUS.md,
+            border: `1px solid ${COLORS.border}`,
+          }}>
+            {width}px
+          </span>
+        </div>
         <div
           className="ve-canvas"
           style={{
@@ -287,6 +316,7 @@ export function Canvas(p: CanvasProps) {
             boxShadow: SHADOWS.xl, margin: '0 auto', transform: `scale(${p.zoom / 100})`,
             transformOrigin: 'top center', transition: reduceMotion ? 'none' : 'transform 160ms ease',
             overflow: 'hidden',
+            border: `1px solid ${COLORS.border}`,
           }}
         >
           <style dangerouslySetInnerHTML={{ __html: fullCss }} />

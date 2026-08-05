@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, Component } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useSession, signIn } from 'next-auth/react'
 import { useAppStore } from '@/lib/store'
@@ -89,10 +89,40 @@ function AppRouter() {
   )
 }
 
+// Error boundary to catch client-side exceptions (e.g. NextAuth session fetch failure)
+class ClientErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(err: any, info: any) {
+    // Suppress NextAuth CLIENT_FETCH_ERROR — it's non-fatal
+    const msg = String(err?.message || err || '')
+    if (msg.includes('CLIENT_FETCH_ERROR') || msg.includes('Failed to fetch')) {
+      // Non-fatal — just reset the error boundary after a tick
+      setTimeout(() => this.setState({ hasError: false }), 100)
+      return
+    }
+    console.error('[ClientErrorBoundary]', err, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Show the landing page as fallback — it doesn't need auth
+      return <LandingPage />
+    }
+    return this.props.children
+  }
+}
+
 export default function Home() {
   return (
-    <AuthProvider>
-      <AppRouter />
-    </AuthProvider>
+    <ClientErrorBoundary>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </ClientErrorBoundary>
   )
 }

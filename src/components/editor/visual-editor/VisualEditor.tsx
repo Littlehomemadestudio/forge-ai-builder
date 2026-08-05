@@ -12,6 +12,7 @@ import { AccessibilityProvider, useAccessibility } from './AccessibilityContext'
 import { COLORS, RADIUS, SPACING, SHADOWS, DARK_COLORS } from './design-tokens'
 import { TopNav } from './TopNav'
 import { IconToolbar } from './IconToolbar'
+import { ToolPanel } from './ToolPanel'
 import { Canvas, type SelectionInfo } from './Canvas'
 import { Inspector } from './Inspector'
 import { FloatingSelectionBar } from './FloatingSelectionBar'
@@ -76,6 +77,7 @@ function EditorShell() {
   const [inspectorOpen, setInspectorOpen] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toolbarVisible, setToolbarVisible] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(true)
   const [aiAbortRef, setAiAbortRef] = useState<AbortController | null>(null)
 
   const contentRootRef = useRef<HTMLElement | null>(null)
@@ -170,6 +172,18 @@ function EditorShell() {
     const i = historyIndexRef.current
     if (i < historyRef.current.length - 1) { const next = i + 1; setHistoryIndex(next); setHtml(historyRef.current[next]) }
   }, [])
+
+  // ── Insert HTML from tool panels ────────────────────────────────────
+  const onInsert = useCallback((insertHtml: string, label: string) => {
+    if (!insertHtml) {
+      // Trigger AI generate
+      runAI('Generate a new section for this page')
+      return
+    }
+    const newHtml = htmlRef.current + insertHtml
+    commit(newHtml, `Add ${label}`)
+    showToast(`Added ${label}`)
+  }, [commit, runAI, showToast])
 
   const onSelectText = useCallback((text: string, label: string) => {
     commitNode((n) => { n.textContent = text }, label)
@@ -485,9 +499,23 @@ function EditorShell() {
           <IconToolbar
             active={activeTool}
             onSelect={(id) => {
-              setActiveTool(id)
+              if (id === activeTool) {
+                setPanelOpen((p) => !p)
+              } else {
+                setActiveTool(id)
+                setPanelOpen(true)
+              }
               if (id === 'ai') announce('AI: describe a request in the assistant bar below')
             }}
+          />
+        )}
+
+        {toolbarVisible && panelOpen && (
+          <ToolPanel
+            activeTool={activeTool}
+            onInsert={onInsert}
+            darkMode={darkMode}
+            htmlContent={html}
           />
         )}
 

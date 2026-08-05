@@ -1,9 +1,9 @@
 // ─── Floating Context Toolbar ──────────────────────────────────────────────
 // Appears above the selected element. Keyboard accessible, tooltips on all
-// icons, reduced-motion aware. Mirrors Framer/Figma selection UX.
+// icons, reduced-motion aware. Enhanced with smoother positioning and modern design.
 
 import * as React from 'react'
-import { Copy, Trash2, Wand2, Bold, AlignLeft, AlignCenter, AlignRight, Type, Italic, Crop, Link } from 'lucide-react'
+import { Copy, Trash2, Wand2, Bold, AlignLeft, AlignCenter, AlignRight, Italic, Crop, Link } from 'lucide-react'
 import { COLORS, RADIUS, SHADOWS, Z_INDEX } from './design-tokens'
 import { IconButton } from './primitives'
 import type { SelectionInfo } from './Canvas'
@@ -65,7 +65,11 @@ export function FloatingSelectionBar(p: FloatingSelectionBarProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <span aria-hidden style={{ fontSize: 11, fontWeight: 600, color: COLORS.textTertiary, padding: '0 4px', textTransform: 'uppercase' }}>
+          <span aria-hidden style={{
+            fontSize: 11, fontWeight: 600, color: COLORS.primary,
+            padding: '2px 6px', textTransform: 'uppercase' as const,
+            background: COLORS.primaryLight, borderRadius: RADIUS.sm,
+          }}>
             {p.selection.tag}
           </span>
           {p.selection.isText && (
@@ -93,12 +97,12 @@ export function FloatingSelectionBar(p: FloatingSelectionBarProps) {
   }
 
   // Desktop: floating bar
-  const barW = 280
+  const barW = 300
   let left = rect.left + rect.width / 2 - barW / 2
-  let top = rect.top - 52
+  let top = rect.top - 48
   const vw = window.innerWidth
   left = Math.max(8, Math.min(vw - barW - 8, left))
-  if (top < 60) top = rect.bottom + 12
+  if (top < 60) top = rect.bottom + 8
 
   return (
     <div
@@ -106,36 +110,46 @@ export function FloatingSelectionBar(p: FloatingSelectionBarProps) {
       role="toolbar" aria-label={`Actions for ${p.selection.tag}`}
       style={{
         position: 'fixed', left, top, zIndex: Z_INDEX.floatingPanel, display: 'flex', alignItems: 'center',
-        gap: 2, padding: 4, background: COLORS.panel, borderRadius: RADIUS.xl,
-        border: `1px solid ${COLORS.border}`, boxShadow: SHADOWS.lg, width: barW,
-        justifyContent: 'space-between',
+        gap: 1, padding: '4px 6px', background: COLORS.panel, borderRadius: RADIUS.xl,
+        border: `1px solid ${COLORS.border}`, boxShadow: `0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)`,
+        transition: 'left 80ms ease, top 80ms ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <span aria-hidden style={{ fontSize: 12, fontWeight: 600, color: COLORS.textTertiary, padding: '0 6px', textTransform: 'uppercase' }}>
-          {p.selection.tag}
-        </span>
+      {/* Tag badge */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        padding: '3px 7px', borderRadius: RADIUS.md,
+        background: COLORS.primaryLight, color: COLORS.primary,
+        fontSize: 11, fontWeight: 600, marginRight: 4,
+      }}>
+        {p.selection.tag}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {p.selection.isText && (
           <>
-            <IconButton label="Bold" size={36} onClick={p.onBold}><Bold size={16} /></IconButton>
-            {p.onItalic && <IconButton label="Italic" size={36} onClick={p.onItalic}><Italic size={16} /></IconButton>}
-            <IconButton label="Align left" size={36} onClick={() => p.onAlign('left')}><AlignLeft size={16} /></IconButton>
-            <IconButton label="Align center" size={36} onClick={() => p.onAlign('center')}><AlignCenter size={16} /></IconButton>
-            <IconButton label="Align right" size={36} onClick={() => p.onAlign('right')}><AlignRight size={16} /></IconButton>
+            <IconButton label="Bold" size={32} onClick={p.onBold}><Bold size={14} /></IconButton>
+            {p.onItalic && <IconButton label="Italic" size={32} onClick={p.onItalic}><Italic size={14} /></IconButton>}
+            <div style={{ width: 1, height: 20, background: COLORS.border, margin: '0 2px' }} />
+            <IconButton label="Align left" size={32} onClick={() => p.onAlign('left')}><AlignLeft size={14} /></IconButton>
+            <IconButton label="Align center" size={32} onClick={() => p.onAlign('center')}><AlignCenter size={14} /></IconButton>
+            <IconButton label="Align right" size={32} onClick={() => p.onAlign('right')}><AlignRight size={14} /></IconButton>
           </>
         )}
         {p.selection.isImage && (
-          <IconButton label="Crop / fit" size={36} onClick={p.onAI}><Crop size={16} /></IconButton>
+          <IconButton label="Crop / fit" size={32} onClick={p.onAI}><Crop size={14} /></IconButton>
         )}
         {p.selection.isButton && (
-          <IconButton label="Edit link" size={36} onClick={p.onAI}><Link size={16} /></IconButton>
+          <IconButton label="Edit link" size={32} onClick={p.onAI}><Link size={14} /></IconButton>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <IconButton label="AI action" size={36} onClick={p.onAI} active><Wand2 size={16} /></IconButton>
-        <IconButton label="Duplicate" size={36} onClick={p.onDuplicate}><Copy size={16} /></IconButton>
-        <IconButton label="Delete" size={36} onClick={p.onDelete} danger><Trash2 size={16} /></IconButton>
+      <div style={{ width: 1, height: 20, background: COLORS.border, margin: '0 3px' }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <IconButton label="AI improve" size={32} onClick={p.onAI} active><Wand2 size={14} /></IconButton>
+        <IconButton label="Duplicate" size={32} onClick={p.onDuplicate}><Copy size={14} /></IconButton>
+        <IconButton label="Delete" size={32} onClick={p.onDelete} danger><Trash2 size={14} /></IconButton>
       </div>
     </div>
   )

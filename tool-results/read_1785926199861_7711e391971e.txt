@@ -1,0 +1,582 @@
+     1→     1→// ─── Forge Visual Editor ───────────────────────────────────────────────────
+     2→     2→// Rebuilt from scratch: modern light theme, top nav + left icon toolbar +
+     3→     3→// canvas + right inspector + bottom AI bar. Reads the selected template /
+     4→     4→// generated pages from the app store so "Edit this template" actually works.
+     5→     5→// Accessibility-first: font scaling, reduce-motion, live announcements, 44px
+     6→     6→// targets, keyboard shortcuts, command palette, and an AI accessibility audit.
+     7→     7→
+     8→     8→import * as React from 'react'
+     9→     9→import { useEffect, useRef, useState, useCallback } from 'react'
+    10→    10→import { useAppStore } from '@/lib/store'
+    11→    11→import { AccessibilityProvider, useAccessibility } from './AccessibilityContext'
+    12→    12→import { COLORS, RADIUS, SPACING, SHADOWS, DARK_COLORS } from './design-tokens'
+    13→    13→import { TopNav } from './TopNav'
+    14→    14→import { IconToolbar } from './IconToolbar'
+    15→    15→import { Canvas, type SelectionInfo } from './Canvas'
+    16→    16→import { Inspector } from './Inspector'
+    17→    17→import { FloatingSelectionBar } from './FloatingSelectionBar'
+    18→    18→import { EmptyCanvas } from './EmptyCanvas'
+    19→    19→import { AIAssistantBar } from './AIAssistantBar'
+    20→    20→import { CommandPalette, ShortcutsHelp } from './Overlays'
+    21→    21→import { LiveRegion, announce } from './primitives'
+    22→    22→import { matchShortcut } from './keyboard'
+    23→    23→
+    24→    24→// Accessible starter page used by "Start blank".
+    25→    25→const STARTER = `
+    26→    26→<section style="padding:96px 24px;text-align:center;max-width:1000px;margin:0 auto">
+    27→    27→  <h1 style="font-size:48px;line-height:1.1;margin:0 0 16px;color:#111827;font-weight:800">Your new website</h1>
+    28→    28→  <p style="font-size:20px;line-height:1.6;color:#4B5563;max-width:640px;margin:0 auto 32px">Start with a blank, accessible page and make it yours. Edit any element by clicking it, or ask the AI to build something for you.</p>
+    29→    29→  <a href="#get-started" style="display:inline-block;background:#2563EB;color:#ffffff;font-weight:600;font-size:16px;padding:14px 28px;border-radius:10px;text-decoration:none">Get started</a>
+    30→    30→</section>`
+    31→    31→
+    32→    32→/** Find a DOM node by its escaped path fid inside the canvas root. */
+    33→    33→function findByFid(root: HTMLElement | null, fid: string): HTMLElement | null {
+    34→    34→  if (!root) return null
+    35→    35→  const parts = fid.split('-').map(Number)
+    36→    36→  let el: Element = root
+    37→    37→  for (const idx of parts) {
+    38→    38→    const children = Array.from(el.children).filter((c) => c.nodeType === 1)
+    39→    39→    if (idx >= children.length) return null
+    40→    40→    el = children[idx]
+    41→    41→  }
+    42→    42→  return el as HTMLElement
+    43→    43→}
+    44→    44→
+    45→    45→function EditorShell() {
+    46→    46→  const { reduceMotion, fontSizeScale } = useAccessibility()
+    47→    47→
+    48→    48→  // ── Store-backed document sources (fixes "template never opens") ──────
+    49→    49→  const selectedTemplateHtml = useAppStore((s) => s.selectedTemplateHtml)
+    50→    50→  const generatedPages = useAppStore((s) => s.generatedPages)
+    51→    51→  const currentPreviewPage = useAppStore((s) => s.currentPreviewPage)
+    52→    52→  const navigate = useAppStore((s) => s.navigate)
+    53→    53→  const projects = useAppStore((s) => s.projects)
+    54→    54→  const selectedProjectId = useAppStore((s) => s.selectedProjectId)
+    55→    55→
+    56→    56→  // ── Local document state ──────────────────────────────────────────────
+    57→    57→  const [html, setHtml] = useState('')
+    58→    58→  const [css, setCss] = useState('')
+    59→    59→  const [projectName, setProjectName] = useState('Untitled project')
+    60→    60→  const [history, setHistory] = useState<string[]>([])
+    61→    61→  const [historyIndex, setHistoryIndex] = useState(-1)
+    62→    62→
+    63→    63→  // ── Editor UI state ───────────────────────────────────────────────────
+    64→    64→  const [selection, setSelection] = useState<SelectionInfo | null>(null)
+    65→    65→  const [activeTool, setActiveTool] = useState('pages')
+    66→    66→  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+    67→    67→  const [zoom, setZoom] = useState(70)
+    68→    68→  const [spaceHeld, setSpaceHeld] = useState(false)
+    69→    69→  const [cmdOpen, setCmdOpen] = useState(false)
+    70→    70→  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+    71→    71→  const [aiBusy, setAiBusy] = useState(false)
+    72→    72→  const [aiFeedback, setAiFeedback] = useState('')
+    73→    73→  const [auditResults, setAuditResults] = useState<string[]>([])
+    74→    74→  const [toast, setToast] = useState<string | null>(null)
+    75→    75→  const [darkMode, setDarkMode] = useState(false)
+    76→    76→  const [inspectorOpen, setInspectorOpen] = useState(true)
+    77→    77→  const [saving, setSaving] = useState(false)
+    78→    78→  const [toolbarVisible, setToolbarVisible] = useState(true)
+    79→    79→  const [aiAbortRef, setAiAbortRef] = useState<AbortController | null>(null)
+    80→    80→
+    81→    81→  const contentRootRef = useRef<HTMLElement | null>(null)
+    82→    82→
+    83→    83→  // ── Dark mode: swap CSS custom properties on the shell ────────────────
+    84→    84→  useEffect(() => {
+    85→    85→    const shell = document.querySelector('.ve-shell')
+    86→    86→    if (!shell) return
+    87→    87→    if (darkMode) {
+    88→    88→      (shell as HTMLElement).style.setProperty('--ve-bg', DARK_COLORS.background)
+    89→    89→      ;(shell as HTMLElement).style.setProperty('--ve-panel', DARK_COLORS.panel)
+    90→    90→      ;(shell as HTMLElement).style.setProperty('--ve-border', DARK_COLORS.border)
+    91→    91→      ;(shell as HTMLElement).style.setProperty('--ve-text', DARK_COLORS.text)
+    92→    92→      ;(shell as HTMLElement).style.setProperty('--ve-text-sec', DARK_COLORS.textSecondary)
+    93→    93→      ;(shell as HTMLElement).style.setProperty('--ve-text-ter', DARK_COLORS.textTertiary)
+    94→    94→      ;(shell as HTMLElement).classList.add('ve-dark')
+    95→    95→    } else {
+    96→    96→      (shell as HTMLElement).style.removeProperty('--ve-bg')
+    97→    97→      ;(shell as HTMLElement).style.removeProperty('--ve-panel')
+    98→    98→      ;(shell as HTMLElement).style.removeProperty('--ve-border')
+    99→    99→      ;(shell as HTMLElement).style.removeProperty('--ve-text')
+   100→   100→      ;(shell as HTMLElement).style.removeProperty('--ve-text-sec')
+   101→   101→      ;(shell as HTMLElement).style.removeProperty('--ve-text-ter')
+   102→   102→      ;(shell as HTMLElement).classList.remove('ve-dark')
+   103→   103→    }
+   104→   104→  }, [darkMode])
+   105→   105→
+   106→   106→  // ── Responsive: auto-hide inspector on small screens ──────────────────
+   107→   107→  useEffect(() => {
+   108→   108→    const mq = window.matchMedia('(max-width: 768px)')
+   109→   109→    setInspectorOpen(!mq.matches)
+   110→   110→    const handler = (e: MediaQueryListEvent) => setInspectorOpen(!e.matches)
+   111→   111→    mq.addEventListener('change', handler)
+   112→   112→    return () => mq.removeEventListener('change', handler)
+   113→   113→  }, [])
+   114→   114→
+   115→   115→  // ── Load the document (template / generated page) from the store ──────
+   116→   116→  // Also react to selectedTemplateHtml and generatedPages changes
+   117→   117→  useEffect(() => {
+   118→   118→    let initialHtml = ''
+   119→   119→    let initialCss = ''
+   120→   120→    if (generatedPages.length) {
+   121→   121→      const active = generatedPages.find((p) => p.id === currentPreviewPage) || generatedPages[0]
+   122→   122→      initialHtml = active.html || ''
+   123→   123→      initialCss = active.css || ''
+   124→   124→      if (active.name) setProjectName(active.name)
+   125→   125→    } else if (selectedTemplateHtml) {
+   126→   126→      initialHtml = selectedTemplateHtml
+   127→   127→    }
+   128→   128→    if (initialHtml) {
+   129→   129→      setHtml(initialHtml); setCss(initialCss); setHistory([initialHtml]); setHistoryIndex(0)
+   130→   130→    } else {
+   131→   131→      setHtml(''); setCss(''); setHistory([]); setHistoryIndex(-1)
+   132→   132→    }
+   133→   133→  }, [selectedTemplateHtml, generatedPages, currentPreviewPage])
+   134→   134→
+   135→   135→  // Refs mirror state so callbacks/effects can read latest values without re-binding.
+   136→   136→  const historyRef = useRef<string[]>([])
+   137→   137→  const historyIndexRef = useRef(-1)
+   138→   138→  const selectionRef = useRef<SelectionInfo | null>(null)
+   139→   139→  const htmlRef = useRef('')
+   140→   140→  useEffect(() => { historyRef.current = history }, [history])
+   141→   141→  useEffect(() => { historyIndexRef.current = historyIndex }, [historyIndex])
+   142→   142→  useEffect(() => { selectionRef.current = selection }, [selection])
+   143→   143→  useEffect(() => { htmlRef.current = html }, [html])
+   144→   144→
+   145→   145→  const commit = useCallback((nextHtml: string, label: string) => {
+   146→   146→    const next = [...historyRef.current.slice(0, historyIndexRef.current + 1), nextHtml]
+   147→   147→    historyRef.current = next
+   148→   148→    setHistoryIndex(next.length - 1)
+   149→   149→    setHtml(nextHtml)
+   150→   150→    announce(label || 'Updated')
+   151→   151→    // Saving indicator
+   152→   152→    setSaving(true)
+   153→   153→    window.setTimeout(() => setSaving(false), 1200)
+   154→   154→  }, [])
+   155→   155→
+   156→   156→  /** Mutate the selected DOM node, then snapshot + push history. */
+   157→   157→  const commitNode = useCallback((mutate: (n: HTMLElement) => void, label: string) => {
+   158→   158→    const node = findByFid(contentRootRef.current, selectionRef.current?.fid || '')
+   159→   159→    if (!node || node === contentRootRef.current) { announce('Nothing selected'); return }
+   160→   160→    mutate(node)
+   161→   161→    const root = contentRootRef.current
+   162→   162→    if (root) commit(root.innerHTML, label)
+   163→   163→  }, [commit])
+   164→   164→
+   165→   165→  const undo = useCallback(() => {
+   166→   166→    const i = historyIndexRef.current
+   167→   167→    if (i > 0) { const next = i - 1; setHistoryIndex(next); setHtml(historyRef.current[next]) }
+   168→   168→  }, [])
+   169→   169→  const redo = useCallback(() => {
+   170→   170→    const i = historyIndexRef.current
+   171→   171→    if (i < historyRef.current.length - 1) { const next = i + 1; setHistoryIndex(next); setHtml(historyRef.current[next]) }
+   172→   172→  }, [])
+   173→   173→
+   174→   174→  const onSelectText = useCallback((text: string, label: string) => {
+   175→   175→    commitNode((n) => { n.textContent = text }, label)
+   176→   176→  }, [commitNode])
+   177→   177→  const duplicate = useCallback(() => {
+   178→   178→    commitNode((n) => { const c = n.cloneNode(true) as HTMLElement; n.after(c) }, 'Duplicate')
+   179→   179→  }, [commitNode])
+   180→   180→  const remove = useCallback(() => {
+   181→   181→    const node = findByFid(contentRootRef.current, selectionRef.current?.fid || '')
+   182→   182→    if (node && node.parentElement && node.parentElement !== contentRootRef.current) {
+   183→   183→      node.remove(); setSelection(null)
+   184→   184→      const root = contentRootRef.current
+   185→   185→      if (root) commit(root.innerHTML, 'Delete')
+   186→   186→    } else announce('Nothing to delete')
+   187→   187→  }, [commit])
+   188→   188→  const bold = useCallback(() => {
+   189→   189→    commitNode((n) => { n.style.fontWeight = n.style.fontWeight === '700' ? '400' : '700' }, 'Toggle bold')
+   190→   190→  }, [commitNode])
+   191→   191→  const align = useCallback((a: 'left' | 'center' | 'right') => {
+   192→   192→    commitNode((n) => { n.style.textAlign = a }, `Align ${a}`)
+   193→   193→  }, [commitNode])
+   194→   194→
+   195→   195→  // ── AI ────────────────────────────────────────────────────────────────
+   196→   196→  const runAI = useCallback(async (prompt: string) => {
+   197→   197→    const abort = new AbortController()
+   198→   198→    setAiAbortRef(abort)
+   199→   199→    setAiBusy(true)
+   200→   200→    setAiFeedback('')
+   201→   201→    announce('AI is thinking…')
+   202→   202→    const node = findByFid(contentRootRef.current, selectionRef.current?.fid || '')
+   203→   203→    const elementHtml = node ? node.outerHTML.slice(0, 4000) : (htmlRef.current || '').slice(0, 4000)
+   204→   204→    try {
+   205→   205→      const res = await fetch('/api/editor-suggest', {
+   206→   206→        method: 'POST',
+   207→   207→        headers: { 'Content-Type': 'application/json' },
+   208→   208→        body: JSON.stringify({
+   209→   209→          elementTag: node?.tagName.toLowerCase() || 'body',
+   210→   210→          elementHtml,
+   211→   211→          computedStyles: {},
+   212→   212→          siteContext: prompt || 'professional website',
+   213→   213→          language: 'en',
+   214→   214→        }),
+   215→   215→        signal: abort.signal,
+   216→   216→      })
+   217→   217→
+   218→   218→      if (!res.ok) {
+   219→   219→        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+   220→   220→        setAiFeedback(err?.error || err?.message || 'AI request failed.')
+   221→   221→        announce(err?.error || 'Request failed')
+   222→   222→        return
+   223→   223→      }
+   224→   224→
+   225→   225→      // Server streams SSE: delta (live) → result → done/error
+   226→   226→      const reader = res.body!.getReader()
+   227→   227→      const decoder = new TextDecoder()
+   228→   228→      let buffer = ''
+   229→   229→      let suggestion: { suggestions?: Array<{ description?: string; newHtml?: string }> } | null = null
+   230→   230→      let streamingText = ''
+   231→   231→
+   232→   232→      consume: while (true) {
+   233→   233→        const { done, value } = await reader.read()
+   234→   234→        if (done) break
+   235→   235→        buffer += decoder.decode(value, { stream: true })
+   236→   236→
+   237→   237→        let delim: RegExpMatchArray | null
+   238→   238→        while ((delim = buffer.match(/\r?\n\r?\n/)) !== null) {
+   239→   239→          const rawEvent = buffer.slice(0, delim.index!)
+   240→   240→          buffer = buffer.slice(delim.index! + delim[0].length)
+   241→   241→
+   242→   242→          let ev = 'message'
+   243→   243→          const dataLines: string[] = []
+   244→   244→          for (const line of rawEvent.split(/\r?\n/)) {
+   245→   245→            if (line.startsWith('event:')) ev = line.slice(6).trim()
+   246→   246→            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+   247→   247→          }
+   248→   248→          if (dataLines.length === 0) continue
+   249→   249→          const dataStr = dataLines.join('\n')
+   250→   250→          let data: unknown
+   251→   251→          try { data = JSON.parse(dataStr) } catch { data = dataStr }
+   252→   252→
+   253→   253→          switch (ev) {
+   254→   254→            case 'delta': {
+   255→   255→              const chunk = (data as { chunk?: string })?.chunk || ''
+   256→   256→              streamingText += chunk
+   257→   257→              setAiFeedback(streamingText.length > 200 ? streamingText.slice(0, 200) + '…' : streamingText || 'AI is thinking…')
+   258→   258→              break
+   259→   259→            }
+   260→   260→            case 'result':
+   261→   261→              suggestion = data as typeof suggestion
+   262→   262→              break consume
+   263→   263→            case 'error':
+   264→   264→              {
+   265→   265→                const errData = data as { message?: string; error?: string }
+   266→   266→                const m = errData?.message || errData?.error || 'AI failed.'
+   267→   267→                setAiFeedback(m)
+   268→   268→                announce(m)
+   269→   269→                return
+   270→   270→              }
+   271→   271→            case 'done':
+   272→   272→              break consume
+   273→   273→            default:
+   274→   274→              break
+   275→   275→          }
+   276→   276→        }
+   277→   277→      }
+   278→   278→
+   279→   279→      // Apply AI-generated HTML if present
+   280→   280→      if (suggestion?.suggestions?.[0]?.newHtml) {
+   281→   281→        const newHtml = suggestion.suggestions[0].newHtml
+   282→   282→        if (node && node.parentElement && node.parentElement !== contentRootRef.current) {
+   283→   283→          // Replace selected element
+   284→   284→          const temp = document.createElement('div')
+   285→   285→          temp.innerHTML = newHtml
+   286→   286→          const replacement = temp.firstElementChild as HTMLElement | null
+   287→   287→          if (replacement) {
+   288→   288→            node.replaceWith(replacement)
+   289→   289→            const root = contentRootRef.current
+   290→   290→            if (root) commit(root.innerHTML, 'AI: replace element')
+   291→   291→          }
+   292→   292→        } else {
+   293→   293→          // Append to canvas
+   294→   294→          const root = contentRootRef.current
+   295→   295→          if (root) {
+   296→   296→            root.innerHTML += newHtml
+   297→   297→            commit(root.innerHTML, 'AI: append content')
+   298→   298→          }
+   299→   299→        }
+   300→   300→      }
+   301→   301→
+   302→   302→      const msg = suggestion?.suggestions?.[0]?.description || 'AI responded.'
+   303→   303→      setAiFeedback(msg)
+   304→   304→      announce(msg)
+   305→   305→    } catch (err: unknown) {
+   306→   306→      if (err instanceof DOMException && err.name === 'AbortError') {
+   307→   307→        setAiFeedback('AI request cancelled.')
+   308→   308→        announce('AI request cancelled')
+   309→   309→      } else {
+   310→   310→        setAiFeedback('AI is not configured. Add ZAI_API_KEY to .env to enable AI features.')
+   311→   311→        announce('AI not configured')
+   312→   312→      }
+   313→   313→    } finally {
+   314→   314→      setAiBusy(false)
+   315→   315→      setAiAbortRef(null)
+   316→   316→    }
+   317→   317→  }, [commit])
+   318→   318→
+   319→   319→  const stopAI = useCallback(() => {
+   320→   320→    aiAbortRef?.abort()
+   321→   321→    setAiBusy(false)
+   322→   322→    setAiFeedback('Stopped.')
+   323→   323→  }, [aiAbortRef])
+   324→   324→
+   325→   325→  // ── Accessibility audit ───────────────────────────────────────────────
+   326→   326→  const runAudit = useCallback(() => {
+   327→   327→    const root = contentRootRef.current
+   328→   328→    if (!root || !root.children.length) { setAuditResults(['Add content, then re-run the audit.']); announce('No content to audit'); return }
+   329→   329→    const issues: string[] = []
+   330→   330→    root.querySelectorAll('img').forEach((img) => {
+   331→   331→      if (!img.getAttribute('alt')) issues.push(`Image missing alt text: ${(img.getAttribute('src') || 'unknown').slice(0, 28)}`)
+   332→   332→    })
+   333→   333→    const hs = Array.from(root.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((h) => Number(h.tagName[1]))
+   334→   334→    for (let i = 1; i < hs.length; i++) { if (hs[i] - hs[i - 1] > 1) { issues.push('Heading order skips a level'); break } }
+   335→   335→    if (!root.querySelector('h1')) issues.push('Page has no h1 heading')
+   336→   336→    root.querySelectorAll('li').forEach((li) => {
+   337→   337→      if (!li.parentElement || !/^[uo]l$/i.test(li.parentElement.tagName)) issues.push('List item is not inside <ul>/<ol>')
+   338→   338→    })
+   339→   339→    const low = root.querySelector('p,h1,h2,h3') as HTMLElement | null
+   340→   340→    if (low && parseFloat(getComputedStyle(low).fontSize) < 14) issues.push('Text smaller than 14px may be hard to read')
+   341→   341→    setAuditResults(issues.length ? issues : ['No obvious accessibility issues found. Great work!'])
+   342→   342→    announce(issues.length ? `Found ${issues.length} accessibility issues` : 'No accessibility issues found')
+   343→   343→  }, [])
+   344→   344→
+   345→   345→  const fixAccessibility = useCallback(() => {
+   346→   346→    const root = contentRootRef.current
+   347→   347→    if (!root) return
+   348→   348→    root.querySelectorAll('img').forEach((img) => { if (!img.getAttribute('alt')) img.setAttribute('alt', 'Decorative image') })
+   349→   349→    if (root.children[0] && !root.querySelector('h1')) {
+   350→   350→      const first = root.querySelector('h2,h3,p,section') as HTMLElement | null
+   351→   351→      if (first) { const h = document.createElement('h1'); h.textContent = 'Page title'; first.before(h) }
+   352→   352→    }
+   353→   353→    commit(root.innerHTML, 'Fix accessibility issues')
+   354→   354→    announce('Accessibility issues fixed')
+   355→   355→  }, [commit])
+   356→   356→
+   357→   357→  const showToast = useCallback((msg: string) => {
+   358→   358→    setToast(msg)
+   359→   359→    window.setTimeout(() => setToast(null), 2600)
+   360→   360→  }, [])
+   361→   361→
+   362→   362→  // ── Keyboard: space = pan ─────────────────────────────────────────────
+   363→   363→  useEffect(() => {
+   364→   364→    const down = (e: KeyboardEvent) => { if (e.code === 'Space') setSpaceHeld(true) }
+   365→   365→    const up = (e: KeyboardEvent) => { if (e.code === 'Space') setSpaceHeld(false) }
+   366→   366→    window.addEventListener('keydown', down)
+   367→   367→    window.addEventListener('keyup', up)
+   368→   368→    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
+   369→   369→  }, [])
+   370→   370→
+   371→   371→  // ── Keyboard: shortcuts ───────────────────────────────────────────────
+   372→   372→  useEffect(() => {
+   373→   373→    const onKey = (e: KeyboardEvent) => {
+   374→   374→      const id = matchShortcut(e)
+   375→   375→      if (!id || id === 'pan') return
+   376→   376→      e.preventDefault()
+   377→   377→      switch (id) {
+   378→   378→        case 'undo': undo(); break
+   379→   379→        case 'redo': redo(); break
+   380→   380→        case 'duplicate': duplicate(); break
+   381→   381→        case 'delete': remove(); break
+   382→   382→        case 'command-palette':
+   383→   383→        case 'quick-command': setCmdOpen((o) => !o); break
+   384→   384→        case 'zoom-in': setZoom((z) => Math.min(200, z + 10)); break
+   385→   385→        case 'zoom-out': setZoom((z) => Math.max(20, z - 10)); break
+   386→   386→        case 'group': case 'ungroup': announce('Grouping requires multi-select'); break
+   387→   387→      }
+   388→   388→    }
+   389→   389→    window.addEventListener('keydown', onKey)
+   390→   390→    return () => window.removeEventListener('keydown', onKey)
+   391→   391→  }, [undo, redo, duplicate, remove])
+   392→   392→
+   393→   393→  // ── Empty-canvas / start actions ──────────────────────────────────────
+   394→   394→  const onEmptyAction = useCallback((action: string) => {
+   395→   395→    if (action === 'start-blank') { setHtml(STARTER); setCss(''); setHistory([STARTER]); setHistoryIndex(0); announce('Blank accessible page created') }
+   396→   396→    else if (action === 'templates') navigate('builder')
+   397→   397→    else if (action === 'ai') { announce('Describe your site in the AI bar below'); setAiFeedback('Tell the AI what to build, then press Go.') }
+   398→   398→    else if (action === 'import') { announce('Import URL is not wired to a backend yet') }
+   399→   399→    else if (action === 'paste') {
+   400→   400→      const pasted = window.prompt('Paste your HTML below:')
+   401→   401→      if (pasted && pasted.trim()) { setHtml(pasted.trim()); setCss(''); setHistory([pasted.trim()]); setHistoryIndex(0); announce('HTML imported') }
+   402→   402→    }
+   403→   403→  }, [navigate])
+   404→   404→
+   405→   405→  const onPublish = useCallback(() => {
+   406→   406→    showToast('Publishing is not configured on this host yet.')
+   407→   407→    announce('Publishing not configured')
+   408→   408→  }, [showToast])
+   409→   409→
+   410→   410→  const onExport = useCallback(() => {
+   411→   411→    const full = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${projectName}</title><style>${css}</style></head><body>${html}</body></html>`
+   412→   412→    const blob = new Blob([full], { type: 'text/html' })
+   413→   413→    const url = URL.createObjectURL(blob)
+   414→   414→    const a = document.createElement('a'); a.href = url; a.download = 'index.html'; a.click()
+   415→   415→    URL.revokeObjectURL(url)
+   416→   416→    showToast('Exported index.html')
+   417→   417→    announce('Exported index.html')
+   418→   418→  }, [html, css, projectName, showToast])
+   419→   419→
+   420→   420→  const runCommand = useCallback((id: string) => {
+   421→   421→    switch (id) {
+   422→   422→      case 'undo': undo(); break
+   423→   423→      case 'redo': redo(); break
+   424→   424→      case 'duplicate': duplicate(); break
+   425→   425→      case 'delete': remove(); break
+   426→   426→      case 'add-section': commit(htmlRef.current + '<section style="padding:64px 24px"></section>', 'Add section'); break
+   427→   427→      case 'add-text': commit(htmlRef.current + '<h2 style="padding:8px 0;color:#111827">New heading</h2>', 'Add text'); break
+   428→   428→      case 'add-image': commit(htmlRef.current + '<img src="https://placehold.co/800x400?text=Image" alt="Placeholder image" style="max-width:100%">', 'Add image'); break
+   429→   429→      case 'ai-generate': case 'ai-redesign': setCmdOpen(false); runAI(id === 'ai-generate' ? 'Generate a new section' : 'Redesign the page'); break
+   430→   430→      case 'accessibility': runAudit(); break
+   431→   431→      case 'publish': onPublish(); break
+   432→   432→      case 'shortcuts': setShortcutsOpen(true); break
+   433→   433→      case 'toggle-dark': setDarkMode((d) => !d); break
+   434→   434→      case 'toggle-inspector': setInspectorOpen((o) => !o); break
+   435→   435→    }
+   436→   436→  }, [undo, redo, duplicate, remove, commit, runAI, runAudit, onPublish])
+   437→   437→
+   438→   438→  // ── Render ────────────────────────────────────────────────────────────
+   439→   439→  const hasContent = html.trim().length > 0
+   440→   440→  const baseFont = fontSizeScale === 'small' ? 14 : fontSizeScale === 'large' ? 18 : fontSizeScale === 'extra-large' ? 20 : 16
+   441→   441→
+   442→   442→  // Context-aware AI suggestions
+   443→   443→  const aiSuggestions = React.useMemo(() => {
+   444→   444→    const base = [{ id: 'improve', label: '✨ Improve selected' }]
+   445→   445→    if (selection?.isImage) base.push({ id: 'alt', label: '✨ Add alt text' })
+   446→   446→    if (selection?.isText) base.push({ id: 'rewrite', label: '✨ Rewrite text' })
+   447→   447→    base.push({ id: 'contrast', label: '✨ Fix contrast' })
+   448→   448→    return base
+   449→   449→  }, [selection])
+   450→   450→
+   451→   451→  return (
+   452→   452→    <div className={`ve-shell${darkMode ? ' ve-dark' : ''}`} style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontSize: baseFont }}>
+   453→   453→      <LiveRegion />
+   454→   454→
+   455→   455→      {/* Saving indicator */}
+   456→   456→      {saving && (
+   457→   457→        <div aria-live="polite" style={{ position: 'fixed', top: 60, right: 16, zIndex: 600, background: COLORS.primary, color: '#FFF', padding: '6px 14px', borderRadius: RADIUS.lg, fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+   458→   458→          <span className="ve-spinner" style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#FFF', borderRadius: '50%', display: 'inline-block' }} />
+   459→   459→          Saving…
+   460→   460→        </div>
+   461→   461→      )}
+   462→   462→
+   463→   463→      <TopNav
+   464→   464→        projectName={projectName}
+   465→   465→        onProjectNameChange={setProjectName}
+   466→   466→        canUndo={historyIndex > 0}
+   467→   467→        canRedo={historyIndex < history.length - 1}
+   468→   468→        onUndo={undo}
+   469→   469→        onRedo={redo}
+   470→   470→        onBack={() => navigate('dashboard')}
+   471→   471→        device={device}
+   472→   472→        onDeviceChange={setDevice}
+   473→   473→        zoom={zoom}
+   474→   474→        onZoomIn={() => setZoom((z) => Math.min(200, z + 10))}
+   475→   475→        onZoomOut={() => setZoom((z) => Math.max(20, z - 10))}
+   476→   476→        onFit={() => setZoom(70)}
+   477→   477→        onCommandPalette={() => setCmdOpen(true)}
+   478→   478→        onShortcuts={() => setShortcutsOpen(true)}
+   479→   479→        onPublish={onPublish}
+   480→   480→        onToggleToolbar={() => setToolbarVisible((v) => !v)}
+   481→   481→      />
+   482→   482→
+   483→   483→      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+   484→   484→        {toolbarVisible && (
+   485→   485→          <IconToolbar
+   486→   486→            active={activeTool}
+   487→   487→            onSelect={(id) => {
+   488→   488→              setActiveTool(id)
+   489→   489→              if (id === 'ai') announce('AI: describe a request in the assistant bar below')
+   490→   490→            }}
+   491→   491→          />
+   492→   492→        )}
+   493→   493→
+   494→   494→        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+   495→   495→          <div style={{ flex: 1, display: 'flex', position: 'relative', minHeight: 0 }}>
+   496→   496→            {hasContent ? (
+   497→   497→              <Canvas
+   498→   498→                html={html}
+   499→   499→                css={css}
+   500→   500→                device={device}
+   501→   501→                zoom={zoom}
+   502→   502→                selectedFid={selection?.fid || null}
+   503→   503→                spaceHeld={spaceHeld}
+   504→   504→                onSelect={setSelection}
+   505→   505→                onChangeHtml={commit}
+   506→   506→                hasContent={hasContent}
+   507→   507→                onContentReady={(el) => { contentRootRef.current = el }}
+   508→   508→              />
+   509→   509→            ) : (
+   510→   510→              <div style={{ flex: 1, background: darkMode ? DARK_COLORS.background : COLORS.background, overflow: 'auto' }}>
+   511→   511→                <EmptyCanvas onAction={onEmptyAction} />
+   512→   512→              </div>
+   513→   513→            )}
+   514→   514→
+   515→   515→            <FloatingSelectionBar
+   516→   516→              selection={selection}
+   517→   517→              onDuplicate={duplicate}
+   518→   518→              onDelete={remove}
+   519→   519→              onAI={() => runAI('Improve this element')}
+   520→   520→              onBold={bold}
+   521→   521→              onAlign={align}
+   522→   522→            />
+   523→   523→          </div>
+   524→   524→
+   525→   525→          <AIAssistantBar
+   526→   526→            onSubmit={(prompt) => runAI(prompt)}
+   527→   527→            isBusy={aiBusy}
+   528→   528→            onStop={stopAI}
+   529→   529→            onRegenerate={() => runAI('Improve this element')}
+   530→   530→            lastResponse={aiFeedback}
+   531→   531→            suggestions={aiSuggestions}
+   532→   532→          />
+   533→   533→          {aiFeedback && (
+   534→   534→            <div role="status" aria-live="polite" style={{ padding: '8px 16px', background: darkMode ? DARK_COLORS.primaryLight : COLORS.primaryLight, color: darkMode ? DARK_COLORS.primary : COLORS.primary, fontSize: 13, borderTop: `1px solid ${darkMode ? DARK_COLORS.selectionLight : COLORS.selectionLight}` }}>
+   535→   535→              ✨ {aiFeedback}
+   536→   536→            </div>
+   537→   537→          )}
+   538→   538→          {auditResults.length > 0 && (
+   539→   539→            <div role="status" style={{ padding: '8px 16px', background: darkMode ? DARK_COLORS.warningLight : COLORS.warningLight, color: '#92400E', fontSize: 13, borderTop: `1px solid ${darkMode ? DARK_COLORS.warning : COLORS.warning}` }}>
+   540→   540→              <strong style={{ fontWeight: 600 }}>A11y audit:</strong> {auditResults.map((r) => <span key={r} style={{ display: 'inline-block', marginRight: 12 }}>• {r}</span>)}
+   541→   541→            </div>
+   542→   542→          )}
+   543→   543→        </div>
+   544→   544→
+   545→   545→        {inspectorOpen && (
+   546→   546→          <Inspector
+   547→   547→            selection={selection}
+   548→   548→            onApply={commitNode}
+   549→   549→            onSelectText={onSelectText}
+   550→   550→            onDeleteSelection={remove}
+   551→   551→            onDuplicateSelection={duplicate}
+   552→   552→            onRunAccessibilityAudit={runAudit}
+   553→   553→            onFixAccessibility={fixAccessibility}
+   554→   554→            onExport={onExport}
+   555→   555→            onAI={(prompt) => runAI(prompt)}
+   556→   556→            darkMode={darkMode}
+   557→   557→            onToggleDarkMode={() => setDarkMode((d) => !d)}
+   558→   558→            onToggleInspector={() => setInspectorOpen(false)}
+   559→   559→          />
+   560→   560→        )}
+   561→   561→      </div>
+   562→   562→
+   563→   563→      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} onRun={runCommand} />
+   564→   564→      <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+   565→   565→
+   566→   566→      {toast && (
+   567→   567→        <div role="status" style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: darkMode ? DARK_COLORS.text : COLORS.text, color: '#FFF', padding: '10px 18px', borderRadius: RADIUS.lg, boxShadow: SHADOWS.lg, zIndex: 500, fontSize: 14, fontWeight: 500 }}>
+   568→   568→          {toast}
+   569→   569→        </div>
+   570→   570→      )}
+   571→   571→    </div>
+   572→   572→  )
+   573→   573→}
+   574→   574→
+   575→   575→export function VisualEditor() {
+   576→   576→  return (
+   577→   577→    <AccessibilityProvider>
+   578→   578→      <EditorShell />
+   579→   579→    </AccessibilityProvider>
+   580→   580→  )
+   581→   581→}
+   582→   582→
