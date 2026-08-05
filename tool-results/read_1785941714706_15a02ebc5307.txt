@@ -1,0 +1,648 @@
+     1→// ─── Slide-Out Tool Panels ──────────────────────────────────────────────
+     2→// Panels that slide out from the left toolbar when a tool is selected.
+     3→// Each panel provides content relevant to the tool: sections, components,
+     4→// media, layers, pages, templates, assets, history, brand, settings.
+     5→
+     6→'use client'
+     7→
+     8→import * as React from 'react'
+     9→import { motion, AnimatePresence } from 'framer-motion'
+    10→import {
+    11→  LayoutTemplate, Type, Image as ImageIcon, ListTree, Layers, Palette,
+    12→  History, Globe, Settings2, Plus, Sparkles, ChevronRight,
+    13→  Heading1, Heading2, Pilcrow, Square, Columns, Rows3, Rows,
+    14→  CreditCard, MessageSquare, Star, Mail, MapPin, Phone, Calendar,
+    15→  ArrowRight, Check, Search, Upload, FolderOpen
+    16→} from 'lucide-react'
+    17→import { COLORS, RADIUS, SPACING, SHADOWS, DARK_COLORS } from './design-tokens'
+    18→import { useAccessibility } from './AccessibilityContext'
+    19→
+    20→// ─── Types ──────────────────────────────────────────────────────────────
+    21→
+    22→export interface ToolPanelItem {
+    23→  id: string
+    24→  label: string
+    25→  description?: string
+    26→  icon?: React.ReactNode
+    27→  html?: string  // HTML to insert when clicked
+    28→  badge?: string
+    29→  category?: string
+    30→}
+    31→
+    32→export interface ToolPanelProps {
+    33→  activeTool: string
+    34→  onInsert: (html: string, label: string) => void
+    35→  darkMode?: boolean
+    36→  htmlContent?: string  // Current page HTML for layers panel
+    37→}
+    38→
+    39→// ─── Section templates ──────────────────────────────────────────────────
+    40→
+    41→const SECTION_ITEMS: ToolPanelItem[] = [
+    42→  {
+    43→    id: 'hero', label: 'Hero', description: 'Large heading + CTA',
+    44→    icon: <Heading1 size={16} />,
+    45→    html: `<section style="padding:80px 24px;text-align:center;max-width:900px;margin:0 auto">
+    46→  <h1 style="font-size:48px;font-weight:800;color:#111827;margin:0 0 16px;line-height:1.1">Welcome to your site</h1>
+    47→  <p style="font-size:18px;color:#6B7280;margin:0 auto 32px;max-width:600px;line-height:1.6">Build something amazing with the power of AI and modern design.</p>
+    48→  <a href="#" style="display:inline-block;background:#2563EB;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none">Get started</a>
+    49→</section>`,
+    50→  },
+    51→  {
+    52→    id: 'features', label: 'Features', description: '3-column feature grid',
+    53→    icon: <Columns size={16} />,
+    54→    html: `<section style="padding:64px 24px;max-width:1100px;margin:0 auto">
+    55→  <h2 style="font-size:32px;font-weight:700;color:#111827;text-align:center;margin:0 0 48px">Features</h2>
+    56→  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px">
+    57→    <div style="text-align:center"><div style="width:48px;height:48px;background:#EFF6FF;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><span style="font-size:24px">&#9889;</span></div><h3 style="font-size:18px;font-weight:600;color:#111827;margin:0 0 8px">Fast</h3><p style="font-size:14px;color:#6B7280;line-height:1.5">Lightning-fast performance for the best user experience.</p></div>
+    58→    <div style="text-align:center"><div style="width:48px;height:48px;background:#F0FDF4;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><span style="font-size:24px">&#128274;</span></div><h3 style="font-size:18px;font-weight:600;color:#111827;margin:0 0 8px">Secure</h3><p style="font-size:14px;color:#6B7280;line-height:1.5">Enterprise-grade security to protect your data.</p></div>
+    59→    <div style="text-align:center"><div style="width:48px;height:48px;background:#FEF3C7;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><span style="font-size:24px">&#127912;</span></div><h3 style="font-size:18px;font-weight:600;color:#111827;margin:0 0 8px">Beautiful</h3><p style="font-size:14px;color:#6B7280;line-height:1.5">Stunning designs that make your brand stand out.</p></div>
+    60→  </div>
+    61→</section>`,
+    62→  },
+    63→  {
+    64→    id: 'pricing', label: 'Pricing', description: '3-tier pricing cards',
+    65→    icon: <CreditCard size={16} />,
+    66→    html: `<section style="padding:64px 24px;max-width:1100px;margin:0 auto">
+    67→  <h2 style="font-size:32px;font-weight:700;color:#111827;text-align:center;margin:0 0 48px">Pricing</h2>
+    68→  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+    69→    <div style="border:1px solid #E5E7EB;border-radius:12px;padding:32px"><h3 style="font-size:20px;font-weight:600;margin:0 0 8px">Starter</h3><p style="font-size:14px;color:#6B7280;margin:0 0 24px">For individuals</p><div style="font-size:36px;font-weight:700;color:#111827;margin:0 0 24px">$9<span style="font-size:16px;font-weight:400;color:#9CA3AF">/mo</span></div><a href="#" style="display:block;text-align:center;background:#F3F4F6;color:#111827;font-weight:600;padding:12px;border-radius:8px;text-decoration:none">Choose plan</a></div>
+    70→    <div style="border:2px solid #2563EB;border-radius:12px;padding:32px;position:relative"><div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#2563EB;color:#fff;font-size:12px;font-weight:600;padding:4px 12px;border-radius:999px">Popular</div><h3 style="font-size:20px;font-weight:600;margin:0 0 8px">Pro</h3><p style="font-size:14px;color:#6B7280;margin:0 0 24px">For teams</p><div style="font-size:36px;font-weight:700;color:#111827;margin:0 0 24px">$29<span style="font-size:16px;font-weight:400;color:#9CA3AF">/mo</span></div><a href="#" style="display:block;text-align:center;background:#2563EB;color:#fff;font-weight:600;padding:12px;border-radius:8px;text-decoration:none">Choose plan</a></div>
+    71→    <div style="border:1px solid #E5E7EB;border-radius:12px;padding:32px"><h3 style="font-size:20px;font-weight:600;margin:0 0 8px">Enterprise</h3><p style="font-size:14px;color:#6B7280;margin:0 0 24px">For organizations</p><div style="font-size:36px;font-weight:700;color:#111827;margin:0 0 24px">$99<span style="font-size:16px;font-weight:400;color:#9CA3AF">/mo</span></div><a href="#" style="display:block;text-align:center;background:#F3F4F6;color:#111827;font-weight:600;padding:12px;border-radius:8px;text-decoration:none">Choose plan</a></div>
+    72→  </div>
+    73→</section>`,
+    74→  },
+    75→  {
+    76→    id: 'testimonials', label: 'Testimonials', description: 'Customer quotes',
+    77→    icon: <MessageSquare size={16} />,
+    78→    html: `<section style="padding:64px 24px;max-width:900px;margin:0 auto">
+    79→  <h2 style="font-size:32px;font-weight:700;color:#111827;text-align:center;margin:0 0 48px">What people say</h2>
+    80→  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px">
+    81→    <div style="background:#F9FAFB;border-radius:12px;padding:24px"><div style="display:flex;gap:4px;margin-bottom:12px"><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span></div><p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px">"This product has completely transformed how we build websites. Incredible tool!"</p><p style="font-size:14px;font-weight:600;color:#111827;margin:0">Sarah Chen</p></div>
+    82→    <div style="background:#F9FAFB;border-radius:12px;padding:24px"><div style="display:flex;gap:4px;margin-bottom:12px"><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span><span style="color:#F59E0B">&#9733;</span></div><p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px">"The AI-powered editor saves us hours of work. Best investment we've made."</p><p style="font-size:14px;font-weight:600;color:#111827;margin:0">Mike Johnson</p></div>
+    83→  </div>
+    84→</section>`,
+    85→  },
+    86→  {
+    87→    id: 'cta', label: 'Call to Action', description: 'Bold CTA section',
+    88→    icon: <ArrowRight size={16} />,
+    89→    html: `<section style="padding:64px 24px;text-align:center;background:#111827;color:#fff">
+    90→  <h2 style="font-size:36px;font-weight:700;margin:0 0 16px">Ready to get started?</h2>
+    91→  <p style="font-size:18px;color:#9CA3AF;margin:0 auto 32px;max-width:500px">Join thousands of creators building amazing websites.</p>
+    92→  <a href="#" style="display:inline-block;background:#2563EB;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none">Start for free</a>
+    93→</section>`,
+    94→  },
+    95→  {
+    96→    id: 'contact', label: 'Contact', description: 'Contact form layout',
+    97→    icon: <Mail size={16} />,
+    98→    html: `<section style="padding:64px 24px;max-width:600px;margin:0 auto">
+    99→  <h2 style="font-size:32px;font-weight:700;color:#111827;margin:0 0 32px">Get in touch</h2>
+   100→  <form style="display:flex;flex-direction:column;gap:16px">
+   101→    <div><label style="display:block;font-size:14px;font-weight:500;color:#374151;margin-bottom:6px">Name</label><input type="text" placeholder="Your name" style="width:100%;padding:12px 16px;border:1px solid #D1D5DB;border-radius:8px;font-size:15px;box-sizing:border-box"></div>
+   102→    <div><label style="display:block;font-size:14px;font-weight:500;color:#374151;margin-bottom:6px">Email</label><input type="email" placeholder="you@example.com" style="width:100%;padding:12px 16px;border:1px solid #D1D5DB;border-radius:8px;font-size:15px;box-sizing:border-box"></div>
+   103→    <div><label style="display:block;font-size:14px;font-weight:500;color:#374151;margin-bottom:6px">Message</label><textarea placeholder="How can we help?" rows="4" style="width:100%;padding:12px 16px;border:1px solid #D1D5DB;border-radius:8px;font-size:15px;box-sizing:border-box;resize:vertical"></textarea></div>
+   104→    <button type="button" style="background:#2563EB;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:8px;border:none;cursor:pointer">Send message</button>
+   105→  </form>
+   106→</section>`,
+   107→  },
+   108→  {
+   109→    id: 'footer', label: 'Footer', description: 'Site footer with links',
+   110→    icon: <Rows3 size={16} />,
+   111→    html: `<footer style="padding:48px 24px 32px;background:#111827;color:#9CA3AF">
+   112→  <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:32px">
+   113→    <div><h4 style="font-size:16px;font-weight:600;color:#fff;margin:0 0 16px">Company</h4><p style="font-size:14px;line-height:1.6;margin:0">Building the future of web design with AI.</p></div>
+   114→    <div><h4 style="font-size:14px;font-weight:600;color:#fff;margin:0 0 16px">Product</h4><div style="display:flex;flex-direction:column;gap:8px"><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Features</a><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Pricing</a><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Templates</a></div></div>
+   115→    <div><h4 style="font-size:14px;font-weight:600;color:#fff;margin:0 0 16px">Support</h4><div style="display:flex;flex-direction:column;gap:8px"><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Help center</a><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Contact</a><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Status</a></div></div>
+   116→    <div><h4 style="font-size:14px;font-weight:600;color:#fff;margin:0 0 16px">Legal</h4><div style="display:flex;flex-direction:column;gap:8px"><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Privacy</a><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Terms</a><a href="#" style="color:#9CA3AF;text-decoration:none;font-size:14px">Cookies</a></div></div>
+   117→  </div>
+   118→  <div style="max-width:1100px;margin:32px auto 0;padding-top:24px;border-top:1px solid #374151;text-align:center;font-size:13px">&copy; 2025 Your Company. All rights reserved.</div>
+   119→</footer>`,
+   120→  },
+   121→  {
+   122→    id: 'stats', label: 'Stats', description: 'Number counters',
+   123→    icon: <Star size={16} />,
+   124→    html: `<section style="padding:64px 24px;background:#F9FAFB">
+   125→  <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:32px;text-align:center">
+   126→    <div><div style="font-size:42px;font-weight:800;color:#111827">10K+</div><div style="font-size:14px;color:#6B7280;margin-top:4px">Users</div></div>
+   127→    <div><div style="font-size:42px;font-weight:800;color:#111827">50M+</div><div style="font-size:14px;color:#6B7280;margin-top:4px">Pages built</div></div>
+   128→    <div><div style="font-size:42px;font-weight:800;color:#111827">99.9%</div><div style="font-size:14px;color:#6B7280;margin-top:4px">Uptime</div></div>
+   129→    <div><div style="font-size:42px;font-weight:800;color:#111827">4.9</div><div style="font-size:14px;color:#6B7280;margin-top:4px">Rating</div></div>
+   130→  </div>
+   131→</section>`,
+   132→  },
+   133→]
+   134→
+   135→// ─── Component items ────────────────────────────────────────────────────
+   136→
+   137→const COMPONENT_ITEMS: ToolPanelItem[] = [
+   138→  { id: 'heading', label: 'Heading', icon: <Heading2 size={16} />, html: '<h2 style="font-size:28px;font-weight:700;color:#111827;margin:0 0 8px">New heading</h2>' },
+   139→  { id: 'paragraph', label: 'Paragraph', icon: <Pilcrow size={16} />, html: '<p style="font-size:16px;color:#374151;line-height:1.6;margin:0 0 16px">Write your text here. This is a paragraph element you can edit.</p>' },
+   140→  { id: 'button', label: 'Button', icon: <Square size={16} />, html: '<a href="#" style="display:inline-block;background:#2563EB;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:15px">Click me</a>' },
+   141→  { id: 'image', label: 'Image', icon: <ImageIcon size={16} />, html: '<img src="https://placehold.co/800x400/EFF6FF/2563EB?text=Image" alt="Placeholder image" style="max-width:100%;border-radius:8px">' },
+   142→  { id: 'divider', label: 'Divider', icon: <Rows size={16} />, html: '<hr style="border:none;border-top:1px solid #E5E7EB;margin:32px 0">' },
+   143→  { id: 'card', label: 'Card', icon: <LayoutTemplate size={16} />, html: '<div style="border:1px solid #E5E7EB;border-radius:12px;padding:24px;max-width:400px"><h3 style="font-size:18px;font-weight:600;color:#111827;margin:0 0 8px">Card title</h3><p style="font-size:14px;color:#6B7280;line-height:1.5;margin:0 0 16px">Card description goes here. Edit this text to customize.</p><a href="#" style="color:#2563EB;font-weight:600;font-size:14px;text-decoration:none">Learn more &rarr;</a></div>' },
+   144→  { id: 'list', label: 'List', icon: <ListTree size={16} />, html: '<ul style="list-style:disc;padding-left:24px;font-size:16px;color:#374151;line-height:1.8"><li>First item</li><li>Second item</li><li>Third item</li></ul>' },
+   145→  { id: 'quote', label: 'Blockquote', icon: <MessageSquare size={16} />, html: '<blockquote style="border-left:4px solid #2563EB;padding-left:20px;font-size:18px;color:#374151;font-style:italic;margin:0 0 16px">"A meaningful quote goes here."</blockquote>' },
+   146→  { id: 'spacer', label: 'Spacer', icon: <Rows3 size={16} />, html: '<div style="height:48px"></div>' },
+   147→  { id: 'icon-text', label: 'Icon + Text', icon: <Sparkles size={16} />, html: '<div style="display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;background:#EFF6FF;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px">&#9889;</div><div><div style="font-size:15px;font-weight:600;color:#111827">Feature name</div><div style="font-size:13px;color:#6B7280">Short description</div></div></div>' },
+   148→]
+   149→
+   150→// ─── Media items ────────────────────────────────────────────────────────
+   151→
+   152→const MEDIA_ITEMS: ToolPanelItem[] = [
+   153→  { id: 'img-wide', label: 'Wide (16:9)', icon: <ImageIcon size={16} />, html: '<img src="https://placehold.co/1200x675/F9FAFB/9CA3AF?text=Wide+Image" alt="Wide placeholder" style="max-width:100%;border-radius:8px">' },
+   154→  { id: 'img-square', label: 'Square (1:1)', icon: <ImageIcon size={16} />, html: '<img src="https://placehold.co/600x600/F9FAFB/9CA3AF?text=Square" alt="Square placeholder" style="max-width:100%;border-radius:8px">' },
+   155→  { id: 'img-portrait', label: 'Portrait (3:4)', icon: <ImageIcon size={16} />, html: '<img src="https://placehold.co/450x600/F9FAFB/9CA3AF?text=Portrait" alt="Portrait placeholder" style="max-width:100%;border-radius:8px">' },
+   156→  { id: 'img-avatar', label: 'Avatar', icon: <ImageIcon size={16} />, html: '<img src="https://placehold.co/80x80/EFF6FF/2563EB?text=A" alt="Avatar" style="width:80px;height:80px;border-radius:50%;object-fit:cover">' },
+   157→  { id: 'img-gallery', label: 'Gallery (3)', icon: <Columns size={16} />, html: '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"><img src="https://placehold.co/400x300/F9FAFB/9CA3AF?text=1" alt="Gallery image 1" style="width:100%;border-radius:8px;object-fit:cover"><img src="https://placehold.co/400x300/F0FDF4/16A34A?text=2" alt="Gallery image 2" style="width:100%;border-radius:8px;object-fit:cover"><img src="https://placehold.co/400x300/FEF3C7/F59E0B?text=3" alt="Gallery image 3" style="width:100%;border-radius:8px;object-fit:cover"></div>' },
+   158→]
+   159→
+   160→// ─── Panel Component ────────────────────────────────────────────────────
+   161→
+   162→function PanelItem({ item, onInsert, darkMode }: {
+   163→  item: ToolPanelItem
+   164→  onInsert: (html: string, label: string) => void
+   165→  darkMode?: boolean
+   166→}) {
+   167→  const [hovered, setHovered] = React.useState(false)
+   168→  const c = darkMode ? DARK_COLORS : COLORS
+   169→
+   170→  return (
+   171→    <button
+   172→      type="button"
+   173→      onClick={() => item.html && onInsert(item.html, item.label)}
+   174→      onMouseEnter={() => setHovered(true)}
+   175→      onMouseLeave={() => setHovered(false)}
+   176→      style={{
+   177→        display: 'flex',
+   178→        alignItems: 'center',
+   179→        gap: 10,
+   180→        width: '100%',
+   181→        padding: '8px 10px',
+   182→        border: 'none',
+   183→        borderRadius: RADIUS.lg,
+   184→        background: hovered ? c.hover : 'transparent',
+   185→        color: c.text,
+   186→        cursor: item.html ? 'pointer' : 'default',
+   187→        textAlign: 'left',
+   188→        fontSize: 13,
+   189→        transition: 'background 120ms ease',
+   190→      }}
+   191→    >
+   192→      <span style={{
+   193→        display: 'flex',
+   194→        alignItems: 'center',
+   195→        justifyContent: 'center',
+   196→        width: 32,
+   197→        height: 32,
+   198→        borderRadius: RADIUS.md,
+   199→        background: hovered ? c.primaryLight : c.background,
+   200→        color: c.primary,
+   201→        flexShrink: 0,
+   202→      }} aria-hidden="true">
+   203→        {item.icon || <Plus size={14} />}
+   204→      </span>
+   205→      <div style={{ flex: 1, minWidth: 0 }}>
+   206→        <div style={{ fontWeight: 500, fontSize: 13, color: c.text }}>{item.label}</div>
+   207→        {item.description && (
+   208→          <div style={{ fontSize: 11, color: c.textTertiary, marginTop: 1 }}>{item.description}</div>
+   209→        )}
+   210→      </div>
+   211→      {item.html && (
+   212→        <ChevronRight size={14} style={{ color: c.textTertiary, flexShrink: 0 }} />
+   213→      )}
+   214→    </button>
+   215→  )
+   216→}
+   217→
+   218→function PanelSection({ title, children, darkMode }: {
+   219→  title: string
+   220→  children: React.ReactNode
+   221→  darkMode?: boolean
+   222→}) {
+   223→  const c = darkMode ? DARK_COLORS : COLORS
+   224→  return (
+   225→    <div style={{ marginBottom: 16 }}>
+   226→      <div style={{
+   227→        fontSize: 11,
+   228→        fontWeight: 600,
+   229→        color: c.textTertiary,
+   230→        textTransform: 'uppercase' as const,
+   231→        letterSpacing: '0.5px',
+   232→        padding: '0 10px 6px',
+   233→      }}>
+   234→        {title}
+   235→      </div>
+   236→      {children}
+   237→    </div>
+   238→  )
+   239→}
+   240→
+   241→// ─── Layers Panel (DOM tree) ────────────────────────────────────────────
+   242→
+   243→function LayersPanel({ htmlContent, onInsert, darkMode }: {
+   244→  htmlContent?: string
+   245→  onInsert: (html: string, label: string) => void
+   246→  darkMode?: boolean
+   247→}) {
+   248→  const c = darkMode ? DARK_COLORS : COLORS
+   249→
+   250→  // Parse top-level elements from HTML
+   251→  const elements = React.useMemo(() => {
+   252→    if (!htmlContent) return []
+   253→    try {
+   254→      const parser = new DOMParser()
+   255→      const doc = parser.parseFromString(htmlContent, 'text/html')
+   256→      return Array.from(doc.body.children).map((el, i) => ({
+   257→        tag: el.tagName.toLowerCase(),
+   258→        text: (el.textContent || '').trim().slice(0, 40),
+   259→        index: i,
+   260→      }))
+   261→    } catch {
+   262→      return []
+   263→    }
+   264→  }, [htmlContent])
+   265→
+   266→  if (elements.length === 0) {
+   267→    return (
+   268→      <div style={{ padding: '24px 16px', textAlign: 'center', color: c.textTertiary, fontSize: 13 }}>
+   269→        <Layers size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />
+   270→        No elements yet.<br />Add sections or components.
+   271→      </div>
+   272→    )
+   273→  }
+   274→
+   275→  return (
+   276→    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+   277→      {elements.map((el, i) => (
+   278→        <div key={i} style={{
+   279→          display: 'flex',
+   280→          alignItems: 'center',
+   281→          gap: 8,
+   282→          padding: '6px 10px',
+   283→          borderRadius: RADIUS.md,
+   284→          fontSize: 13,
+   285→          color: c.text,
+   286→        }}>
+   287→          <span style={{
+   288→            display: 'inline-flex',
+   289→            alignItems: 'center',
+   290→            justifyContent: 'center',
+   291→            width: 22,
+   292→            height: 22,
+   293→            borderRadius: RADIUS.sm,
+   294→            background: c.background,
+   295→            fontSize: 10,
+   296→            fontWeight: 600,
+   297→            color: c.primary,
+   298→            flexShrink: 0,
+   299→          }}>
+   300→            {el.tag.charAt(0).toUpperCase()}
+   301→          </span>
+   302→          <span style={{ fontWeight: 500 }}>{el.tag}</span>
+   303→          {el.text && (
+   304→            <span style={{ color: c.textTertiary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+   305→              {el.text}
+   306→            </span>
+   307→          )}
+   308→        </div>
+   309→      ))}
+   310→    </div>
+   311→  )
+   312→}
+   313→
+   314→// ─── Main ToolPanel ─────────────────────────────────────────────────────
+   315→
+   316→export function ToolPanel({ activeTool, onInsert, darkMode, htmlContent }: ToolPanelProps) {
+   317→  const { reduceMotion } = useAccessibility()
+   318→  const c = darkMode ? DARK_COLORS : COLORS
+   319→  const [searchQuery, setSearchQuery] = React.useState('')
+   320→
+   321→  const getPanelContent = () => {
+   322→    switch (activeTool) {
+   323→      case 'sections':
+   324→        return {
+   325→          title: 'Sections',
+   326→          icon: <LayoutTemplate size={16} />,
+   327→          items: SECTION_ITEMS,
+   328→          emptyText: 'No sections available',
+   329→        }
+   330→      case 'components':
+   331→        return {
+   332→          title: 'Components',
+   333→          icon: <Type size={16} />,
+   334→          items: COMPONENT_ITEMS,
+   335→          emptyText: 'No components available',
+   336→        }
+   337→      case 'media':
+   338→        return {
+   339→          title: 'Media',
+   340→          icon: <ImageIcon size={16} />,
+   341→          items: MEDIA_ITEMS,
+   342→          emptyText: 'No media available',
+   343→        }
+   344→      default:
+   345→        return null
+   346→    }
+   347→  }
+   348→
+   349→  const panelConfig = getPanelContent()
+   350→
+   351→  // Compute filtered and categorized items (hooks must be before early returns)
+   352→  const filteredItems = React.useMemo(() => {
+   353→    if (!panelConfig) return []
+   354→    if (!searchQuery) return panelConfig.items
+   355→    return panelConfig.items.filter((i) =>
+   356→      i.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+   357→      (i.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+   358→    )
+   359→  }, [panelConfig, searchQuery])
+   360→
+   361→  const categorized = React.useMemo(() => {
+   362→    const groups: Record<string, ToolPanelItem[]> = {}
+   363→    for (const item of filteredItems) {
+   364→      const cat = item.category || 'all'
+   365→      if (!groups[cat]) groups[cat] = []
+   366→      groups[cat].push(item)
+   367→    }
+   368→    return groups
+   369→  }, [filteredItems])
+   370→
+   371→  // Tools that show custom panels
+   372→  if (activeTool === 'layers') {
+   373→    return (
+   374→      <div style={{
+   375→        width: 240,
+   376→        height: '100%',
+   377→        background: c.panel,
+   378→        borderRight: `1px solid ${c.border}`,
+   379→        display: 'flex',
+   380→        flexDirection: 'column',
+   381→        overflow: 'hidden',
+   382→      }}>
+   383→        <div style={{
+   384→          padding: '12px 14px',
+   385→          borderBottom: `1px solid ${c.border}`,
+   386→          display: 'flex',
+   387→          alignItems: 'center',
+   388→          gap: 8,
+   389→        }}>
+   390→          <ListTree size={16} style={{ color: c.primary }} />
+   391→          <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>Layers</span>
+   392→        </div>
+   393→        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 6px' }}>
+   394→          <LayersPanel htmlContent={htmlContent} onInsert={onInsert} darkMode={darkMode} />
+   395→        </div>
+   396→      </div>
+   397→    )
+   398→  }
+   399→
+   400→  if (activeTool === 'pages') {
+   401→    return (
+   402→      <div style={{
+   403→        width: 240,
+   404→        height: '100%',
+   405→        background: c.panel,
+   406→        borderRight: `1px solid ${c.border}`,
+   407→        display: 'flex',
+   408→        flexDirection: 'column',
+   409→        overflow: 'hidden',
+   410→      }}>
+   411→        <div style={{
+   412→          padding: '12px 14px',
+   413→          borderBottom: `1px solid ${c.border}`,
+   414→          display: 'flex',
+   415→          alignItems: 'center',
+   416→          gap: 8,
+   417→        }}>
+   418→          <Layers size={16} style={{ color: c.primary }} />
+   419→          <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>Pages</span>
+   420→        </div>
+   421→        <div style={{ padding: '12px 14px' }}>
+   422→          <div style={{
+   423→            display: 'flex',
+   424→            alignItems: 'center',
+   425→            gap: 8,
+   426→            padding: '8px 10px',
+   427→            borderRadius: RADIUS.lg,
+   428→            background: c.primaryLight,
+   429→            color: c.primary,
+   430→            fontWeight: 500,
+   431→            fontSize: 13,
+   432→          }}>
+   433→            <Globe size={14} />
+   434→            index.html
+   435→            <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>Active</span>
+   436→          </div>
+   437→          <button
+   438→            type="button"
+   439→            style={{
+   440→              display: 'flex',
+   441→              alignItems: 'center',
+   442→              gap: 6,
+   443→              marginTop: 8,
+   444→              padding: '6px 10px',
+   445→              borderRadius: RADIUS.md,
+   446→              border: `1px dashed ${c.border}`,
+   447→              background: 'transparent',
+   448→              color: c.textTertiary,
+   449→              cursor: 'pointer',
+   450→              fontSize: 12,
+   451→              width: '100%',
+   452→            }}
+   453→          >
+   454→            <Plus size={12} />
+   455→            Add page
+   456→          </button>
+   457→        </div>
+   458→      </div>
+   459→    )
+   460→  }
+   461→
+   462→  if (activeTool === 'history') {
+   463→    return (
+   464→      <div style={{
+   465→        width: 240,
+   466→        height: '100%',
+   467→        background: c.panel,
+   468→        borderRight: `1px solid ${c.border}`,
+   469→        display: 'flex',
+   470→        flexDirection: 'column',
+   471→        overflow: 'hidden',
+   472→      }}>
+   473→        <div style={{
+   474→          padding: '12px 14px',
+   475→          borderBottom: `1px solid ${c.border}`,
+   476→          display: 'flex',
+   477→          alignItems: 'center',
+   478→          gap: 8,
+   479→        }}>
+   480→          <History size={16} style={{ color: c.primary }} />
+   481→          <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>History</span>
+   482→        </div>
+   483→        <div style={{ flex: 1, padding: '16px 14px', textAlign: 'center', color: c.textTertiary, fontSize: 13 }}>
+   484→          <History size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />
+   485→          Version history will appear here as you make changes.
+   486→        </div>
+   487→      </div>
+   488→    )
+   489→  }
+   490→
+   491→  if (activeTool === 'brand' || activeTool === 'assets' || activeTool === 'settings') {
+   492→    const icons: Record<string, React.ReactNode> = {
+   493→      brand: <Palette size={16} />,
+   494→      assets: <FolderOpen size={16} />,
+   495→      settings: <Settings2 size={16} />,
+   496→    }
+   497→    const titles: Record<string, string> = {
+   498→      brand: 'Brand Kit',
+   499→      assets: 'Assets',
+   500→      settings: 'Settings',
+   501→    }
+   502→    const descs: Record<string, string> = {
+   503→      brand: 'Manage brand colors, fonts, and logos.',
+   504→      assets: 'Upload and manage images and files.',
+   505→      settings: 'Editor preferences and configuration.',
+   506→    }
+   507→    return (
+   508→      <div style={{
+   509→        width: 240,
+   510→        height: '100%',
+   511→        background: c.panel,
+   512→        borderRight: `1px solid ${c.border}`,
+   513→        display: 'flex',
+   514→        flexDirection: 'column',
+   515→        overflow: 'hidden',
+   516→      }}>
+   517→        <div style={{
+   518→          padding: '12px 14px',
+   519→          borderBottom: `1px solid ${c.border}`,
+   520→          display: 'flex',
+   521→          alignItems: 'center',
+   522→          gap: 8,
+   523→        }}>
+   524→          {icons[activeTool]}
+   525→          <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{titles[activeTool]}</span>
+   526→        </div>
+   527→        <div style={{ flex: 1, padding: '16px 14px', textAlign: 'center', color: c.textTertiary, fontSize: 13 }}>
+   528→          {activeTool === 'brand' && <Palette size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />}
+   529→          {activeTool === 'assets' && <FolderOpen size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />}
+   530→          {activeTool === 'settings' && <Settings2 size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />}
+   531→          {descs[activeTool]}
+   532→        </div>
+   533→      </div>
+   534→    )
+   535→  }
+   536→
+   537→  // Standard items-based panel (sections, components, media)
+   538→  if (!panelConfig) return null
+   539→
+   540→  return (
+   541→    <div style={{
+   542→      width: 240,
+   543→      height: '100%',
+   544→      background: c.panel,
+   545→      borderRight: `1px solid ${c.border}`,
+   546→      display: 'flex',
+   547→      flexDirection: 'column',
+   548→      overflow: 'hidden',
+   549→    }}>
+   550→      {/* Header */}
+   551→      <div style={{
+   552→        padding: '10px 14px',
+   553→        borderBottom: `1px solid ${c.border}`,
+   554→        display: 'flex',
+   555→        flexDirection: 'column',
+   556→        gap: 8,
+   557→      }}>
+   558→        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+   559→          <span style={{ color: c.primary }}>{panelConfig.icon}</span>
+   560→          <span style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{panelConfig.title}</span>
+   561→          <span style={{
+   562→            marginLeft: 'auto',
+   563→            fontSize: 11,
+   564→            color: c.textTertiary,
+   565→            background: c.background,
+   566→            padding: '2px 6px',
+   567→            borderRadius: RADIUS.sm,
+   568→          }}>
+   569→            {panelConfig.items.length}
+   570→          </span>
+   571→        </div>
+   572→        {/* Search */}
+   573→        <div style={{
+   574→          display: 'flex',
+   575→          alignItems: 'center',
+   576→          gap: 6,
+   577→          padding: '0 8px',
+   578→          height: 32,
+   579→          borderRadius: RADIUS.lg,
+   580→          border: `1px solid ${c.border}`,
+   581→          background: c.background,
+   582→        }}>
+   583→          <Search size={13} style={{ color: c.textTertiary }} />
+   584→          <input
+   585→            type="text"
+   586→            value={searchQuery}
+   587→            onChange={(e) => setSearchQuery(e.target.value)}
+   588→            placeholder="Search..."
+   589→            style={{
+   590→              border: 'none',
+   591→              outline: 'none',
+   592→              background: 'transparent',
+   593→              fontSize: 12,
+   594→              color: c.text,
+   595→              flex: 1,
+   596→            }}
+   597→          />
+   598→        </div>
+   599→      </div>
+   600→
+   601→      {/* Items */}
+   602→      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 6px' }}>
+   603→        {Object.entries(categorized).map(([cat, items]) => (
+   604→          <PanelSection key={cat} title={cat === 'all' ? panelConfig.title : cat} darkMode={darkMode}>
+   605→            {items.map((item) => (
+   606→              <PanelItem key={item.id} item={item} onInsert={onInsert} darkMode={darkMode} />
+   607→            ))}
+   608→          </PanelSection>
+   609→        ))}
+   610→        {filteredItems.length === 0 && (
+   611→          <div style={{ padding: '24px 16px', textAlign: 'center', color: c.textTertiary, fontSize: 13 }}>
+   612→            No results found
+   613→          </div>
+   614→        )}
+   615→      </div>
+   616→
+   617→      {/* AI quick add */}
+   618→      <div style={{
+   619→        padding: '10px 14px',
+   620→        borderTop: `1px solid ${c.border}`,
+   621→      }}>
+   622→        <button
+   623→          type="button"
+   624→          onClick={() => onInsert('', 'AI generate')}
+   625→          style={{
+   626→            display: 'flex',
+   627→            alignItems: 'center',
+   628→            justifyContent: 'center',
+   629→            gap: 6,
+   630→            width: '100%',
+   631→            padding: '8px',
+   632→            borderRadius: RADIUS.lg,
+   633→            border: `1px dashed ${c.border}`,
+   634→            background: 'transparent',
+   635→            color: c.primary,
+   636→            cursor: 'pointer',
+   637→            fontSize: 12,
+   638→            fontWeight: 500,
+   639→          }}
+   640→        >
+   641→          <Sparkles size={14} />
+   642→          Generate with AI
+   643→        </button>
+   644→      </div>
+   645→    </div>
+   646→  )
+   647→}
+   648→

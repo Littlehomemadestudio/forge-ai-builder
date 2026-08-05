@@ -1,12 +1,37 @@
-// ─── Floating Context Toolbar ──────────────────────────────────────────────
-// Appears above the selected element. Keyboard accessible, tooltips on all
-// icons, reduced-motion aware. Enhanced with smoother positioning and modern design.
+'use client'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Floating Selection Bar — Production-Grade Studio Component
+// Dark floating bar above selected element, context-sensitive actions,
+// framer-motion spring entrance/exit, reposition on scroll/resize,
+// mobile bottom sheet, downward caret arrow, keyboard accessible.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import * as React from 'react'
-import { Copy, Trash2, Wand2, Bold, AlignLeft, AlignCenter, AlignRight, Italic, Crop, Link } from 'lucide-react'
-import { COLORS, RADIUS, SHADOWS, Z_INDEX } from './design-tokens'
-import { IconButton } from './primitives'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  Copy,
+  Trash2,
+  Sparkles,
+  Bold,
+  Italic,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Crop,
+  Link,
+  Type,
+  Image as ImageIcon,
+  Pencil,
+} from 'lucide-react'
+import { Z_INDEX, ANIMATION } from './design-tokens'
 import type { SelectionInfo } from './Canvas'
+import { useAccessibility } from './AccessibilityContext'
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════════════════════
 
 export interface FloatingSelectionBarProps {
   selection: SelectionInfo | null
@@ -18,139 +43,336 @@ export interface FloatingSelectionBarProps {
   onItalic?: () => void
 }
 
-export function FloatingSelectionBar(p: FloatingSelectionBarProps) {
-  const [rect, setRect] = React.useState<DOMRect | null>(null)
-  const [isMobile, setIsMobile] = React.useState(false)
-  const barRef = React.useRef<HTMLDivElement>(null)
+// ═══════════════════════════════════════════════════════════════════════════
+// Motion variants
+// ═══════════════════════════════════════════════════════════════════════════
 
-  // Measure the selected element so the bar floats above it.
-  const updateRect = React.useCallback(() => {
-    if (!p.selection) { setRect(null); return }
-    const el = document.querySelector(`[data-ve-sel="${p.selection.fid}"]`) as HTMLElement | null
+const BAR_VARIANTS = {
+  initial: { opacity: 0, scale: 0.8, y: 4 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit:    { opacity: 0, scale: 0.8, y: 4 },
+}
+
+const CARET_VARIANTS = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit:    { opacity: 0 },
+}
+
+const SHEET_VARIANTS = {
+  initial: { opacity: 0, y: 40 },
+  animate: { opacity: 1, y: 0 },
+  exit:    { opacity: 0, y: 40 },
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BarButton — 32px touch-friendly button for the floating bar
+// ═══════════════════════════════════════════════════════════════════════════
+
+function BarButton({
+  label,
+  onClick,
+  active = false,
+  danger = false,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  active?: boolean
+  danger?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={`
+        flex items-center justify-center w-8 h-8 rounded-md
+        transition-colors duration-75 outline-none
+        focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900
+        ${danger
+          ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10 active:bg-red-500/20'
+          : active
+            ? 'text-blue-400 bg-blue-500/15 hover:bg-blue-500/25'
+            : 'text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15'
+        }
+      `}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Vertical divider
+// ═══════════════════════════════════════════════════════════════════════════
+
+function VDivider() {
+  return <div className="w-px h-5 bg-gray-700/60 mx-0.5 shrink-0" />
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FloatingSelectionBar
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function FloatingSelectionBar(p: FloatingSelectionBarProps) {
+  const { reduceMotion } = useAccessibility()
+  const [rect, setRect] = useState<DOMRect | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+  const barRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number>(0)
+
+  // ── Ref to track current selection for event handlers ────────────────
+  const selectionRef = useRef(p.selection)
+  useEffect(() => { selectionRef.current = p.selection }, [p.selection])
+
+  // ── DOM measurement (called from event handlers, not directly in effects) ──
+  const measure = useCallback(() => {
+    const sel = selectionRef.current
+    if (!sel) { setRect(null); return }
+    const el = document.querySelector(`[data-ve-sel="${sel.fid}"]`) as HTMLElement | null
     if (el) setRect(el.getBoundingClientRect())
     else setRect(null)
-  }, [p.selection])
+  }, [])
 
-  React.useLayoutEffect(() => {
-    updateRect()
+  // RAF-throttled update for scroll/resize
+  const scheduleUpdate = useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(measure)
+  }, [measure])
+
+  // Initial measurement when selection changes.
+  // useLayoutEffect + setState is the standard React pattern for DOM measurement
+  // (synchronous, before paint).
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useLayoutEffect(() => {
+    const sel = p.selection
+    if (!sel) { setRect(null) } else {
+      const el = document.querySelector(`[data-ve-sel="${sel.fid}"]`) as HTMLElement | null
+      if (el) setRect(el.getBoundingClientRect())
+      else setRect(null)
+    }
     setIsMobile(window.innerWidth < 768)
-  }, [updateRect])
+  }, [p.selection])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Recalculate position on scroll/resize
-  React.useEffect(() => {
-    const onScroll = () => updateRect()
-    const onResize = () => { updateRect(); setIsMobile(window.innerWidth < 768) }
-    window.addEventListener('scroll', onScroll, true)
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 768)
+      scheduleUpdate()
+    }
+    window.addEventListener('scroll', scheduleUpdate, true)
     window.addEventListener('resize', onResize)
     return () => {
-      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('scroll', scheduleUpdate, true)
       window.removeEventListener('resize', onResize)
+      cancelAnimationFrame(rafRef.current)
     }
-  }, [updateRect])
+  }, [scheduleUpdate])
 
-  if (!p.selection || !rect) return null
+  // ── Don't render if no selection ─────────────────────────────────────
+  const hasSelection = p.selection !== null && rect !== null
 
-  // Mobile: bottom sheet style
-  if (isMobile) {
+  // ── Context actions based on element type ────────────────────────────
+  const sel = p.selection
+
+  // Spring transition config
+  const springTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 300, damping: 22, mass: 1 }
+
+  // ════════════════════════════════════════════════════════════════════
+  // Mobile: Bottom sheet
+  // ════════════════════════════════════════════════════════════════════
+  if (isMobile && hasSelection) {
     return (
-      <div
-        ref={barRef}
-        role="toolbar" aria-label={`Actions for ${p.selection.tag}`}
-        className="ve-floating-bar-mobile"
-        style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: Z_INDEX.floatingPanel,
-          display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px',
-          background: COLORS.panel, borderTop: `1px solid ${COLORS.border}`,
-          boxShadow: SHADOWS.lg, justifyContent: 'space-between', flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <span aria-hidden style={{
-            fontSize: 11, fontWeight: 600, color: COLORS.primary,
-            padding: '2px 6px', textTransform: 'uppercase' as const,
-            background: COLORS.primaryLight, borderRadius: RADIUS.sm,
-          }}>
-            {p.selection.tag}
-          </span>
-          {p.selection.isText && (
-            <>
-              <IconButton label="Bold" size={36} onClick={p.onBold}><Bold size={16} /></IconButton>
-              {p.onItalic && <IconButton label="Italic" size={36} onClick={p.onItalic}><Italic size={16} /></IconButton>}
-              <IconButton label="Align left" size={36} onClick={() => p.onAlign('left')}><AlignLeft size={16} /></IconButton>
-              <IconButton label="Align center" size={36} onClick={() => p.onAlign('center')}><AlignCenter size={16} /></IconButton>
-            </>
-          )}
-          {p.selection.isImage && (
-            <IconButton label="Crop / fit" size={36} onClick={p.onAI}><Crop size={16} /></IconButton>
-          )}
-          {p.selection.isButton && (
-            <IconButton label="Edit link" size={36} onClick={p.onAI}><Link size={16} /></IconButton>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton label="AI action" size={36} onClick={p.onAI} active><Wand2 size={16} /></IconButton>
-          <IconButton label="Duplicate" size={36} onClick={p.onDuplicate}><Copy size={16} /></IconButton>
-          <IconButton label="Delete" size={36} onClick={p.onDelete} danger><Trash2 size={16} /></IconButton>
-        </div>
-      </div>
+      <AnimatePresence>
+        <motion.div
+          ref={barRef}
+          role="toolbar"
+          aria-label={`Actions for ${sel!.tag}`}
+          className="fixed bottom-0 left-0 right-0 z-[300]
+                     bg-gray-900 border-t border-gray-700/60
+                     px-3 pt-2 pb-[env(safe-area-inset-bottom,8px)]
+                     shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
+          style={{ zIndex: Z_INDEX.floatingPanel }}
+          variants={SHEET_VARIANTS}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={springTransition}
+        >
+          {/* Top row: tag + context actions */}
+          <div className="flex items-center gap-1 mb-2">
+            <TagBadge tag={sel!.tag} />
+            <VDivider />
+            <ContextButtons sel={sel!} p={p} />
+          </div>
+
+          {/* Bottom row: universal actions */}
+          <div className="flex items-center gap-1">
+            <BarButton label="AI improve" onClick={p.onAI} active>
+              <Sparkles size={15} />
+            </BarButton>
+            <BarButton label="Duplicate" onClick={p.onDuplicate}>
+              <Copy size={15} />
+            </BarButton>
+            <BarButton label="Delete" onClick={p.onDelete} danger>
+              <Trash2 size={15} />
+            </BarButton>
+          </div>
+        </motion.div>
+      </AnimatePresence>
     )
   }
 
-  // Desktop: floating bar
-  const barW = 300
-  let left = rect.left + rect.width / 2 - barW / 2
-  let top = rect.top - 48
+  // ════════════════════════════════════════════════════════════════════
+  // Desktop: Floating bar above selection
+  // ════════════════════════════════════════════════════════════════════
+  if (!hasSelection) return null
+
+  const barW = 320
+  let left = rect!.left + rect!.width / 2 - barW / 2
+  let top = rect!.top - 52 // bar height + caret + gap
   const vw = window.innerWidth
+
+  // Clamp to viewport
   left = Math.max(8, Math.min(vw - barW - 8, left))
-  if (top < 60) top = rect.bottom + 8
+
+  // If too close to top, flip below
+  const flipBelow = top < 60
+  if (flipBelow) {
+    top = rect!.bottom + 10
+  }
 
   return (
-    <div
-      ref={barRef}
-      role="toolbar" aria-label={`Actions for ${p.selection.tag}`}
-      style={{
-        position: 'fixed', left, top, zIndex: Z_INDEX.floatingPanel, display: 'flex', alignItems: 'center',
-        gap: 1, padding: '4px 6px', background: COLORS.panel, borderRadius: RADIUS.xl,
-        border: `1px solid ${COLORS.border}`, boxShadow: `0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)`,
-        transition: 'left 80ms ease, top 80ms ease',
-      }}
-    >
-      {/* Tag badge */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        padding: '3px 7px', borderRadius: RADIUS.md,
-        background: COLORS.primaryLight, color: COLORS.primary,
-        fontSize: 11, fontWeight: 600, marginRight: 4,
-      }}>
-        {p.selection.tag}
-      </div>
+    <AnimatePresence>
+      <div style={{ position: 'fixed', left, top, zIndex: Z_INDEX.floatingPanel, pointerEvents: 'none' }}>
+        {/* Floating bar */}
+        <motion.div
+          ref={barRef}
+          role="toolbar"
+          aria-label={`Actions for ${sel!.tag}`}
+          className="pointer-events-auto
+                     flex items-center gap-0.5 px-1.5 py-1
+                     bg-gray-900 rounded-lg
+                     border border-gray-700/50
+                     shadow-[0_8px_24px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.2)]"
+          variants={BAR_VARIANTS}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={springTransition}
+        >
+          {/* Tag badge */}
+          <TagBadge tag={sel!.tag} />
+          <VDivider />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        {p.selection.isText && (
-          <>
-            <IconButton label="Bold" size={32} onClick={p.onBold}><Bold size={14} /></IconButton>
-            {p.onItalic && <IconButton label="Italic" size={32} onClick={p.onItalic}><Italic size={14} /></IconButton>}
-            <div style={{ width: 1, height: 20, background: COLORS.border, margin: '0 2px' }} />
-            <IconButton label="Align left" size={32} onClick={() => p.onAlign('left')}><AlignLeft size={14} /></IconButton>
-            <IconButton label="Align center" size={32} onClick={() => p.onAlign('center')}><AlignCenter size={14} /></IconButton>
-            <IconButton label="Align right" size={32} onClick={() => p.onAlign('right')}><AlignRight size={14} /></IconButton>
-          </>
-        )}
-        {p.selection.isImage && (
-          <IconButton label="Crop / fit" size={32} onClick={p.onAI}><Crop size={14} /></IconButton>
-        )}
-        {p.selection.isButton && (
-          <IconButton label="Edit link" size={32} onClick={p.onAI}><Link size={14} /></IconButton>
+          {/* Context-specific actions */}
+          <ContextButtons sel={sel!} p={p} />
+          <VDivider />
+
+          {/* Universal actions */}
+          <BarButton label="AI improve" onClick={p.onAI} active>
+            <Sparkles size={14} />
+          </BarButton>
+          <BarButton label="Duplicate" onClick={p.onDuplicate}>
+            <Copy size={14} />
+          </BarButton>
+          <BarButton label="Delete" onClick={p.onDelete} danger>
+            <Trash2 size={14} />
+          </BarButton>
+        </motion.div>
+
+        {/* Downward caret arrow */}
+        {!flipBelow && (
+          <motion.div
+            className="flex justify-center"
+            variants={CARET_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: reduceMotion ? 0 : 0.15 }}
+          >
+            <div
+              className="w-3 h-3 bg-gray-900 border-b border-r border-gray-700/50
+                         rotate-45 -mt-1.5"
+              style={{ marginLeft: barW / 2 - 6 + (rect!.left + rect!.width / 2 - left) - barW / 2 }}
+            />
+          </motion.div>
         )}
       </div>
+    </AnimatePresence>
+  )
+}
 
-      <div style={{ width: 1, height: 20, background: COLORS.border, margin: '0 3px' }} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <IconButton label="AI improve" size={32} onClick={p.onAI} active><Wand2 size={14} /></IconButton>
-        <IconButton label="Duplicate" size={32} onClick={p.onDuplicate}><Copy size={14} /></IconButton>
-        <IconButton label="Delete" size={32} onClick={p.onDelete} danger><Trash2 size={14} /></IconButton>
-      </div>
+// ═══════════════════════════════════════════════════════════════════════════
+// Sub-components (kept outside to avoid re-creating on every render)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function TagBadge({ tag }: { tag: string }) {
+  return (
+    <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide
+                     bg-blue-500/15 text-blue-400 shrink-0 select-none">
+      {tag}
+    </span>
+  )
+}
+
+function ContextButtons({ sel, p }: { sel: SelectionInfo; p: FloatingSelectionBarProps }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {/* Text element actions */}
+      {sel.isText && (
+        <>
+          <BarButton label="Bold" onClick={p.onBold}>
+            <Bold size={14} />
+          </BarButton>
+          {p.onItalic && (
+            <BarButton label="Italic" onClick={p.onItalic}>
+              <Italic size={14} />
+            </BarButton>
+          )}
+          <VDivider />
+          <BarButton label="Align left" onClick={() => p.onAlign('left')}>
+            <AlignLeft size={14} />
+          </BarButton>
+          <BarButton label="Align center" onClick={() => p.onAlign('center')}>
+            <AlignCenter size={14} />
+          </BarButton>
+          <BarButton label="Align right" onClick={() => p.onAlign('right')}>
+            <AlignRight size={14} />
+          </BarButton>
+        </>
+      )}
+
+      {/* Image element actions */}
+      {sel.isImage && (
+        <>
+          <BarButton label="Edit alt text" onClick={p.onAI}>
+            <Pencil size={14} />
+          </BarButton>
+          <BarButton label="Crop / fit" onClick={p.onAI}>
+            <Crop size={14} />
+          </BarButton>
+        </>
+      )}
+
+      {/* Button/Link element actions */}
+      {(sel.isButton || sel.isLink) && (
+        <>
+          <BarButton label="Edit link" onClick={p.onAI}>
+            <Link size={14} />
+          </BarButton>
+          <BarButton label="Change label" onClick={p.onAI}>
+            <Type size={14} />
+          </BarButton>
+        </>
+      )}
     </div>
   )
 }

@@ -19,22 +19,24 @@ const AccessibilityContext = createContext<AccessibilityContextType | undefined>
 
 export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
   const [fontSizeScale, setFontSizeScale] = useState<FontSizeScale>('medium')
-  const [reduceMotion, setReduceMotion] = useState(false)
+
+  // Initialize reduceMotion from system preference (lazy initializer avoids effect setState)
+  const [reduceMotion, setReduceMotion] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false
+  )
+
   const [highContrast, setHighContrast] = useState(false)
 
-  // Check system preference for reduced motion
+  // Keep reduceMotion in sync with system preference changes
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     const handleChange = (e: MediaQueryListEvent) => {
       setReduceMotion(e.matches)
     }
-
-    // Set initial value via the change handler to avoid synchronous setState in effect
-    handleChange(mediaQuery as unknown as MediaQueryListEvent)
-
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
+    mq.addEventListener('change', handleChange)
+    return () => mq.removeEventListener('change', handleChange)
   }, [])
 
   const getBaseFontSize = useCallback(() => {
@@ -62,7 +64,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
   return (
     <AccessibilityContext.Provider value={value}>
-      <div 
+      <div
         className="editor-accessibility-wrapper"
         style={{
           fontSize: `${getBaseFontSize()}px`,

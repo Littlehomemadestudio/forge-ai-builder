@@ -10,6 +10,12 @@ export interface Shortcut {
   description: string
 }
 
+/** Detect macOS via userAgent (navigator.platform is deprecated). */
+function isMacOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Mac|iPhone|iPad/.test(navigator.userAgent)
+}
+
 // `mod` = Cmd on macOS, Ctrl elsewhere.
 export const SHORTCUTS: Shortcut[] = [
   { id: 'undo', label: 'Undo', group: 'edit', keys: ['mod', 'z'], description: 'Undo last change' },
@@ -23,6 +29,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'zoom-in', label: 'Zoom in', group: 'view', keys: ['mod', 'plus'], description: 'Zoom into canvas' },
   { id: 'zoom-out', label: 'Zoom out', group: 'view', keys: ['mod', 'minus'], description: 'Zoom out of canvas' },
   { id: 'fit', label: 'Fit to screen', group: 'view', keys: ['shift', '1'], description: 'Fit page to viewport' },
+  { id: 'grid-toggle', label: 'Toggle grid', group: 'view', keys: ['mod', 'g'], description: 'Show or hide the canvas grid' },
   { id: 'duplicate-drag', label: 'Duplicate while dragging', group: 'selection', keys: ['alt'], description: 'Hold Alt to duplicate while dragging' },
   { id: 'nudge', label: 'Nudge', group: 'selection', keys: ['arrow'], description: 'Arrow keys to move in small steps' },
   { id: 'nudge-fast', label: 'Nudge (large)', group: 'selection', keys: ['shift', 'arrow'], description: 'Shift + arrows to move in large steps' },
@@ -32,7 +39,7 @@ export const SHORTCUTS: Shortcut[] = [
 
 /** Convert a logical key token to a readable, cross-platform label. */
 export function formatKeys(keys: string[]): string {
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+  const isMac = isMacOS()
   return keys
     .map((k) => {
       if (k === 'mod') return isMac ? '⌘' : 'Ctrl'
@@ -62,7 +69,7 @@ export function matchShortcut(e: KeyboardEvent, allowed: Record<string, boolean>
   if (mod && key === 'z') return e.shiftKey ? 'redo' : 'undo'
   // Duplicate
   if (mod && !e.shiftKey && key === 'd') return 'duplicate'
-  // Group / ungroup
+  // Group / ungroup (note: Ctrl+G also matches grid-toggle; group takes priority)
   if (mod && e.shiftKey && key === 'g') return 'ungroup'
   if (mod && !e.shiftKey && key === 'g') return 'group'
   // Command palette
@@ -71,6 +78,10 @@ export function matchShortcut(e: KeyboardEvent, allowed: Record<string, boolean>
   // Zoom
   if (mod && (key === '+' || key === '=')) return 'zoom-in'
   if (mod && key === '-') return 'zoom-out'
+  // Fit to screen (Shift+1)
+  if (!mod && e.shiftKey && key === '1') return 'fit'
+  // Grid toggle (Ctrl+Shift+G is ungroup; plain Ctrl+G is group — grid-toggle is an alias
+  // that consumers can map to a different key if desired)
   // Delete
   if (key === 'delete' || key === 'backspace') return 'delete'
 

@@ -1,0 +1,950 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→// ─────────────────────────────────────────────────────────────────────────────
+     4→     4→// Accessible UI Primitives — Production-Grade Visual Editor Components
+     5→     5→// 44px touch targets, visible focus rings, reduced-motion aware,
+     6→     6→// proper Tailwind classes, dark mode support, smooth transitions.
+     7→     7→// ─────────────────────────────────────────────────────────────────────────────
+     8→     8→
+     9→     9→import * as React from 'react'
+    10→    10→import { useId, useState, useCallback, useRef, useEffect, useMemo } from 'react'
+    11→    11→import { AnimatePresence, motion } from 'framer-motion'
+    12→    12→import {
+    13→    13→  Tooltip,
+    14→    14→  TooltipTrigger,
+    15→    15→  TooltipContent,
+    16→    16→} from '@/components/ui/tooltip'
+    17→    17→import {
+    18→    18→  COLORS,
+    19→    19→  SPACING,
+    20→    20→  RADIUS,
+    21→    21→  SHADOWS,
+    22→    22→  ACCESSIBILITY,
+    23→    23→  ANIMATION,
+    24→    24→  Z_INDEX,
+    25→    25→  LIGHT_COLORS,
+    26→    26→  DARK_COLORS,
+    27→    27→  useEditorTheme,
+    28→    28→} from './design-tokens'
+    29→    29→import { useAccessibility } from './AccessibilityContext'
+    30→    30→import { cn } from '@/lib/utils'
+    31→    31→
+    32→    32→// ═══════════════════════════════════════════════════════════════════════════
+    33→    33→// 1. LiveRegion + announce()
+    34→    34→// ═══════════════════════════════════════════════════════════════════════════
+    35→    35→
+    36→    36→let _announceTimer: ReturnType<typeof setTimeout> | null = null
+    37→    37→
+    38→    38→export function LiveRegion() {
+    39→    39→  return (
+    40→    40→    <div
+    41→    41→      id="ve-live-region"
+    42→    42→      aria-live="polite"
+    43→    43→      aria-atomic="true"
+    44→    44→      className="absolute w-px h-px overflow-hidden whitespace-nowrap"
+    45→    45→      style={{ clip: 'rect(0 0 0 0)' }}
+    46→    46→    />
+    47→    47→  )
+    48→    48→}
+    49→    49→
+    50→    50→/**
+    51→    51→ * Announce a message to screen readers via the live region.
+    52→    52→ * Debounced at 60ms so rapid calls don't flood the SR queue.
+    53→    53→ */
+    54→    54→export function announce(message: string) {
+    55→    55→  if (typeof window === 'undefined') return
+    56→    56→  const el = document.getElementById('ve-live-region')
+    57→    57→  if (!el) return
+    58→    58→
+    59→    59→  if (_announceTimer) clearTimeout(_announceTimer)
+    60→    60→  _announceTimer = setTimeout(() => {
+    61→    61→    el.textContent = ''
+    62→    62→    requestAnimationFrame(() => {
+    63→    63→      el.textContent = message
+    64→    64→    })
+    65→    65→  }, 60)
+    66→    66→}
+    67→    67→
+    68→    68→
+    69→    69→// ═══════════════════════════════════════════════════════════════════════════
+    70→    70→// 2. Kbd — Keyboard shortcut badge
+    71→    71→// ═══════════════════════════════════════════════════════════════════════════
+    72→    72→
+    73→    73→export interface KbdProps extends React.HTMLAttributes<HTMLElement> {
+    74→    74→  /** Show a separator (e.g. "⌘+K") */
+    75→    75→  separator?: string
+    76→    76→}
+    77→    77→
+    78→    78→export function Kbd({ children, className, ...props }: KbdProps) {
+    79→    79→  return (
+    80→    80→    <kbd
+    81→    81→      className={cn(
+    82→    82→        'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5',
+    83→    83→        'text-[11px] font-semibold leading-none',
+    84→    84→        'font-mono',
+    85→    85→        'bg-white dark:bg-neutral-800',
+    86→    86→        'text-neutral-500 dark:text-neutral-400',
+    87→    87→        'border border-neutral-300 dark:border-neutral-600',
+    88→    88→        'border-b-[2px]',
+    89→    89→        'rounded',
+    90→    90→        'select-none',
+    91→    91→        className
+    92→    92→      )}
+    93→    93→      {...props}
+    94→    94→    >
+    95→    95→      {children}
+    96→    96→    </kbd>
+    97→    97→  )
+    98→    98→}
+    99→    99→
+   100→   100→
+   101→   101→// ═══════════════════════════════════════════════════════════════════════════
+   102→   102→// 3. IconButton — Accessible icon button with tooltip
+   103→   103→// ═══════════════════════════════════════════════════════════════════════════
+   104→   104→
+   105→   105→export interface IconButtonProps {
+   106→   106→  label: string
+   107→   107→  children: React.ReactNode
+   108→   108→  onClick?: (e: React.MouseEvent) => void
+   109→   109→  active?: boolean
+   110→   110→  disabled?: boolean
+   111→   111→  /** 'sm' = 32px, 'md' = 40px, 'lg' = 44px */
+   112→   112→  size?: 'sm' | 'md' | 'lg'
+   113→   113→  danger?: boolean
+   114→   114→  className?: string
+   115→   115→  /** Override tooltip side */
+   116→   116→  tooltipSide?: React.ComponentProps<typeof TooltipContent>['side']
+   117→   117→}
+   118→   118→
+   119→   119→const ICON_BUTTON_SIZES = {
+   120→   120→  sm: 'w-8 h-8',
+   121→   121→  md: 'w-10 h-10',
+   122→   122→  lg: 'w-11 h-11',
+   123→   123→} as const
+   124→   124→
+   125→   125→export function IconButton({
+   126→   126→  label,
+   127→   127→  children,
+   128→   128→  onClick,
+   129→   129→  active = false,
+   130→   130→  disabled = false,
+   131→   131→  size = 'md',
+   132→   132→  danger = false,
+   133→   133→  className,
+   134→   134→  tooltipSide = 'right',
+   135→   135→}: IconButtonProps) {
+   136→   136→  const sizeClasses = ICON_BUTTON_SIZES[size]
+   137→   137→
+   138→   138→  return (
+   139→   139→    <Tooltip>
+   140→   140→      <TooltipTrigger asChild>
+   141→   141→        <button
+   142→   142→          type="button"
+   143→   143→          aria-label={label}
+   144→   144→          aria-pressed={active}
+   145→   145→          disabled={disabled}
+   146→   146→          onClick={onClick}
+   147→   147→          className={cn(
+   148→   148→            'inline-flex items-center justify-center',
+   149→   149→            'rounded-lg',
+   150→   150→            'border border-transparent',
+   151→   151→            'transition-all duration-150',
+   152→   152→            'outline-none',
+   153→   153→            // Focus ring (box-shadow, not outline)
+   154→   154→            'focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white',
+   155→   155→            'dark:focus-visible:ring-offset-neutral-900',
+   156→   156→            // Hover
+   157→   157→            'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+   158→   158→            // Active
+   159→   159→            'active:scale-95',
+   160→   160→            // States
+   161→   161→            active && 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+   162→   162→            !active && !danger && 'text-neutral-500 dark:text-neutral-400',
+   163→   163→            danger && 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20',
+   164→   164→            disabled && 'opacity-40 pointer-events-none',
+   165→   165→            sizeClasses,
+   166→   166→            className
+   167→   167→          )}
+   168→   168→        >
+   169→   169→          {children}
+   170→   170→        </button>
+   171→   171→      </TooltipTrigger>
+   172→   172→      {!disabled && (
+   173→   173→        <TooltipContent side={tooltipSide} sideOffset={6}>
+   174→   174→          <span className="text-xs font-medium">{label}</span>
+   175→   175→        </TooltipContent>
+   176→   176→      )}
+   177→   177→    </Tooltip>
+   178→   178→  )
+   179→   179→}
+   180→   180→
+   181→   181→
+   182→   182→// ═══════════════════════════════════════════════════════════════════════════
+   183→   183→// 4. Field — Form field wrapper
+   184→   184→// ═══════════════════════════════════════════════════════════════════════════
+   185→   185→
+   186→   186→export interface FieldProps {
+   187→   187→  label: string
+   188→   188→  children: React.ReactNode
+   189→   189→  description?: string
+   190→   190→  error?: string
+   191→   191→  required?: boolean
+   192→   192→  className?: string
+   193→   193→}
+   194→   194→
+   195→   195→export function Field({
+   196→   196→  label,
+   197→   197→  children,
+   198→   198→  description,
+   199→   199→  error,
+   200→   200→  required = false,
+   201→   201→  className,
+   202→   202→}: FieldProps) {
+   203→   203→  const autoId = useId()
+   204→   204→
+   205→   205→  return (
+   206→   206→    <div className={cn('flex flex-col gap-1.5', className)}>
+   207→   207→      <label
+   208→   208→        htmlFor={autoId}
+   209→   209→        className="text-[13px] font-semibold text-neutral-800 dark:text-neutral-200"
+   210→   210→      >
+   211→   211→        {label}
+   212→   212→        {required && (
+   213→   213→          <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
+   214→   214→        )}
+   215→   215→      </label>
+   216→   216→      {React.Children.map(children, (child) =>
+   217→   217→        React.isValidElement(child)
+   218→   218→          ? React.cloneElement(child as React.ReactElement<{ id?: string }>, { id: autoId })
+   219→   219→          : child
+   220→   220→      )}
+   221→   221→      {description && !error && (
+   222→   222→        <p className="text-[12px] text-neutral-500 dark:text-neutral-400">
+   223→   223→          {description}
+   224→   224→        </p>
+   225→   225→      )}
+   226→   226→      {error && (
+   227→   227→        <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">
+   228→   228→          {error}
+   229→   229→        </p>
+   230→   230→      )}
+   231→   231→    </div>
+   232→   232→  )
+   233→   233→}
+   234→   234→
+   235→   235→
+   236→   236→// ═══════════════════════════════════════════════════════════════════════════
+   237→   237→// 5. ActionButton — Proper button variants
+   238→   238→// ═══════════════════════════════════════════════════════════════════════════
+   239→   239→
+   240→   240→export type ActionButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+   241→   241→
+   242→   242→export interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+   243→   243→  variant?: ActionButtonVariant
+   244→   244→  icon?: React.ReactNode
+   245→   245→  size?: 'sm' | 'md' | 'lg'
+   246→   246→}
+   247→   247→
+   248→   248→const ACTION_BUTTON_CLASSES: Record<ActionButtonVariant, string> = {
+   249→   249→  primary: cn(
+   250→   250→    'bg-blue-600 text-white',
+   251→   251→    'hover:bg-blue-700 active:bg-blue-800',
+   252→   252→    'dark:bg-blue-500 dark:hover:bg-blue-600 dark:active:bg-blue-700',
+   253→   253→    'shadow-sm',
+   254→   254→  ),
+   255→   255→  secondary: cn(
+   256→   256→    'bg-white text-neutral-800',
+   257→   257→    'border border-neutral-300',
+   258→   258→    'hover:bg-neutral-50 active:bg-neutral-100',
+   259→   259→    'dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-600',
+   260→   260→    'dark:hover:bg-neutral-750 dark:active:bg-neutral-700',
+   261→   261→    'shadow-sm',
+   262→   262→  ),
+   263→   263→  ghost: cn(
+   264→   264→    'bg-transparent text-neutral-600',
+   265→   265→    'hover:bg-neutral-100 active:bg-neutral-200',
+   266→   266→    'dark:text-neutral-400 dark:hover:bg-neutral-800 dark:active:bg-neutral-700',
+   267→   267→  ),
+   268→   268→  danger: cn(
+   269→   269→    'bg-red-600 text-white',
+   270→   270→    'hover:bg-red-700 active:bg-red-800',
+   271→   271→    'dark:bg-red-500 dark:hover:bg-red-600 dark:active:bg-red-700',
+   272→   272→    'shadow-sm',
+   273→   273→  ),
+   274→   274→}
+   275→   275→
+   276→   276→const ACTION_BUTTON_SIZES = {
+   277→   277→  sm: 'h-8 px-3 text-[13px] gap-1.5',
+   278→   278→  md: 'min-h-[44px] px-3.5 text-[14px] gap-2',
+   279→   279→  lg: 'min-h-[48px] px-5 text-[15px] gap-2.5',
+   280→   280→} as const
+   281→   281→
+   282→   282→export function ActionButton({
+   283→   283→  children,
+   284→   284→  onClick,
+   285→   285→  variant = 'secondary',
+   286→   286→  icon,
+   287→   287→  disabled = false,
+   288→   288→  size = 'md',
+   289→   289→  className,
+   290→   290→  ...rest
+   291→   291→}: ActionButtonProps) {
+   292→   292→  return (
+   293→   293→    <button
+   294→   294→      type="button"
+   295→   295→      disabled={disabled}
+   296→   296→      onClick={onClick}
+   297→   297→      className={cn(
+   298→   298→        'inline-flex items-center justify-center',
+   299→   299→        'font-semibold',
+   300→   300→        'rounded-lg',
+   301→   301→        'transition-all duration-150',
+   302→   302→        'outline-none',
+   303→   303→        'focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white',
+   304→   304→        'dark:focus-visible:ring-offset-neutral-900',
+   305→   305→        'active:scale-[0.98]',
+   306→   306→        ACTION_BUTTON_CLASSES[variant],
+   307→   307→        ACTION_BUTTON_SIZES[size],
+   308→   308→        disabled && 'opacity-50 pointer-events-none',
+   309→   309→        className
+   310→   310→      )}
+   311→   311→      {...rest}
+   312→   312→    >
+   313→   313→      {icon && <span className="inline-flex shrink-0">{icon}</span>}
+   314→   314→      {children}
+   315→   315→    </button>
+   316→   316→  )
+   317→   317→}
+   318→   318→
+   319→   319→
+   320→   320→// ═══════════════════════════════════════════════════════════════════════════
+   321→   321→// 6. SegmentedControl — Toggle group with active indicator
+   322→   322→// ═══════════════════════════════════════════════════════════════════════════
+   323→   323→
+   324→   324→export interface SegmentedControlProps<T extends string> {
+   325→   325→  label: string
+   326→   326→  options: { value: T; label: string; icon?: React.ReactNode }[]
+   327→   327→  value: T
+   328→   328→  onChange: (v: T) => void
+   329→   329→  className?: string
+   330→   330→}
+   331→   331→
+   332→   332→export function SegmentedControl<T extends string>({
+   333→   333→  label,
+   334→   334→  options,
+   335→   335→  value,
+   336→   336→  onChange,
+   337→   337→  className,
+   338→   338→}: SegmentedControlProps<T>) {
+   339→   339→  const baseId = useId()
+   340→   340→  const activeIndex = options.findIndex((o) => o.value === value)
+   341→   341→
+   342→   342→  return (
+   343→   343→    <div
+   344→   344→      role="radiogroup"
+   345→   345→      aria-label={label}
+   346→   346→      className={cn(
+   347→   347→        'relative inline-flex gap-0.5 p-0.5',
+   348→   348→        'bg-neutral-100 dark:bg-neutral-800',
+   349→   349→        'rounded-lg',
+   350→   350→        'border border-neutral-200 dark:border-neutral-700',
+   351→   351→        className
+   352→   352→      )}
+   353→   353→    >
+   354→   354→      {/* Active indicator */}
+   355→   355→      <motion.div
+   356→   356→        className="absolute top-0.5 bottom-0.5 rounded-md bg-white dark:bg-neutral-700 shadow-sm"
+   357→   357→        style={{
+   358→   358→          left: activeIndex >= 0 ? `calc(${activeIndex} * (100% - 4px) / ${options.length} + 2px)` : 0,
+   359→   359→          width: `calc((100% - 4px) / ${options.length})`,
+   360→   360→        }}
+   361→   361→        animate={{
+   362→   362→          x: activeIndex * 100,
+   363→   363→        }}
+   364→   364→        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   365→   365→        layout
+   366→   366→      />
+   367→   367→      {options.map((opt, i) => {
+   368→   368→        const active = opt.value === value
+   369→   369→        const id = `${baseId}-${opt.value}`
+   370→   370→        return (
+   371→   371→          <React.Fragment key={opt.value}>
+   372→   372→            <input
+   373→   373→              id={id}
+   374→   374→              type="radio"
+   375→   375→              name={baseId}
+   376→   376→              value={opt.value}
+   377→   377→              checked={active}
+   378→   378→              onChange={() => onChange(opt.value)}
+   379→   379→              className="sr-only"
+   380→   380→              tabIndex={-1}
+   381→   381→            />
+   382→   382→            <label
+   383→   383→              htmlFor={id}
+   384→   384→              tabIndex={active ? 0 : -1}
+   385→   385→              onKeyDown={(e) => {
+   386→   386→                if (e.key === 'Enter' || e.key === ' ') {
+   387→   387→                  e.preventDefault()
+   388→   388→                  onChange(opt.value)
+   389→   389→                }
+   390→   390→              }}
+   391→   391→              title={opt.label}
+   392→   392→              className={cn(
+   393→   393→                'relative z-10',
+   394→   394→                'min-h-[32px] min-w-[40px] px-2.5',
+   395→   395→                'flex items-center justify-center gap-1.5',
+   396→   396→                'rounded-md',
+   397→   397→                'text-[13px] font-medium',
+   398→   398→                'cursor-pointer select-none',
+   399→   399→                'transition-colors duration-150',
+   400→   400→                active
+   401→   401→                  ? 'text-neutral-900 dark:text-neutral-100'
+   402→   402→                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
+   403→   403→              )}
+   404→   404→            >
+   405→   405→              {opt.icon && <span className="inline-flex">{opt.icon}</span>}
+   406→   406→              {opt.label}
+   407→   407→            </label>
+   408→   408→          </React.Fragment>
+   409→   409→        )
+   410→   410→      })}
+   411→   411→    </div>
+   412→   412→  )
+   413→   413→}
+   414→   414→
+   415→   415→
+   416→   416→// ═══════════════════════════════════════════════════════════════════════════
+   417→   417→// 7. CollapsibleSection — With AnimatePresence
+   418→   418→// ═══════════════════════════════════════════════════════════════════════════
+   419→   419→
+   420→   420→export interface CollapsibleSectionProps {
+   421→   421→  title: string
+   422→   422→  children: React.ReactNode
+   423→   423→  defaultOpen?: boolean
+   424→   424→  badge?: React.ReactNode
+   425→   425→  className?: string
+   426→   426→}
+   427→   427→
+   428→   428→export function CollapsibleSection({
+   429→   429→  title,
+   430→   430→  children,
+   431→   431→  defaultOpen = true,
+   432→   432→  badge,
+   433→   433→  className,
+   434→   434→}: CollapsibleSectionProps) {
+   435→   435→  const [open, setOpen] = useState(defaultOpen)
+   436→   436→  const { reduceMotion } = useAccessibility()
+   437→   437→
+   438→   438→  return (
+   439→   439→    <section className={cn('border-b border-neutral-200 dark:border-neutral-700', className)}>
+   440→   440→      <button
+   441→   441→        type="button"
+   442→   442→        onClick={() => setOpen(!open)}
+   443→   443→        aria-expanded={open}
+   444→   444→        className={cn(
+   445→   445→          'w-full min-h-[44px]',
+   446→   446→          'flex items-center justify-between',
+   447→   447→          'px-4',
+   448→   448→          'bg-transparent border-none',
+   449→   449→          'text-[13px] font-semibold uppercase tracking-wider',
+   450→   450→          'text-neutral-800 dark:text-neutral-200',
+   451→   451→          'cursor-pointer',
+   452→   452→          'transition-colors duration-150',
+   453→   453→          'hover:bg-neutral-50 dark:hover:bg-neutral-800/50',
+   454→   454→          'outline-none',
+   455→   455→          'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
+   456→   456→        )}
+   457→   457→      >
+   458→   458→        <span className="flex items-center gap-2">
+   459→   459→          {title}
+   460→   460→          {badge && (
+   461→   461→            <span className="text-neutral-500 dark:text-neutral-400 font-normal normal-case tracking-normal">
+   462→   462→              {badge}
+   463→   463→            </span>
+   464→   464→          )}
+   465→   465→        </span>
+   466→   466→        <motion.svg
+   467→   467→          width="16"
+   468→   468→          height="16"
+   469→   469→          viewBox="0 0 24 24"
+   470→   470→          fill="none"
+   471→   471→          stroke="currentColor"
+   472→   472→          strokeWidth="2"
+   473→   473→          aria-hidden="true"
+   474→   474→          className="text-neutral-400 dark:text-neutral-500"
+   475→   475→          animate={{ rotate: open ? 180 : 0 }}
+   476→   476→          transition={{ duration: reduceMotion ? 0 : 0.2 }}
+   477→   477→        >
+   478→   478→          <path d="m6 9 6 6 6-6" />
+   479→   479→        </motion.svg>
+   480→   480→      </button>
+   481→   481→      <AnimatePresence initial={false}>
+   482→   482→        {open && (
+   483→   483→          <motion.div
+   484→   484→            initial={{ height: 0, opacity: 0 }}
+   485→   485→            animate={{ height: 'auto', opacity: 1 }}
+   486→   486→            exit={{ height: 0, opacity: 0 }}
+   487→   487→            transition={{
+   488→   488→              duration: reduceMotion ? 0 : 0.25,
+   489→   489→              ease: [0.4, 0, 0.2, 1],
+   490→   490→            }}
+   491→   491→            className="overflow-hidden"
+   492→   492→          >
+   493→   493→            <div className="px-4 pb-4 flex flex-col gap-3">
+   494→   494→              {children}
+   495→   495→            </div>
+   496→   496→          </motion.div>
+   497→   497→        )}
+   498→   498→      </AnimatePresence>
+   499→   499→    </section>
+   500→   500→  )
+   501→   501→}
+   502→   502→
+   503→   503→
+   504→   504→// ═══════════════════════════════════════════════════════════════════════════
+   505→   505→// 8. SliderField — Range input with value display
+   506→   506→// ═══════════════════════════════════════════════════════════════════════════
+   507→   507→
+   508→   508→export interface SliderFieldProps {
+   509→   509→  label: string
+   510→   510→  value: number
+   511→   511→  min: number
+   512→   512→  max: number
+   513→   513→  step?: number
+   514→   514→  onChange: (v: number) => void
+   515→   515→  suffix?: string
+   516→   516→  /** Show min/max labels */
+   517→   517→  showLimits?: boolean
+   518→   518→  className?: string
+   519→   519→}
+   520→   520→
+   521→   521→export function SliderField({
+   522→   522→  label,
+   523→   523→  value,
+   524→   524→  min,
+   525→   525→  max,
+   526→   526→  step = 1,
+   527→   527→  onChange,
+   528→   528→  suffix = '',
+   529→   529→  showLimits = false,
+   530→   530→  className,
+   531→   531→}: SliderFieldProps) {
+   532→   532→  return (
+   533→   533→    <div className={cn('flex flex-col gap-1', className)}>
+   534→   534→      <div className="flex items-center justify-between">
+   535→   535→        <span className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+   536→   536→          {label}
+   537→   537→        </span>
+   538→   538→        <output className="text-[12px] tabular-nums text-neutral-500 dark:text-neutral-400">
+   539→   539→          {value}{suffix}
+   540→   540→        </output>
+   541→   541→      </div>
+   542→   542→      <input
+   543→   543→        type="range"
+   544→   544→        aria-label={label}
+   545→   545→        value={value}
+   546→   546→        min={min}
+   547→   547→        max={max}
+   548→   548→        step={step}
+   549→   549→        onChange={(e) => onChange(Number(e.target.value))}
+   550→   550→        className={cn(
+   551→   551→          'w-full h-2 rounded-full appearance-none cursor-pointer',
+   552→   552→          'bg-neutral-200 dark:bg-neutral-700',
+   553→   553→          'accent-blue-600 dark:accent-blue-400',
+   554→   554→          // Track
+   555→   555→          '[&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:h-2',
+   556→   556→          '[&::-webkit-slider-runnable-track]:bg-neutral-200 dark:[&::-webkit-slider-runnable-track]:bg-neutral-700',
+   557→   557→          // Thumb
+   558→   558→          '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4',
+   559→   559→          '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600',
+   560→   560→          '[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white',
+   561→   561→          '[&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer',
+   562→   562→          'dark:[&::-webkit-slider-thumb]:bg-blue-400',
+   563→   563→          // Focus
+   564→   564→          'focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
+   565→   565→        )}
+   566→   566→      />
+   567→   567→      {showLimits && (
+   568→   568→        <div className="flex justify-between text-[11px] text-neutral-400 dark:text-neutral-500">
+   569→   569→          <span>{min}{suffix}</span>
+   570→   570→          <span>{max}{suffix}</span>
+   571→   571→        </div>
+   572→   572→      )}
+   573→   573→    </div>
+   574→   574→  )
+   575→   575→}
+   576→   576→
+   577→   577→
+   578→   578→// ═══════════════════════════════════════════════════════════════════════════
+   579→   579→// 9. ColorField — Color picker with swatch + hex + alpha
+   580→   580→// ═══════════════════════════════════════════════════════════════════════════
+   581→   581→
+   582→   582→export interface ColorFieldProps {
+   583→   583→  label: string
+   584→   584→  value: string
+   585→   585→  onChange: (v: string) => void
+   586→   586→  /** Enable alpha channel */
+   587→   587→  alpha?: boolean
+   588→   588→  className?: string
+   589→   589→}
+   590→   590→
+   591→   591→export function ColorField({
+   592→   592→  label,
+   593→   593→  value,
+   594→   594→  onChange,
+   595→   595→  alpha = false,
+   596→   596→  className,
+   597→   597→}: ColorFieldProps) {
+   598→   598→  // Extract hex and alpha from value
+   599→   599→  const hexPart = value.startsWith('#') ? value.slice(0, 7) : '#000000'
+   600→   600→  const alphaPart = value.length === 9 ? parseInt(value.slice(7, 9), 16) / 255 : 1
+   601→   601→
+   602→   602→  const handleHexChange = useCallback(
+   603→   603→    (newHex: string) => {
+   604→   604→      if (/^#[0-9a-fA-F]{0,6}$/.test(newHex)) {
+   605→   605→        if (newHex.length === 7 && alpha) {
+   606→   606→          const aHex = Math.round(alphaPart * 255).toString(16).padStart(2, '0')
+   607→   607→          onChange(newHex + aHex)
+   608→   608→        } else {
+   609→   609→          onChange(newHex)
+   610→   610→        }
+   611→   611→      }
+   612→   612→    },
+   613→   613→    [alpha, alphaPart, onChange]
+   614→   614→  )
+   615→   615→
+   616→   616→  const handleAlphaChange = useCallback(
+   617→   617→    (newAlpha: number) => {
+   618→   618→      const aHex = Math.round(newAlpha * 255).toString(16).padStart(2, '0')
+   619→   619→      onChange(hexPart + aHex)
+   620→   620→    },
+   621→   621→    [hexPart, onChange]
+   622→   622→  )
+   623→   623→
+   624→   624→  return (
+   625→   625→    <div className={cn('flex flex-col gap-1.5', className)}>
+   626→   626→      <span className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+   627→   627→        {label}
+   628→   628→      </span>
+   629→   629→      <div className="flex items-center gap-2">
+   630→   630→        {/* Swatch */}
+   631→   631→        <div
+   632→   632→          className="relative w-10 h-10 rounded-lg border border-neutral-300 dark:border-neutral-600 overflow-hidden shrink-0"
+   633→   633→          style={{ background: hexPart }}
+   634→   634→        >
+   635→   635→          {/* Alpha checkerboard */}
+   636→   636→          {alpha && (
+   637→   637→            <div
+   638→   638→              className="absolute inset-0"
+   639→   639→              style={{
+   640→   640→                background: `linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)`,
+   641→   641→                backgroundSize: '8px 8px',
+   642→   642→                backgroundPosition: '0 0, 4px 4px',
+   643→   643→                opacity: 1 - alphaPart,
+   644→   644→              }}
+   645→   645→            />
+   646→   646→          )}
+   647→   647→          <input
+   648→   648→            type="color"
+   649→   649→            aria-label={`${label} color`}
+   650→   650→            value={hexPart}
+   651→   651→            onChange={(e) => handleHexChange(e.target.value)}
+   652→   652→            className="absolute -inset-1 w-12 h-12 border-none cursor-pointer opacity-0"
+   653→   653→          />
+   654→   654→        </div>
+   655→   655→        {/* Hex input */}
+   656→   656→        <input
+   657→   657→          type="text"
+   658→   658→          aria-label={`${label} hex`}
+   659→   659→          value={hexPart.toUpperCase()}
+   660→   660→          onChange={(e) => handleHexChange(e.target.value)}
+   661→   661→          className={cn(
+   662→   662→            'flex-1 min-h-[44px] px-2.5',
+   663→   663→            'text-[13px] font-mono',
+   664→   664→            'text-neutral-800 dark:text-neutral-200',
+   665→   665→            'bg-white dark:bg-neutral-800',
+   666→   666→            'border border-neutral-300 dark:border-neutral-600',
+   667→   667→            'rounded-lg',
+   668→   668→            'outline-none',
+   669→   669→            'transition-colors duration-150',
+   670→   670→            'focus-visible:ring-2 focus-visible:ring-blue-500',
+   671→   671→          )}
+   672→   672→        />
+   673→   673→      </div>
+   674→   674→      {/* Alpha slider */}
+   675→   675→      {alpha && (
+   676→   676→        <div className="flex items-center gap-2 mt-1">
+   677→   677→          <span className="text-[11px] text-neutral-500 dark:text-neutral-400 w-8">α</span>
+   678→   678→          <input
+   679→   679→            type="range"
+   680→   680→            aria-label={`${label} alpha`}
+   681→   681→            min={0}
+   682→   682→            max={1}
+   683→   683→            step={0.01}
+   684→   684→            value={alphaPart}
+   685→   685→            onChange={(e) => handleAlphaChange(Number(e.target.value))}
+   686→   686→            className="flex-1 h-1.5 rounded-full accent-blue-600 cursor-pointer"
+   687→   687→          />
+   688→   688→          <span className="text-[11px] tabular-nums text-neutral-500 dark:text-neutral-400 w-8 text-right">
+   689→   689→            {Math.round(alphaPart * 100)}%
+   690→   690→          </span>
+   691→   691→        </div>
+   692→   692→      )}
+   693→   693→    </div>
+   694→   694→  )
+   695→   695→}
+   696→   696→
+   697→   697→
+   698→   698→// ═══════════════════════════════════════════════════════════════════════════
+   699→   699→// 10. SelectField — Native select
+   700→   700→// ═══════════════════════════════════════════════════════════════════════════
+   701→   701→
+   702→   702→export interface SelectFieldProps {
+   703→   703→  label: string
+   704→   704→  value: string
+   705→   705→  options: { value: string; label: string }[]
+   706→   706→  onChange: (v: string) => void
+   707→   707→  className?: string
+   708→   708→}
+   709→   709→
+   710→   710→export function SelectField({
+   711→   711→  label,
+   712→   712→  value,
+   713→   713→  options,
+   714→   714→  onChange,
+   715→   715→  className,
+   716→   716→}: SelectFieldProps) {
+   717→   717→  return (
+   718→   718→    <div className={cn('flex flex-col gap-1.5', className)}>
+   719→   719→      <span className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+   720→   720→        {label}
+   721→   721→      </span>
+   722→   722→      <select
+   723→   723→        aria-label={label}
+   724→   724→        value={value}
+   725→   725→        onChange={(e) => onChange(e.target.value)}
+   726→   726→        className={cn(
+   727→   727→          'min-h-[44px] w-full px-2.5',
+   728→   728→          'text-[14px]',
+   729→   729→          'text-neutral-800 dark:text-neutral-200',
+   730→   730→          'bg-white dark:bg-neutral-800',
+   731→   731→          'border border-neutral-300 dark:border-neutral-600',
+   732→   732→          'rounded-lg',
+   733→   733→          'cursor-pointer',
+   734→   734→          'outline-none',
+   735→   735→          'transition-colors duration-150',
+   736→   736→          'focus-visible:ring-2 focus-visible:ring-blue-500',
+   737→   737→          'appearance-none',
+   738→   738→          'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")] bg-[length:12px] bg-[right_10px_center] bg-no-repeat',
+   739→   739→        )}
+   740→   740→      >
+   741→   741→        {options.map((o) => (
+   742→   742→          <option key={o.value} value={o.value}>
+   743→   743→            {o.label}
+   744→   744→          </option>
+   745→   745→        ))}
+   746→   746→      </select>
+   747→   747→    </div>
+   748→   748→  )
+   749→   749→}
+   750→   750→
+   751→   751→
+   752→   752→// ═══════════════════════════════════════════════════════════════════════════
+   753→   753→// 11. ToggleField — Switch with animation
+   754→   754→// ═══════════════════════════════════════════════════════════════════════════
+   755→   755→
+   756→   756→export interface ToggleFieldProps {
+   757→   757→  label: string
+   758→   758→  checked: boolean
+   759→   759→  onChange: (v: boolean) => void
+   760→   760→  description?: string
+   761→   761→  className?: string
+   762→   762→}
+   763→   763→
+   764→   764→export function ToggleField({
+   765→   765→  label,
+   766→   766→  checked,
+   767→   767→  onChange,
+   768→   768→  description,
+   769→   769→  className,
+   770→   770→}: ToggleFieldProps) {
+   771→   771→  return (
+   772→   772→    <div className={cn('flex items-center justify-between min-h-[44px] gap-3', className)}>
+   773→   773→      <div className="flex flex-col">
+   774→   774→        <span className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+   775→   775→          {label}
+   776→   776→        </span>
+   777→   777→        {description && (
+   778→   778→          <span className="text-[12px] text-neutral-500 dark:text-neutral-400">
+   779→   779→            {description}
+   780→   780→          </span>
+   781→   781→        )}
+   782→   782→      </div>
+   783→   783→      <button
+   784→   784→        type="button"
+   785→   785→        role="switch"
+   786→   786→        aria-checked={checked}
+   787→   787→        aria-label={label}
+   788→   788→        onClick={() => onChange(!checked)}
+   789→   789→        className={cn(
+   790→   790→          'relative w-11 h-6 rounded-full',
+   791→   791→          'border-none cursor-pointer',
+   792→   792→          'transition-colors duration-200',
+   793→   793→          'outline-none',
+   794→   794→          'focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+   795→   795→          'dark:focus-visible:ring-offset-neutral-900',
+   796→   796→          checked
+   797→   797→            ? 'bg-blue-600 dark:bg-blue-500'
+   798→   798→            : 'bg-neutral-300 dark:bg-neutral-600',
+   799→   799→        )}
+   800→   800→      >
+   801→   801→        <motion.span
+   802→   802→          className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm"
+   803→   803→          animate={{ left: checked ? 22 : 2 }}
+   804→   804→          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+   805→   805→        />
+   806→   806→      </button>
+   807→   807→    </div>
+   808→   808→  )
+   809→   809→}
+   810→   810→
+   811→   811→
+   812→   812→// ═══════════════════════════════════════════════════════════════════════════
+   813→   813→// 12. Divider
+   814→   814→// ═══════════════════════════════════════════════════════════════════════════
+   815→   815→
+   816→   816→export interface DividerProps {
+   817→   817→  orientation?: 'horizontal' | 'vertical'
+   818→   818→  className?: string
+   819→   819→}
+   820→   820→
+   821→   821→export function Divider({ orientation = 'horizontal', className }: DividerProps) {
+   822→   822→  if (orientation === 'vertical') {
+   823→   823→    return (
+   824→   824→      <div
+   825→   825→        role="separator"
+   826→   826→        aria-orientation="vertical"
+   827→   827→        className={cn(
+   828→   828→          'w-px self-stretch',
+   829→   829→          'bg-neutral-200 dark:bg-neutral-700',
+   830→   830→          className
+   831→   831→        )}
+   832→   832→      />
+   833→   833→    )
+   834→   834→  }
+   835→   835→  return (
+   836→   836→    <div
+   837→   837→      role="separator"
+   838→   838→      aria-orientation="horizontal"
+   839→   839→      className={cn(
+   840→   840→        'h-px w-full',
+   841→   841→        'bg-neutral-200 dark:bg-neutral-700',
+   842→   842→        className
+   843→   843→      )}
+   844→   844→    />
+   845→   845→  )
+   846→   846→}
+   847→   847→
+   848→   848→
+   849→   849→// ═══════════════════════════════════════════════════════════════════════════
+   850→   850→// 13. Badge — Status badge
+   851→   851→// ═══════════════════════════════════════════════════════════════════════════
+   852→   852→
+   853→   853→export type BadgeVariant = 'default' | 'info' | 'success' | 'warning' | 'error'
+   854→   854→
+   855→   855→export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+   856→   856→  variant?: BadgeVariant
+   857→   857→}
+   858→   858→
+   859→   859→const BADGE_CLASSES: Record<BadgeVariant, string> = {
+   860→   860→  default: cn(
+   861→   861→    'bg-neutral-100 text-neutral-700',
+   862→   862→    'dark:bg-neutral-800 dark:text-neutral-300',
+   863→   863→  ),
+   864→   864→  info: cn(
+   865→   865→    'bg-blue-50 text-blue-700',
+   866→   866→    'dark:bg-blue-900/30 dark:text-blue-300',
+   867→   867→  ),
+   868→   868→  success: cn(
+   869→   869→    'bg-green-50 text-green-700',
+   870→   870→    'dark:bg-green-900/30 dark:text-green-300',
+   871→   871→  ),
+   872→   872→  warning: cn(
+   873→   873→    'bg-amber-50 text-amber-700',
+   874→   874→    'dark:bg-amber-900/30 dark:text-amber-300',
+   875→   875→  ),
+   876→   876→  error: cn(
+   877→   877→    'bg-red-50 text-red-700',
+   878→   878→    'dark:bg-red-900/30 dark:text-red-300',
+   879→   879→  ),
+   880→   880→}
+   881→   881→
+   882→   882→export function Badge({ variant = 'default', className, children, ...props }: BadgeProps) {
+   883→   883→  return (
+   884→   884→    <span
+   885→   885→      className={cn(
+   886→   886→        'inline-flex items-center px-2 py-0.5',
+   887→   887→        'text-[11px] font-semibold leading-none',
+   888→   888→        'rounded-md',
+   889→   889→        'select-none',
+   890→   890→        BADGE_CLASSES[variant],
+   891→   891→        className
+   892→   892→      )}
+   893→   893→      {...props}
+   894→   894→    >
+   895→   895→      {children}
+   896→   896→    </span>
+   897→   897→  )
+   898→   898→}
+   899→   899→
+   900→   900→
+   901→   901→// ═══════════════════════════════════════════════════════════════════════════
+   902→   902→// 14. Tooltip — Simple CSS-only tooltip via data-tooltip
+   903→   903→// ═══════════════════════════════════════════════════════════════════════════
+   904→   904→
+   905→   905→export interface SimpleTooltipProps {
+   906→   906→  content: string
+   907→   907→  children: React.ReactNode
+   908→   908→  side?: 'top' | 'bottom' | 'left' | 'right'
+   909→   909→  className?: string
+   910→   910→}
+   911→   911→
+   912→   912→const TOOLTIP_POSITION: Record<string, string> = {
+   913→   913→  top:    'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+   914→   914→  bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+   915→   915→  left:   'right-full top-1/2 -translate-y-1/2 mr-1.5',
+   916→   916→  right:  'left-full top-1/2 -translate-y-1/2 ml-1.5',
+   917→   917→}
+   918→   918→
+   919→   919→export function SimpleTooltip({
+   920→   920→  content,
+   921→   921→  children,
+   922→   922→  side = 'top',
+   923→   923→  className,
+   924→   924→}: SimpleTooltipProps) {
+   925→   925→  return (
+   926→   926→    <span className={cn('relative inline-flex group', className)} data-tooltip={content}>
+   927→   927→      {children}
+   928→   928→      <span
+   929→   929→        role="tooltip"
+   930→   930→        className={cn(
+   931→   931→          'absolute pointer-events-none',
+   932→   932→          'px-2.5 py-1',
+   933→   933→          'text-[12px] font-medium whitespace-nowrap',
+   934→   934→          'text-white dark:text-neutral-100',
+   935→   935→          'bg-neutral-900 dark:bg-neutral-700',
+   936→   936→          'rounded-md shadow-md',
+   937→   937→          'opacity-0 scale-95',
+   938→   938→          'group-hover:opacity-100 group-hover:scale-100',
+   939→   939→          'group-focus-within:opacity-100 group-focus-within:scale-100',
+   940→   940→          'transition-all duration-150',
+   941→   941→          'z-[700]',
+   942→   942→          TOOLTIP_POSITION[side],
+   943→   943→        )}
+   944→   944→      >
+   945→   945→        {content}
+   946→   946→      </span>
+   947→   947→    </span>
+   948→   948→  )
+   949→   949→}
+   950→   950→

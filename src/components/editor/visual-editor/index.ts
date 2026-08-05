@@ -1,38 +1,66 @@
-// Visual Editor Module Exports
-// This is the main entry point for the redesigned visual editor
+// Visual Editor – Barrel Exports
+// Single entry point for the visual-editor module.
 
-export { 
-  COLORS, 
-  SPACING, 
-  RADIUS, 
-  SHADOWS, 
-  TYPOGRAPHY, 
-  ANIMATION, 
-  ACCESSIBILITY, 
-  Z_INDEX,
-  BREAKPOINTS 
-} from './design-tokens'
+// Main component
+export { VisualEditor } from './VisualEditor'
 
-export type { FontSizeScale } from './AccessibilityContext'
-export { AccessibilityProvider, useAccessibility } from './AccessibilityContext'
-
+// Layout
 export { VisualEditorLayout, EditorButton, EditorPanel } from './VisualEditorLayout'
 
-export { LeftToolbar, TOOLBAR_ITEMS } from './LeftToolbar'
-export type { ToolbarItem } from './LeftToolbar'
+// Sub-components (for advanced usage)
+export { TopNav } from './TopNav'
+export { IconToolbar } from './IconToolbar'
+export { ToolPanel } from './ToolPanel'
+export { Canvas, findByFid, type SelectionInfo } from './Canvas'
+export { Inspector } from './Inspector'
+export { FloatingSelectionBar } from './FloatingSelectionBar'
+export { EmptyCanvas } from './EmptyCanvas'
+export { AIAssistantBar } from './AIAssistantBar'
+export { CommandPalette, ShortcutsHelp } from './Overlays'
 
-export { AIPanel, AIFloatingButton } from './AIPanel'
-export type { AISuggestion } from './AIPanel'
+// Utilities
+export { matchShortcut, formatKeys, SHORTCUTS } from './keyboard'
+export type { Shortcut } from './keyboard'
 
-export { 
-  FloatingToolbar, 
-  TEXT_ACTIONS, 
-  BUTTON_ACTIONS, 
-  IMAGE_ACTIONS, 
-  SECTION_ACTIONS,
-  DEFAULT_ACTIONS 
-} from './FloatingToolbar'
-export type { FloatingToolbarAction } from './FloatingToolbar'
+// Design system
+export * from './design-tokens'
 
-export { AccessibilityPanel, SAMPLE_ACCESSIBILITY_ISSUES } from './AccessibilityPanel'
-export type { AccessibilityIssue } from './AccessibilityPanel'
+// Accessibility
+export { AccessibilityProvider, useAccessibility } from './AccessibilityContext'
+export type { FontSizeScale, AccessibilityContextType } from './AccessibilityContext'
+
+// Primitives
+export {
+  LiveRegion,
+  announce,
+  Kbd,
+  IconButton,
+  Field,
+  ActionButton,
+  SegmentedControl,
+  CollapsibleSection,
+  SliderField,
+  ColorField,
+  SelectField,
+  ToggleField,
+  Divider,
+  Badge,
+  SimpleTooltip,
+} from './primitives'
+export type {
+  KbdProps,
+  IconButtonProps,
+  FieldProps,
+  ActionButtonProps,
+  ActionButtonVariant,
+  SegmentedControlProps,
+  CollapsibleSectionProps,
+  SliderFieldProps,
+  ColorFieldProps,
+  SelectFieldProps,
+  ToggleFieldProps,
+  DividerProps,
+  BadgeProps,
+  BadgeVariant,
+  SimpleTooltipProps,
+} from './primitives'

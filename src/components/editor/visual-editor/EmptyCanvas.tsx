@@ -1,153 +1,211 @@
+'use client'
+
 // ─── Empty Canvas Start Screen ─────────────────────────────────────────────
-// "Never show a blank page." Offers clear, large, keyboard-navigable starting
-// points. Screen-reader friendly structure. Enhanced with modern visual design.
+// Professional onboarding experience when no HTML content exists.
+// Clean, minimal design with 4 action cards, keyboard shortcut hint.
+// Uses framer-motion for polished hover/click animations.
+// Dark mode supported via Tailwind dark: variants.
 
 import * as React from 'react'
-import { Sparkles, LayoutTemplate, Globe, FileCode, FilePlus2 } from 'lucide-react'
-import { COLORS, RADIUS, SPACING, SHADOWS } from './design-tokens'
-
-export interface StartOption {
-  id: string
-  label: string
-  desc: string
-  icon: React.ReactNode
-  accent: boolean
-}
+import { motion, type Variants } from 'framer-motion'
+import { Sparkles, LayoutTemplate, FilePlus, Upload } from 'lucide-react'
 
 export interface EmptyCanvasProps {
   onAction: (action: string) => void
 }
 
-const OPTIONS: StartOption[] = [
-  { id: 'ai', label: 'Start with AI', desc: 'Describe your site and generate it instantly', icon: <Sparkles size={18} />, accent: true },
-  { id: 'templates', label: 'Browse templates', desc: 'Pick a professional starting point', icon: <LayoutTemplate size={18} />, accent: false },
-  { id: 'import', label: 'Import website', desc: 'Bring in an existing site or URL', icon: <Globe size={18} />, accent: false },
-  { id: 'paste', label: 'Paste HTML', desc: 'Drop in code you already have', icon: <FileCode size={18} />, accent: false },
-  { id: 'start-blank', label: 'Start blank', desc: 'Begin with an empty accessible page', icon: <FilePlus2 size={18} />, accent: false },
-]
-
-export function EmptyCanvas({ onAction }: EmptyCanvasProps) {
-  const [hovered, setHovered] = React.useState<string | null>(null)
-
-  return (
-    <section aria-label="Get started"
-      className="ve-empty-canvas"
-      style={{
-        height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: SPACING['3xl'], textAlign: 'center', gap: SPACING.xl,
-        position: 'relative', overflow: 'hidden',
-      }}>
-      {/* Subtle gradient background */}
-      <div aria-hidden="true" style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(135deg, #EFF6FF 0%, #FAFAFA 25%, #F0FDF4 50%, #FEF3C7 75%, #FAFAFA 100%)',
-        backgroundSize: '400% 400%',
-        animation: 've-gradient-shift 15s ease infinite',
-        opacity: 0.5,
-      }} />
-
-      {/* Logo/icon */}
-      <div style={{
-        position: 'relative', zIndex: 1,
-        width: 64, height: 64,
-        borderRadius: '50%',
-        background: `linear-gradient(135deg, ${COLORS.primary}, #7C3AED)`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#FFFFFF',
-        boxShadow: `0 8px 24px rgba(37, 99, 235, 0.3)`,
-      }}>
-        <Sparkles size={28} />
-      </div>
-
-      {/* Heading */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <h2 style={{
-          fontSize: 28, fontWeight: 700, color: COLORS.text, margin: 0,
-          letterSpacing: '-0.02em',
-        }}>
-          Start building your website
-        </h2>
-        <p style={{
-          fontSize: 15, color: COLORS.textSecondary, margin: '10px 0 0', maxWidth: 440, lineHeight: 1.6,
-        }}>
-          Build a stunning, accessible site with AI — faster than ever.
-        </p>
-      </div>
-
-      {/* Options grid */}
-      <div role="list" aria-label="Ways to start" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: SPACING.md,
-        width: '100%',
-        maxWidth: 640,
-        position: 'relative', zIndex: 1,
-      }}>
-        {OPTIONS.map((o) => {
-          const isHovered = hovered === o.id
-          return (
-            <button
-              key={o.id} type="button" role="listitem" onClick={() => onAction(o.id)}
-              className="ve-icobtn"
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10, textAlign: 'left',
-                minHeight: 110, padding: SPACING.lg, borderRadius: RADIUS.xl, cursor: 'pointer',
-                background: o.accent
-                  ? `linear-gradient(135deg, ${COLORS.primary}, #4F46E5)`
-                  : (isHovered ? COLORS.hover : COLORS.panel),
-                color: o.accent ? '#FFFFFF' : COLORS.text,
-                border: o.accent ? 'none' : `1px solid ${isHovered ? COLORS.borderHover : COLORS.border}`,
-                boxShadow: isHovered ? SHADOWS.md : (o.accent ? `0 4px 16px rgba(37, 99, 235, 0.25)` : SHADOWS.sm),
-                transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
-                transition: 'transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background 150ms ease',
-              }}
-              onMouseEnter={() => setHovered(o.id)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <span style={{
-                display: 'inline-flex',
-                width: 32, height: 32,
-                borderRadius: RADIUS.md,
-                background: o.accent ? 'rgba(255,255,255,0.2)' : COLORS.primaryLight,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: 0.95,
-              }} aria-hidden="true">
-                {o.icon}
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{o.label}</span>
-              <span style={{ fontSize: 12, opacity: o.accent ? 0.85 : 0.7, lineHeight: 1.4 }}>{o.desc}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      <p style={{ fontSize: 12, color: COLORS.textTertiary, margin: 0, position: 'relative', zIndex: 1 }}>
-        Tip: press <KbdInline>Ctrl+Shift+P</KbdInline> to open the command palette
-      </p>
-
-      <style>{`
-        @keyframes ve-gradient-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
-    </section>
-  )
+// ── Card data ──────────────────────────────────────────────────────────────
+interface ActionCard {
+  id: string
+  icon: React.ElementType
+  title: string
+  description: string
+  variant: 'primary' | 'secondary' | 'tertiary'
 }
 
-function KbdInline({ children }: { children: React.ReactNode }) {
+const CARDS: ActionCard[] = [
+  {
+    id: 'ai',
+    icon: Sparkles,
+    title: 'AI Generate',
+    description: 'Describe your site',
+    variant: 'primary',
+  },
+  {
+    id: 'templates',
+    icon: LayoutTemplate,
+    title: 'Templates',
+    description: 'Browse templates',
+    variant: 'secondary',
+  },
+  {
+    id: 'start-blank',
+    icon: FilePlus,
+    title: 'Start Blank',
+    description: 'Empty canvas',
+    variant: 'tertiary',
+  },
+  {
+    id: 'paste',
+    icon: Upload,
+    title: 'Import HTML',
+    description: 'Paste your HTML',
+    variant: 'tertiary',
+  },
+]
+
+// ── Variant styles ─────────────────────────────────────────────────────────
+const VARIANT_STYLES = {
+  primary: {
+    container:
+      'border-2 border-blue-500/40 bg-blue-50/50 dark:border-blue-400/40 dark:bg-blue-950/30',
+    containerHover:
+      'hover:border-blue-500/70 hover:bg-blue-50/80 dark:hover:border-blue-400/70 dark:hover:bg-blue-950/50',
+    iconBg: 'bg-blue-100 dark:bg-blue-900/50',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    titleColor: 'text-gray-900 dark:text-gray-100',
+    descColor: 'text-blue-600/70 dark:text-blue-400/70',
+  },
+  secondary: {
+    container:
+      'border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50',
+    containerHover:
+      'hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-600 dark:hover:bg-gray-800/80',
+    iconBg: 'bg-violet-100 dark:bg-violet-900/40',
+    iconColor: 'text-violet-600 dark:text-violet-400',
+    titleColor: 'text-gray-900 dark:text-gray-100',
+    descColor: 'text-gray-500 dark:text-gray-400',
+  },
+  tertiary: {
+    container:
+      'border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50',
+    containerHover:
+      'hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-600 dark:hover:bg-gray-800/80',
+    iconBg: 'bg-gray-100 dark:bg-gray-700/60',
+    iconColor: 'text-gray-600 dark:text-gray-400',
+    titleColor: 'text-gray-900 dark:text-gray-100',
+    descColor: 'text-gray-500 dark:text-gray-400',
+  },
+}
+
+// ── Animation variants ─────────────────────────────────────────────────────
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+}
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0 },
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────
+export function EmptyCanvas({ onAction }: EmptyCanvasProps) {
   return (
-    <kbd style={{
-      padding: '2px 6px',
-      fontSize: 11,
-      border: `1px solid ${COLORS.border}`,
-      borderRadius: RADIUS.sm,
-      background: COLORS.panel,
-      fontFamily: 'inherit',
-    }}>
-      {children}
-    </kbd>
+    <section
+      aria-label="Get started"
+      className="relative flex h-full flex-col items-center justify-center px-6 py-10"
+    >
+      {/* Clean canvas background — no animated gradient */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(59,130,246,0.04)_0%,transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_40%,rgba(96,165,250,0.06)_0%,transparent_60%)]"
+      />
+
+      <motion.div
+        className="relative z-10 flex max-w-lg flex-col items-center gap-8"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* ── Heading ─────────────────────────────────────────────────── */}
+        <motion.div variants={itemVariants} className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            Start building
+          </h2>
+          <p className="mt-2 text-base text-gray-500 dark:text-gray-400">
+            Choose a starting point or begin with a blank canvas
+          </p>
+        </motion.div>
+
+        {/* ── Action cards grid ────────────────────────────────────────── */}
+        <motion.div
+          variants={itemVariants}
+          role="list"
+          aria-label="Ways to start"
+          className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+        >
+          {CARDS.map((card) => {
+            const Icon = card.icon
+            const vs = VARIANT_STYLES[card.variant]
+
+            return (
+              <motion.button
+                key={card.id}
+                type="button"
+                role="listitem"
+                initial={{ y: 0, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
+                whileHover={{ y: -4, boxShadow: '0 8px 24px -4px rgba(0,0,0,0.12)' }}
+                whileTap={{ y: 0, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 22, mass: 1 }}
+                onClick={() => onAction(card.id)}
+                className={`
+                  group relative flex items-start gap-3.5 rounded-xl p-4 text-left
+                  transition-colors duration-150 ease-out
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+                  dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-gray-900
+                  ${vs.container} ${vs.containerHover}
+                `}
+              >
+                {/* Icon */}
+                <span
+                  aria-hidden="true"
+                  className={`
+                    flex h-10 w-10 shrink-0 items-center justify-center rounded-lg
+                    transition-colors duration-150
+                    ${vs.iconBg} ${vs.iconColor}
+                  `}
+                >
+                  <Icon size={20} strokeWidth={1.75} />
+                </span>
+
+                {/* Text */}
+                <span className="flex flex-col gap-0.5 pt-0.5">
+                  <span className={`text-sm font-semibold leading-tight ${vs.titleColor}`}>
+                    {card.title}
+                  </span>
+                  <span className={`text-xs leading-snug ${vs.descColor}`}>
+                    {card.description}
+                  </span>
+                </span>
+              </motion.button>
+            )
+          })}
+        </motion.div>
+
+        {/* ── Keyboard shortcut hint ──────────────────────────────────── */}
+        <motion.p
+          variants={itemVariants}
+          className="text-xs text-gray-400 dark:text-gray-500"
+        >
+          Press{' '}
+          <kbd className="mx-0.5 inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1.5 font-mono text-[11px] font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            Ctrl
+          </kbd>
+          {' + '}
+          <kbd className="mx-0.5 inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1.5 font-mono text-[11px] font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            Shift
+          </kbd>
+          {' + '}
+          <kbd className="mx-0.5 inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1.5 font-mono text-[11px] font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            P
+          </kbd>
+          {' '}for command palette
+        </motion.p>
+      </motion.div>
+    </section>
   )
 }

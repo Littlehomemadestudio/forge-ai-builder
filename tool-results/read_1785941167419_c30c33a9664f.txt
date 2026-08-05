@@ -1,0 +1,781 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→// ─── Canvas ────────────────────────────────────────────────────────────────
+     4→     4→// Production-grade studio canvas: pannable, zoomable viewport with dot grid,
+     5→     5→// device preview, click-to-select with resize handles, hover indicators,
+     6→     6→// zoom display, scroll-to-selected, dark mode, and smooth transitions.
+     7→     7→// Inspired by Figma / Framer / Webflow editing surfaces.
+     8→     8→
+     9→     9→import * as React from 'react'
+    10→    10→import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+    11→    11→import {
+    12→    12→  LIGHT_COLORS,
+    13→    13→  DARK_COLORS,
+    14→    14→  RADIUS,
+    15→    15→  SHADOWS,
+    16→    16→  GRID,
+    17→    17→  ANIMATION,
+    18→    18→  Z_INDEX,
+    19→    19→  useEditorTheme,
+    20→    20→} from './design-tokens'
+    21→    21→import { announce } from './primitives'
+    22→    22→import { useAccessibility } from './AccessibilityContext'
+    23→    23→
+    24→    24→// ═══════════════════════════════════════════════════════════════════════════
+    25→    25→// Types
+    26→    26→// ═══════════════════════════════════════════════════════════════════════════
+    27→    27→
+    28→    28→export interface SelectionInfo {
+    29→    29→  fid: string
+    30→    30→  tag: string
+    31→    31→  text: string
+    32→    32→  isImage: boolean
+    33→    33→  isText: boolean
+    34→    34→  isButton: boolean
+    35→    35→  isLink: boolean
+    36→    36→  isSection: boolean
+    37→    37→  color?: string
+    38→    38→  bgColor?: string
+    39→    39→  fontSize?: string
+    40→    40→  fontWeight?: string
+    41→    41→  rect: { left: number; top: number; width: number; height: number }
+    42→    42→}
+    43→    43→
+    44→    44→export interface CanvasProps {
+    45→    45→  html: string
+    46→    46→  css: string
+    47→    47→  device: 'desktop' | 'tablet' | 'mobile'
+    48→    48→  zoom: number
+    49→    49→  selectedFid: string | null
+    50→    50→  spaceHeld: boolean
+    51→    51→  onSelect: (s: SelectionInfo | null) => void
+    52→    52→  onChangeHtml: (html: string, label: string) => void
+    53→    53→  hasContent: boolean
+    54→    54→  onContentReady?: (el: HTMLElement | null) => void
+    55→    55→}
+    56→    56→
+    57→    57→// ═══════════════════════════════════════════════════════════════════════════
+    58→    58→// Constants
+    59→    59→// ═══════════════════════════════════════════════════════════════════════════
+    60→    60→
+    61→    61→export const DEVICE_WIDTH: Record<'desktop' | 'tablet' | 'mobile', number> = {
+    62→    62→  desktop: 1280,
+    63→    63→  tablet: 768,
+    64→    64→  mobile: 390,
+    65→    65→}
+    66→    66→
+    67→    67→export const SELECTABLE =
+    68→    68→  'h1,h2,h3,h4,h5,h6,p,img,button,a,section,header,footer,nav,div,ul,li,form,span'
+    69→    69→
+    70→    70→const DEVICE_FRAME_RADIUS: Record<'desktop' | 'tablet' | 'mobile', string> = {
+    71→    71→  desktop: RADIUS.xl,
+    72→    72→  tablet: RADIUS['2xl'],
+    73→    73→  mobile: RADIUS['3xl'],
+    74→    74→}
+    75→    75→
+    76→    76→const DEVICE_BEZEL: Record<'desktop' | 'tablet' | 'mobile', number> = {
+    77→    77→  desktop: 0,
+    78→    78→  tablet: 8,
+    79→    79→  mobile: 16,
+    80→    80→}
+    81→    81→
+    82→    82→// ═══════════════════════════════════════════════════════════════════════════
+    83→    83→// findByFid — exported so VisualEditor.tsx can import instead of duplicating
+    84→    84→// ═══════════════════════════════════════════════════════════════════════════
+    85→    85→
+    86→    86→/** Find a DOM node by its path-based fid (e.g. "0-1-2") inside root. */
+    87→    87→export function findByFid(root: HTMLElement | null, fid: string): HTMLElement | null {
+    88→    88→  if (!root) return null
+    89→    89→  const parts = fid.split('-').map(Number)
+    90→    90→  let el: Element = root
+    91→    91→  for (const idx of parts) {
+    92→    92→    const children = Array.from(el.children).filter((c) => c.nodeType === 1)
+    93→    93→    if (idx >= children.length) return null
+    94→    94→    el = children[idx]
+    95→    95→  }
+    96→    96→  return el as HTMLElement
+    97→    97→}
+    98→    98→
+    99→    99→// ═══════════════════════════════════════════════════════════════════════════
+   100→   100→// buildFid — stable path id from element to root
+   101→   101→// ═══════════════════════════════════════════════════════════════════════════
+   102→   102→
+   103→   103→function buildFid(el: HTMLElement, root: HTMLElement): string {
+   104→   104→  const parts: string[] = []
+   105→   105→  let node: HTMLElement | null = el
+   106→   106→  while (node && node !== root) {
+   107→   107→    const parent = node.parentElement
+   108→   108→    let index = 0
+   109→   109→    if (parent) {
+   110→   110→      for (let sib: ChildNode | null = node.previousSibling; sib; sib = sib.previousSibling) {
+   111→   111→        if (sib.nodeType === 1) index++
+   112→   112→      }
+   113→   113→    }
+   114→   114→    parts.unshift(String(index))
+   115→   115→    node = parent
+   116→   116→  }
+   117→   117→  return parts.join('-')
+   118→   118→}
+   119→   119→
+   120→   120→// ═══════════════════════════════════════════════════════════════════════════
+   121→   121→// Editor CSS — selection highlights, hover outlines, resize handles
+   122→   122→// ═══════════════════════════════════════════════════════════════════════════
+   123→   123→
+   124→   124→function buildEditorCss(selectionColor: string, handleColor: string): string {
+   125→   125→  return `
+   126→   126→/* ── Selection highlight ─────────────────────────────────────────────── */
+   127→   127→.ve-selected {
+   128→   128→  outline: 2px solid ${selectionColor} !important;
+   129→   129→  outline-offset: 2px !important;
+   130→   130→  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12) !important;
+   131→   131→  position: relative;
+   132→   132→  border-radius: 2px;
+   133→   133→  z-index: 1;
+   134→   134→}
+   135→   135→
+   136→   136→/* Dashed outer ring around selection */
+   137→   137→.ve-selected::before {
+   138→   138→  content: '';
+   139→   139→  position: absolute;
+   140→   140→  inset: -6px;
+   141→   141→  border: 1px dashed rgba(59, 130, 246, 0.3);
+   142→   142→  border-radius: 3px;
+   143→   143→  pointer-events: none;
+   144→   144→}
+   145→   145→
+   146→   146→/* ── Resize handles (8 total: 4 corners + 4 edge midpoints) ─────────── */
+   147→   147→.ve-selected::after {
+   148→   148→  content: '';
+   149→   149→  position: absolute;
+   150→   150→  top: -6px; left: -6px; right: -6px; bottom: -6px;
+   151→   151→  pointer-events: none;
+   152→   152→  background:
+   153→   153→    /* Top-left */
+   154→   154→    radial-gradient(circle 5px at 0% 0%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   155→   155→    /* Top-center */
+   156→   156→    radial-gradient(circle 5px at 50% 0%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   157→   157→    /* Top-right */
+   158→   158→    radial-gradient(circle 5px at 100% 0%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   159→   159→    /* Middle-left */
+   160→   160→    radial-gradient(circle 5px at 0% 50%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   161→   161→    /* Middle-right */
+   162→   162→    radial-gradient(circle 5px at 100% 50%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   163→   163→    /* Bottom-left */
+   164→   164→    radial-gradient(circle 5px at 0% 100%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   165→   165→    /* Bottom-center */
+   166→   166→    radial-gradient(circle 5px at 50% 100%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%),
+   167→   167→    /* Bottom-right */
+   168→   168→    radial-gradient(circle 5px at 100% 100%, ${handleColor} 42%, ${selectionColor} 44%, ${selectionColor} 48%, transparent 50%);
+   169→   169→}
+   170→   170→
+   171→   171→/* ── Hover target ────────────────────────────────────────────────────── */
+   172→   172→.ve-hover-target {
+   173→   173→  cursor: pointer;
+   174→   174→}
+   175→   175→.ve-hover-target:hover {
+   176→   176→  outline: 1.5px dashed rgba(59, 130, 246, 0.45) !important;
+   177→   177→  outline-offset: 2px !important;
+   178→   178→}
+   179→   179→
+   180→   180→/* ── Hover indicator (active hover, not just hover-target class) ─────── */
+   181→   181→.ve-hovered {
+   182→   182→  outline: 1.5px dashed rgba(59, 130, 246, 0.5) !important;
+   183→   183→  outline-offset: 2px !important;
+   184→   184→}
+   185→   185→`
+   186→   186→}
+   187→   187→
+   188→   188→// ═══════════════════════════════════════════════════════════════════════════
+   189→   189→// Resize Handles Overlay (React component for more control)
+   190→   190→// ═══════════════════════════════════════════════════════════════════════════
+   191→   191→
+   192→   192→interface HandlePosition {
+   193→   193→  key: string
+   194→   194→  style: React.CSSProperties
+   195→   195→  cursor: string
+   196→   196→}
+   197→   197→
+   198→   198→function useResizeHandles(rect: DOMRect | null, zoom: number): HandlePosition[] {
+   199→   199→  return useMemo(() => {
+   200→   200→    if (!rect || rect.width === 0 || rect.height === 0) return []
+   201→   201→
+   202→   202→    const HANDLE_SIZE = 8
+   203→   203→    const half = HANDLE_SIZE / 2
+   204→   204→    // Handles are positioned relative to the selection rect
+   205→   205→    const top = 0
+   206→   206→    const left = 0
+   207→   207→    const right = rect.width
+   208→   208→    const bottom = rect.height
+   209→   209→    const midX = rect.width / 2
+   210→   210→    const midY = rect.height / 2
+   211→   211→
+   212→   212→    return [
+   213→   213→      { key: 'nw', cursor: 'nwse-resize', style: { top: top - half, left: left - half } },
+   214→   214→      { key: 'n', cursor: 'ns-resize', style: { top: top - half, left: midX - half } },
+   215→   215→      { key: 'ne', cursor: 'nesw-resize', style: { top: top - half, left: right - half } },
+   216→   216→      { key: 'w', cursor: 'ew-resize', style: { top: midY - half, left: left - half } },
+   217→   217→      { key: 'e', cursor: 'ew-resize', style: { top: midY - half, left: right - half } },
+   218→   218→      { key: 'sw', cursor: 'nesw-resize', style: { top: bottom - half, left: left - half } },
+   219→   219→      { key: 's', cursor: 'ns-resize', style: { top: bottom - half, left: midX - half } },
+   220→   220→      { key: 'se', cursor: 'nwse-resize', style: { top: bottom - half, left: right - half } },
+   221→   221→    ].map((h) => ({
+   222→   222→      ...h,
+   223→   223→      style: {
+   224→   224→        ...h.style,
+   225→   225→        position: 'absolute' as const,
+   226→   226→        width: HANDLE_SIZE,
+   227→   227→        height: HANDLE_SIZE,
+   228→   228→        background: '#FFFFFF',
+   229→   229→        border: '1.5px solid #3B82F6',
+   230→   230→        borderRadius: 1,
+   231→   231→        zIndex: Z_INDEX.selection + 2,
+   232→   232→        pointerEvents: 'auto' as const,
+   233→   233→        cursor: h.cursor,
+   234→   234→        // Subtle shadow for visibility on any background
+   235→   235→        boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+   236→   236→      },
+   237→   237→    }))
+   238→   238→  }, [rect, zoom])
+   239→   239→}
+   240→   240→
+   241→   241→// ═══════════════════════════════════════════════════════════════════════════
+   242→   242→// Canvas Component
+   243→   243→// ═══════════════════════════════════════════════════════════════════════════
+   244→   244→
+   245→   245→export function Canvas(p: CanvasProps) {
+   246→   246→  const theme = useEditorTheme()
+   247→   247→  const { reduceMotion } = useAccessibility()
+   248→   248→  const isDark = theme.mode === 'dark'
+   249→   249→
+   250→   250→  // ── Refs ──────────────────────────────────────────────────────────────
+   251→   251→  const vpRef = useRef<HTMLDivElement>(null)
+   252→   252→  const contentRef = useRef<HTMLDivElement>(null)
+   253→   253→  const panning = useRef(false)
+   254→   254→  const [isPanning, setIsPanning] = useState(false)
+   255→   255→  const lastPoint = useRef({ x: 0, y: 0 })
+   256→   256→  const selToken = useRef<string | null>(null)
+   257→   257→  const [selRect, setSelRect] = useState<DOMRect | null>(null)
+   258→   258→  const [contentRect, setContentRect] = useState<DOMRect | null>(null)
+   259→   259→  const [hoveredFid, setHoveredFid] = useState<string | null>(null)
+   260→   260→  const hoveredFidRef = useRef<string | null>(null)
+   261→   261→  const [showGrid, setShowGrid] = useState(true)
+   262→   262→
+   263→   263→  const width = DEVICE_WIDTH[p.device]
+   264→   264→  const bezel = DEVICE_BEZEL[p.device]
+   265→   265→
+   266→   266→  // ── Theme-derived colors ──────────────────────────────────────────────
+   267→   267→  const colors = isDark ? DARK_COLORS : LIGHT_COLORS
+   268→   268→  const canvasBg = colors.canvas.background
+   269→   269→  const canvasDot = colors.canvas.dot
+   270→   270→  const canvasFrame = colors.canvas.frame
+   271→   271→  const artboardBg = colors.canvas.artboard
+   272→   272→  const selectionColor = colors.selection.fill
+   273→   273→  const handleFill = colors.selection.handle
+   274→   274→  const borderColor = colors.border.default
+   275→   275→  const textTertiary = colors.onSurface.tertiary
+   276→   276→
+   277→   277→  // ── Editor CSS (theme-aware) ──────────────────────────────────────────
+   278→   278→  const editorCss = useMemo(
+   279→   279→    () => buildEditorCss(selectionColor, handleFill),
+   280→   280→    [selectionColor, handleFill]
+   281→   281→  )
+   282→   282→  const fullCss = editorCss + (p.css || '')
+   283→   283→
+   284→   284→  // ── Dot grid background ──────────────────────────────────────────────
+   285→   285→  const gridStyle = useMemo(
+   286→   286→    () => ({
+   287→   287→      backgroundImage: `
+   288→   288→        radial-gradient(circle ${GRID.dotSize}px at center, ${canvasDot} 0.8px, transparent 0.8px),
+   289→   289→        radial-gradient(circle ${GRID.dotSize * 1.5}px at center, ${canvasDot} 0.4px, transparent 0.4px)
+   290→   290→      `,
+   291→   291→      backgroundSize: `${GRID.minorGrid}px ${GRID.minorGrid}px, ${GRID.majorGrid}px ${GRID.majorGrid}px`,
+   292→   292→    }),
+   293→   293→    [canvasDot]
+   294→   294→  )
+   295→   295→
+   296→   296→  // ── Resize handles ───────────────────────────────────────────────────
+   297→   297→  const handles = useResizeHandles(selRect, p.zoom)
+   298→   298→
+   299→   299→  // ── Selection highlight sync ─────────────────────────────────────────
+   300→   300→  useEffect(() => {
+   301→   301→    const root = contentRef.current
+   302→   302→    if (!root) return
+   303→   303→
+   304→   304→    // Clear previous
+   305→   305→    if (selToken.current) {
+   306→   306→      const prev = root.querySelector(`[data-ve-sel="${selToken.current}"]`)
+   307→   307→      if (prev) {
+   308→   308→        prev.classList.remove('ve-selected')
+   309→   309→        prev.removeAttribute('data-ve-sel')
+   310→   310→      }
+   311→   311→      selToken.current = null
+   312→   312→      setSelRect(null)
+   313→   313→      setContentRect(null)
+   314→   314→    }
+   315→   315→
+   316→   316→    if (!p.selectedFid) return
+   317→   317→
+   318→   318→    const el = findByFid(root, p.selectedFid)
+   319→   319→    if (el) {
+   320→   320→      el.classList.add('ve-selected')
+   321→   321→      el.setAttribute('data-ve-sel', p.selectedFid)
+   322→   322→      selToken.current = p.selectedFid
+   323→   323→
+   324→   324→      const rect = el.getBoundingClientRect()
+   325→   325→      setSelRect(rect)
+   326→   326→      const cRect = contentRef.current?.getBoundingClientRect() || null
+   327→   327→      setContentRect(cRect)
+   328→   328→
+   329→   329→      // Scroll to selected element if off-screen
+   330→   330→      const vp = vpRef.current
+   331→   331→      if (vp) {
+   332→   332→        const vpRect = vp.getBoundingClientRect()
+   333→   333→        const margin = 80
+   334→   334→        if (
+   335→   335→          rect.top < vpRect.top + margin ||
+   336→   336→          rect.bottom > vpRect.bottom - margin ||
+   337→   337→          rect.left < vpRect.left + margin ||
+   338→   338→          rect.right > vpRect.right - margin
+   339→   339→        ) {
+   340→   340→          el.scrollIntoView({
+   341→   341→            behavior: reduceMotion ? 'auto' : 'smooth',
+   342→   342→            block: 'nearest',
+   343→   343→            inline: 'nearest',
+   344→   344→          })
+   345→   345→        }
+   346→   346→      }
+   347→   347→    }
+   348→   348→  }, [p.selectedFid, p.html, reduceMotion])
+   349→   349→
+   350→   350→  // ── Expose content root ──────────────────────────────────────────────
+   351→   351→  useEffect(() => {
+   352→   352→    p.onContentReady?.(contentRef.current)
+   353→   353→  }, [p.onContentReady])
+   354→   354→
+   355→   355→  // ── Attach hover outlines to selectable elements ─────────────────────
+   356→   356→  useEffect(() => {
+   357→   357→    const root = contentRef.current
+   358→   358→    if (!root) return
+   359→   359→    const elements = root.querySelectorAll(SELECTABLE)
+   360→   360→    elements.forEach((el) => {
+   361→   361→      ;(el as HTMLElement).classList.add('ve-hover-target')
+   362→   362→    })
+   363→   363→    return () => {
+   364→   364→      elements.forEach((el) => {
+   365→   365→        ;(el as HTMLElement).classList.remove('ve-hover-target')
+   366→   366→      })
+   367→   367→    }
+   368→   368→  }, [p.html])
+   369→   369→
+   370→   370→  // ── Track hover for dashed indicator ─────────────────────────────────
+   371→   371→  const handleMouseMove = useCallback(
+   372→   372→    (e: React.MouseEvent) => {
+   373→   373→      if (panning.current) return
+   374→   374→      const root = contentRef.current
+   375→   375→      if (!root) return
+   376→   376→
+   377→   377→      const target = e.target as HTMLElement
+   378→   378→      const el = target.closest(SELECTABLE) as HTMLElement | null
+   379→   379→
+   380→   380→      // Clear previous hover
+   381→   381→      if (hoveredFidRef.current) {
+   382→   382→        const prev = findByFid(root, hoveredFidRef.current)
+   383→   383→        if (prev && prev !== el) {
+   384→   384→          prev.classList.remove('ve-hovered')
+   385→   385→        }
+   386→   386→      }
+   387→   387→
+   388→   388→      if (el && root.contains(el) && el.classList.contains('ve-hover-target')) {
+   389→   389→        const fid = buildFid(el, root)
+   390→   390→        if (fid !== p.selectedFid) {
+   391→   391→          el.classList.add('ve-hovered')
+   392→   392→          hoveredFidRef.current = fid
+   393→   393→          setHoveredFid(fid)
+   394→   394→        } else {
+   395→   395→          hoveredFidRef.current = null
+   396→   396→          setHoveredFid(null)
+   397→   397→        }
+   398→   398→      } else {
+   399→   399→        hoveredFidRef.current = null
+   400→   400→        setHoveredFid(null)
+   401→   401→      }
+   402→   402→    },
+   403→   403→    [p.selectedFid]
+   404→   404→  )
+   405→   405→
+   406→   406→  const handleMouseLeave = useCallback(() => {
+   407→   407→    const root = contentRef.current
+   408→   408→    if (root && hoveredFidRef.current) {
+   409→   409→      const prev = findByFid(root, hoveredFidRef.current)
+   410→   410→      if (prev) prev.classList.remove('ve-hovered')
+   411→   411→    }
+   412→   412→    hoveredFidRef.current = null
+   413→   413→    setHoveredFid(null)
+   414→   414→  }, [])
+   415→   415→
+   416→   416→  // ── Read element info ────────────────────────────────────────────────
+   417→   417→  const readInfo = useCallback((el: HTMLElement, root: HTMLElement): SelectionInfo | null => {
+   418→   418→    const fid = buildFid(el, root)
+   419→   419→    const tag = el.tagName.toLowerCase()
+   420→   420→    const cs = window.getComputedStyle(el)
+   421→   421→    const rect = el.getBoundingClientRect()
+   422→   422→    const isSection = ['section', 'header', 'footer', 'nav', 'ul', 'li', 'form', 'div'].includes(tag)
+   423→   423→    return {
+   424→   424→      fid,
+   425→   425→      tag,
+   426→   426→      text: (el.textContent || '').trim().slice(0, 120),
+   427→   427→      isImage: tag === 'img',
+   428→   428→      isText: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'span', 'li'].includes(tag),
+   429→   429→      isButton: tag === 'button',
+   430→   430→      isLink: tag === 'a',
+   431→   431→      isSection,
+   432→   432→      color: cs.color,
+   433→   433→      bgColor:
+   434→   434→        cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)'
+   435→   435→          ? cs.backgroundColor
+   436→   436→          : undefined,
+   437→   437→      fontSize: cs.fontSize,
+   438→   438→      fontWeight: cs.fontWeight,
+   439→   439→      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+   440→   440→    }
+   441→   441→  }, [])
+   442→   442→
+   443→   443→  // ── Click to select ──────────────────────────────────────────────────
+   444→   444→  const handleClick = useCallback(
+   445→   445→    (e: React.MouseEvent) => {
+   446→   446→      if (panning.current) return
+   447→   447→      const root = contentRef.current
+   448→   448→      if (!root) return
+   449→   449→      const target = e.target as HTMLElement
+   450→   450→      const el = target.closest(SELECTABLE) as HTMLElement | null
+   451→   451→      if (el && root.contains(el)) {
+   452→   452→        p.onSelect(readInfo(el, root))
+   453→   453→      } else {
+   454→   454→        p.onSelect(null)
+   455→   455→      }
+   456→   456→    },
+   457→   457→    [p.onSelect, readInfo]
+   458→   458→  )
+   459→   459→
+   460→   460→  // ── Drag-to-pan (Space + drag or middle mouse) ──────────────────────
+   461→   461→  const startPan = useCallback(
+   462→   462→    (e: React.PointerEvent) => {
+   463→   463→      if (e.button !== 1 && !p.spaceHeld) return
+   464→   464→      e.preventDefault()
+   465→   465→      e.stopPropagation()
+   466→   466→      panning.current = true
+   467→   467→      setIsPanning(true)
+   468→   468→      lastPoint.current = { x: e.clientX, y: e.clientY }
+   469→   469→
+   470→   470→      const vp = vpRef.current
+   471→   471→
+   472→   472→      const move = (ev: PointerEvent) => {
+   473→   473→        if (!vp) return
+   474→   474→        const dx = ev.clientX - lastPoint.current.x
+   475→   475→        const dy = ev.clientY - lastPoint.current.y
+   476→   476→        vp.scrollLeft -= dx
+   477→   477→        vp.scrollTop -= dy
+   478→   478→        lastPoint.current = { x: ev.clientX, y: ev.clientY }
+   479→   479→      }
+   480→   480→      const up = () => {
+   481→   481→        panning.current = false
+   482→   482→        setIsPanning(false)
+   483→   483→        window.removeEventListener('pointermove', move)
+   484→   484→        window.removeEventListener('pointerup', up)
+   485→   485→      }
+   486→   486→      window.addEventListener('pointermove', move)
+   487→   487→      window.addEventListener('pointerup', up)
+   488→   488→    },
+   489→   489→    [p.spaceHeld]
+   490→   490→  )
+   491→   491→
+   492→   492→  // ── Keyboard: nudge + delete ─────────────────────────────────────────
+   493→   493→  useEffect(() => {
+   494→   494→    if (!p.selectedFid) return
+   495→   495→    const root = contentRef.current
+   496→   496→    if (!root) return
+   497→   497→    const el = findByFid(root, p.selectedFid)
+   498→   498→    if (!el) return
+   499→   499→
+   500→   500→    const onKey = (e: KeyboardEvent) => {
+   501→   501→      if (e.key.startsWith('Arrow')) {
+   502→   502→        e.preventDefault()
+   503→   503→        const dx = e.shiftKey ? 10 : 1
+   504→   504→        const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(el.style.transform || '')
+   505→   505→        const tx = m ? parseFloat(m[1]) : 0
+   506→   506→        const ty = m ? parseFloat(m[2]) : 0
+   507→   507→        let nx = tx,
+   508→   508→          ny = ty
+   509→   509→        if (e.key === 'ArrowLeft') nx -= dx
+   510→   510→        else if (e.key === 'ArrowRight') nx += dx
+   511→   511→        else if (e.key === 'ArrowUp') ny -= dx
+   512→   512→        else if (e.key === 'ArrowDown') ny += dx
+   513→   513→        el.style.transform = nx === 0 && ny === 0 ? '' : `translate(${nx}px, ${ny}px)`
+   514→   514→        announce(`${p.selectedFid} nudge ${dx}px`)
+   515→   515→      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+   516→   516→        if (el.parentElement && el.parentElement !== root) {
+   517→   517→          const tag = el.tagName.toLowerCase()
+   518→   518→          el.remove()
+   519→   519→          announce(`Deleted ${tag}`)
+   520→   520→          p.onSelect(null)
+   521→   521→          setTimeout(() => p.onChangeHtml(root.innerHTML, `Delete ${tag}`), 0)
+   522→   522→        } else {
+   523→   523→          e.preventDefault()
+   524→   524→        }
+   525→   525→      }
+   526→   526→    }
+   527→   527→    window.addEventListener('keydown', onKey)
+   528→   528→    return () => window.removeEventListener('keydown', onKey)
+   529→   529→  }, [p.selectedFid, p.onChangeHtml, p.onSelect])
+   530→   530→
+   531→   531→  // ── Grid toggle keyboard shortcut (Ctrl+G) ───────────────────────────
+   532→   532→  useEffect(() => {
+   533→   533→    const onKey = (e: KeyboardEvent) => {
+   534→   534→      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+   535→   535→        e.preventDefault()
+   536→   536→        setShowGrid((prev) => !prev)
+   537→   537→        announce(showGrid ? 'Grid hidden' : 'Grid visible')
+   538→   538→      }
+   539→   539→    }
+   540→   540→    window.addEventListener('keydown', onKey)
+   541→   541→    return () => window.removeEventListener('keydown', onKey)
+   542→   542→  }, [showGrid])
+   543→   543→
+   544→   544→  // ── Device frame label ───────────────────────────────────────────────
+   545→   545→  const deviceLabel = useMemo(() => {
+   546→   546→    if (p.device === 'desktop') return 'Desktop'
+   547→   547→    if (p.device === 'tablet') return 'Tablet'
+   548→   548→    return 'Mobile'
+   549→   549→  }, [p.device])
+   550→   550→
+   551→   551→  // ── Cursor for viewport ──────────────────────────────────────────────
+   552→   552→  const vpCursor = isPanning ? 'grabbing' : p.spaceHeld ? 'grab' : 'default'
+   553→   553→
+   554→   554→  // ── Zoom transition ──────────────────────────────────────────────────
+   555→   555→  const zoomTransition = reduceMotion ? 'none' : `transform ${ANIMATION.duration.fast} ${ANIMATION.easing.easeOut}`
+   556→   556→
+   557→   557→  // ── Render ───────────────────────────────────────────────────────────
+   558→   558→  return (
+   559→   559→    <div
+   560→   560→      ref={vpRef}
+   561→   561→      onPointerDown={startPan}
+   562→   562→      onClick={handleClick}
+   563→   563→      onMouseMove={handleMouseMove}
+   564→   564→      onMouseLeave={handleMouseLeave}
+   565→   565→      role="region"
+   566→   566→      aria-label="Design canvas"
+   567→   567→      className="ve-canvas-viewport"
+   568→   568→      style={{
+   569→   569→        position: 'relative',
+   570→   570→        flex: 1,
+   571→   571→        overflow: 'auto',
+   572→   572→        background: canvasBg,
+   573→   573→        cursor: vpCursor,
+   574→   574→        ...(showGrid ? gridStyle : {}),
+   575→   575→        // Subtle inner shadow for depth
+   576→   576→        boxShadow: 'inset 0 0 80px rgba(0,0,0,0.03)',
+   577→   577→      }}
+   578→   578→    >
+   579→   579→      {/* Scrollable world surface */}
+   580→   580→      <div
+   581→   581→        style={{
+   582→   582→          minWidth: '100%',
+   583→   583→          minHeight: '100%',
+   584→   584→          position: 'relative',
+   585→   585→          padding: '64px 48px',
+   586→   586→          display: 'flex',
+   587→   587→          flexDirection: 'column',
+   588→   588→          alignItems: 'center',
+   589→   589→        }}
+   590→   590→      >
+   591→   591→        {/* Device frame label */}
+   592→   592→        <div
+   593→   593→          className="flex items-center justify-center gap-2 mb-3 select-none"
+   594→   594→          style={{ zIndex: Z_INDEX.hover }}
+   595→   595→        >
+   596→   596→          <span
+   597→   597→            style={{
+   598→   598→              fontSize: 11,
+   599→   599→              fontWeight: 500,
+   600→   600→              fontFamily:
+   601→   601→                'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+   602→   602→              color: textTertiary,
+   603→   603→              background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+   604→   604→              padding: '3px 10px',
+   605→   605→              borderRadius: RADIUS.md,
+   606→   606→              border: `1px solid ${borderColor}`,
+   607→   607→              letterSpacing: '0.02em',
+   608→   608→            }}
+   609→   609→          >
+   610→   610→            {deviceLabel} &middot; {width}px
+   611→   611→          </span>
+   612→   612→
+   613→   613→          {/* Grid toggle */}
+   614→   614→          <button
+   615→   615→            onClick={(e) => {
+   616→   616→              e.stopPropagation()
+   617→   617→              setShowGrid((prev) => !prev)
+   618→   618→            }}
+   619→   619→            title={showGrid ? 'Hide grid (Ctrl+G)' : 'Show grid (Ctrl+G)'}
+   620→   620→            aria-label={showGrid ? 'Hide grid' : 'Show grid'}
+   621→   621→            style={{
+   622→   622→              fontSize: 10,
+   623→   623→              fontWeight: 500,
+   624→   624→              fontFamily:
+   625→   625→                'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+   626→   626→              color: showGrid
+   627→   627→                ? selectionColor
+   628→   628→                : textTertiary,
+   629→   629→              background: showGrid
+   630→   630→                ? (isDark ? 'rgba(96,165,250,0.12)' : 'rgba(59,130,246,0.08)')
+   631→   631→                : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+   632→   632→              padding: '3px 8px',
+   633→   633→              borderRadius: RADIUS.md,
+   634→   634→              border: `1px solid ${showGrid ? selectionColor : borderColor}`,
+   635→   635→              cursor: 'pointer',
+   636→   636→              transition: reduceMotion ? 'none' : ANIMATION.transition.colors,
+   637→   637→            }}
+   638→   638→          >
+   639→   639→            Grid
+   640→   640→          </button>
+   641→   641→        </div>
+   642→   642→
+   643→   643→        {/* Device frame wrapper */}
+   644→   644→        <div
+   645→   645→          style={{
+   646→   646→            position: 'relative',
+   647→   647→            width: width + bezel * 2,
+   648→   648→            borderRadius: DEVICE_FRAME_RADIUS[p.device],
+   649→   649→            overflow: 'hidden',
+   650→   650→            // Mobile/tablet device bezel
+   651→   651→            border:
+   652→   652→              bezel > 0
+   653→   653→                ? `${bezel}px solid ${isDark ? '#1E293B' : '#E5E7EB'}`
+   654→   654→                : 'none',
+   655→   655→            boxShadow:
+   656→   656→              bezel > 0
+   657→   657→                ? SHADOWS['2xl']
+   658→   658→                : 'none',
+   659→   659→            transition: reduceMotion ? 'none' : ANIMATION.transition.normal,
+   660→   660→          }}
+   661→   661→        >
+   662→   662→          {/* Canvas artboard — the white "page" with shadow */}
+   663→   663→          <div
+   664→   664→            className="ve-canvas"
+   665→   665→            style={{
+   666→   666→              width,
+   667→   667→              minHeight: 900,
+   668→   668→              background: artboardBg,
+   669→   669→              borderRadius: bezel > 0 ? 0 : RADIUS.lg,
+   670→   670→              boxShadow:
+   671→   671→                bezel > 0
+   672→   672→                  ? 'none'
+   673→   673→                  : isDark
+   674→   674→                    ? '0 2px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)'
+   675→   675→                    : SHADOWS.xl,
+   676→   676→              transform: `scale(${p.zoom / 100})`,
+   677→   677→              transformOrigin: 'top center',
+   678→   678→              transition: zoomTransition,
+   679→   679→              overflow: 'hidden',
+   680→   680→              position: 'relative',
+   681→   681→              // Subtle border on the artboard
+   682→   682→              border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : borderColor}`,
+   683→   683→            }}
+   684→   684→          >
+   685→   685→            <style dangerouslySetInnerHTML={{ __html: fullCss }} />
+   686→   686→
+   687→   687→            {p.hasContent ? (
+   688→   688→              <div
+   689→   689→                ref={contentRef}
+   690→   690→                dangerouslySetInnerHTML={{ __html: p.html || '' }}
+   691→   691→                style={{ minHeight: 900, padding: 0 }}
+   692→   692→              />
+   693→   693→            ) : null}
+   694→   694→          </div>
+   695→   695→
+   696→   696→          {/* Resize handles overlay */}
+   697→   697→          {p.selectedFid && selRect && handles.length > 0 && (
+   698→   698→            <div
+   699→   699→              style={{
+   700→   700→                position: 'absolute',
+   701→   701→                top: 0,
+   702→   702→                left: 0,
+   703→   703→                width: '100%',
+   704→   704→                height: '100%',
+   705→   705→                pointerEvents: 'none',
+   706→   706→                transform: `scale(${p.zoom / 100})`,
+   707→   707→                transformOrigin: 'top center',
+   708→   708→                transition: zoomTransition,
+   709→   709→              }}
+   710→   710→            >
+   711→   711→              <div
+   712→   712→                style={{
+   713→   713→                  position: 'relative',
+   714→   714→                  // Offset to the selected element's position relative to the canvas
+   715→   715→                  width: selRect.width,
+   716→   716→                  height: selRect.height,
+   717→   717→                  marginLeft: selRect.left - (contentRect?.left || 0),
+   718→   718→                  marginTop: selRect.top - (contentRect?.top || 0),
+   719→   719→                  pointerEvents: 'none',
+   720→   720→                }}
+   721→   721→              >
+   722→   722→                {handles.map((h) => (
+   723→   723→                  <div
+   724→   724→                    key={h.key}
+   725→   725→                    style={h.style}
+   726→   726→                    title={`Resize ${h.key}`}
+   727→   727→                    aria-label={`Resize handle ${h.key}`}
+   728→   728→                  />
+   729→   729→                ))}
+   730→   730→              </div>
+   731→   731→            </div>
+   732→   732→          )}
+   733→   733→        </div>
+   734→   734→      </div>
+   735→   735→
+   736→   736→      {/* Zoom display — bottom-right corner */}
+   737→   737→      <div
+   738→   738→        className="select-none"
+   739→   739→        style={{
+   740→   740→          position: 'sticky',
+   741→   741→          bottom: 12,
+   742→   742→          right: 12,
+   743→   743→          marginLeft: 'auto',
+   744→   744→          marginTop: 'auto',
+   745→   745→          width: 'fit-content',
+   746→   746→          display: 'flex',
+   747→   747→          alignItems: 'center',
+   748→   748→          gap: 6,
+   749→   749→          padding: '4px 10px',
+   750→   750→          fontSize: 11,
+   751→   751→          fontWeight: 500,
+   752→   752→          fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+   753→   753→          color: textTertiary,
+   754→   754→          background: isDark ? 'rgba(30,41,59,0.85)' : 'rgba(255,255,255,0.85)',
+   755→   755→          backdropFilter: 'blur(8px)',
+   756→   756→          borderRadius: RADIUS.md,
+   757→   757→          border: `1px solid ${borderColor}`,
+   758→   758→          zIndex: Z_INDEX.tooltip,
+   759→   759→          pointerEvents: 'none',
+   760→   760→          letterSpacing: '0.01em',
+   761→   761→        }}
+   762→   762→      >
+   763→   763→        <svg
+   764→   764→          width="12"
+   765→   765→          height="12"
+   766→   766→          viewBox="0 0 12 12"
+   767→   767→          fill="none"
+   768→   768→          style={{ opacity: 0.5 }}
+   769→   769→        >
+   770→   770→          <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" />
+   771→   771→          <line x1="6" y1="1" x2="6" y2="3.5" stroke="currentColor" strokeWidth="1.2" />
+   772→   772→          <line x1="6" y1="8.5" x2="6" y2="11" stroke="currentColor" strokeWidth="1.2" />
+   773→   773→          <line x1="1" y1="6" x2="3.5" y2="6" stroke="currentColor" strokeWidth="1.2" />
+   774→   774→          <line x1="8.5" y1="6" x2="11" y2="6" stroke="currentColor" strokeWidth="1.2" />
+   775→   775→        </svg>
+   776→   776→        {Math.round(p.zoom)}%
+   777→   777→      </div>
+   778→   778→    </div>
+   779→   779→  )
+   780→   780→}
+   781→   781→
