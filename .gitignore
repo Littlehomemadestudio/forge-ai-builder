@@ -1,0 +1,171 @@
+# =============================================================================
+# forge-ai-builder .gitignore
+# Generated for a Next.js 16 + Prisma + TypeScript + Tailwind/shadcn + bun stack
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Package manager / dependencies
+# -----------------------------------------------------------------------------
+# npm/yarn/pnpm
+node_modules/
+package-lock.json
+yarn.lock
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+pnpm-lock.yaml
+
+# npm debugging logs (npm v7+)
+npm-debug.log*
+npm-install.log*
+
+# bun lockfile is committed on purpose, but ignore the rest
+bun.lockb
+bun.lockb.sqlite
+# (bun.lock is intentionally NOT ignored - it is committed)
+
+# -----------------------------------------------------------------------------
+# Next.js build artifacts
+# -----------------------------------------------------------------------------
+# Production build output
+.next/
+out/
+build/
+dist/
+
+# Turbopack / Turborepo caches
+.turbo/
+/turbo/
+.vercel/
+.vercel_build_output/
+
+# Next.js generated type definitions
+next-env.d.ts
+
+# Next.js runtime cache (RSC info, etc.)
+.rsc-cache/
+npx.rsc/
+
+# -----------------------------------------------------------------------------
+# TypeScript
+# -----------------------------------------------------------------------------
+# Incremental compilation cache / build info (keeps build fast, safe to delete)
+*.tsbuildinfo
+# If you use project references with composite builds, the following are
+# generated; ignore them unless you specifically want to commit them.
+tsconfig.tsbuildinfo
+
+# -----------------------------------------------------------------------------
+# Prisma
+# -----------------------------------------------------------------------------
+# Local development databases (the real schema lives in prisma/schema.prisma)
+db/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.prisma
+
+# Prisma engine binaries and generated client (regenerated with `prisma generate`)
+prisma/generated/
+node_modules/.prisma/
+.prisma/
+
+# Prisma introspection / studio artifacts
+ prisma/.sqlite-*
+
+# -----------------------------------------------------------------------------
+# Environment variables
+# NOTE: .env.example is intentionally NOT ignored (it is committed so the app
+# can be onboarded). Only the real local env files are ignored here.
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.development.local
+.env.test.local
+.env.production.local
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+# Application / server logs
+*.log
+logs/
+*.log.*
+dev*.log*
+start-server.log*
+
+# Log files - keep nothing
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# Editor / IDE / OS cruft
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Visual Studio / VS Code
+.vs/
+*.csproj.user
+*.tmp
+*.user
+*.suo
+*.swp
+*.swo
+*~
+# VS Code
+.vscode/
+*.code-snippets
+
+# JetBrains / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Python (if any tooling/scripts are present)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# -----------------------------------------------------------------------------
+# Local / temporary data
+# -----------------------------------------------------------------------------
+# Downloaded/generated test fixtures and runtime uploads
+download/
+# (upload/ is kept in version control as it is tiny and part of tests; ignore the dir only if you want)
+# upload/
+
+# Generated cache files
+.cache/
+.parcel-cache/
+.eslintcache
+.prettiercache
+
+#.gitignore for node_modules content is already covered above.
