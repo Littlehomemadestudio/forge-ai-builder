@@ -106,17 +106,61 @@ export async function PATCH(
       }
     }
 
-    if (Object.keys(updateData).length === 0) {
+    // Optionally update the home page's HTML/CSS/JS if provided.
+    // This is how the builder persists generated page content alongside
+    // the project metadata, so re-opening the project from the dashboard
+    // brings back the actual generated site.
+    if (body.pageHtml !== undefined || body.pageCss !== undefined || body.pageJs !== undefined || body.pageName !== undefined) {
+      // Find the project's home page (route "/") — create if missing
+      let homePage = await db.page.findFirst({
+        where: { projectId: id, route: '/' },
+      });
+      if (!homePage) {
+        homePage = await db.page.create({
+          data: {
+            name: body.pageName || 'Home',
+            route: '/',
+            html: body.pageHtml || null,
+            css: body.pageCss || null,
+            js: body.pageJs || null,
+            projectId: id,
+          },
+        });
+      } else {
+        const pageUpdate: Record<string, unknown> = {};
+        if (body.pageName !== undefined) pageUpdate.name = body.pageName;
+        if (body.pageHtml !== undefined) pageUpdate.html = body.pageHtml;
+        if (body.pageCss !== undefined) pageUpdate.css = body.pageCss;
+        if (body.pageJs !== undefined) pageUpdate.js = body.pageJs;
+        if (Object.keys(pageUpdate).length > 0) {
+          await db.page.update({
+            where: { id: homePage.id },
+            data: pageUpdate,
+          });
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length === 0 && body.pageHtml === undefined && body.pageCss === undefined && body.pageJs === undefined && body.pageName === undefined) {
       return NextResponse.json(
         { error: 'No valid fields to update' },
         { status: 400 },
       );
     }
 
-    const project = await db.project.update({
-      where: { id },
-      data: updateData,
-    });
+    let project;
+    if (Object.keys(updateData).length > 0) {
+      project = await db.project.update({
+        where: { id },
+        data: updateData,
+        include: { pages: true },
+      });
+    } else {
+      project = await db.project.findUnique({
+        where: { id },
+        include: { pages: true },
+      });
+    }
 
     return NextResponse.json({ project });
   } catch (error) {

@@ -46,22 +46,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Fall back to the NextAuth session user
+         // 2. Fall back to the NextAuth session user
     if (!user) {
-      const session = await getServerSession(authOptions);
+      const session = await getServerSession(authOptions)
       if (session?.user?.email) {
         user = await db.user.findUnique({
           where: { email: session.user.email },
           include: { _count: { select: { projects: true } } },
-        });
+        })
       }
     }
 
+    // 3. No user found — return 200 with null instead of 404 so the frontend
+    //    never sees a "Failed to load resource" error. The dashboard handles
+    //    `user: null` gracefully (shows cached/empty state).
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found. Please sign in again.' },
-        { status: 404 },
-      );
+      return NextResponse.json({ user: null })
     }
 
     return NextResponse.json({

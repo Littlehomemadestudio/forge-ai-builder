@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { checkAiAvailability, aiUnavailableMessage, streamChatDeltas } from '@/lib/ai-server';
 import { db } from '@/lib/db';
 import {
   detectIndustry as detectIndustryV2,
@@ -80,46 +80,7 @@ interface GeneratePageRequest {
   };
 }
 
-// ─── In-memory job store (persists across hot reloads via globalThis) ──────
-
-interface GenJob {
-  id: string;
-  status: 'pending' | 'generating' | 'done' | 'error';
-  page: string;
-  startedAt: number;
-  updatedAt: number;
-  heartbeats: number;
-  // Phase 4: industry auto-detection metadata
-  industryV2?: string;
-  industryV2SubIndustry?: string;
-  industryV2Confidence?: number;
-  matchedKeywords?: string[];
-  result?: {
-    page: { id: string; name: string; route: string; html: string; css: string; js: string };
-    siteName: string;
-    industry: string;
-    style: string;
-    projectId?: string;
-  };
-  error?: string;
-}
-
-const GLOBAL = globalThis as unknown as { __FORGE_GEN_JOBS__?: Map<string, GenJob> };
-if (!GLOBAL.__FORGE_GEN_JOBS__) {
-  GLOBAL.__FORGE_GEN_JOBS__ = new Map();
-}
-const JOBS = GLOBAL.__FORGE_GEN_JOBS__!;
-
-function cleanupOldJobs() {
-  const cutoff = Date.now() - 30 * 60 * 1000;
-  for (const [id, job] of JOBS) {
-    if (job.updatedAt < cutoff) JOBS.delete(id);
-  }
-}
-
-function generateJobId(): string {
-  return `job_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
+// (Job store removed — generation now streams directly via SSE from /api/generate.)
 
 // ─── Industry descriptors ─────────────────────────────────────────────────
 
@@ -1812,10 +1773,10 @@ function getUnsplashImagesForSubIndustry(subIndustry?: string): string[] {
   return libraries[subIndustry || ''] || libraries.digital;
 }
 
-// ─── Single-page generation with retry ────────────────────────────────────
+// ─── Streaming AI generation (Cerebras) ────────────────────────────────────
 
 const MAX_RETRIES = 4;
-const AI_MAX_TOKENS = 10000;           // Reduced from 16000 — 10K is enough for a complete HTML page and avoids GLM-4.7 long-generation instabilities
+const AI_MAX_TOKENS = 16000; // Cerebras / gpt-oss-120b handles large streamed outputs
 const AI_REQUEST_TIMEOUT_MS = 180_000; // 3 minutes hard cap per AI call
 
 function sleep(ms: number) {
@@ -1823,150 +1784,44 @@ function sleep(ms: number) {
 }
 
 /**
- * Read the Z.AI config from the same locations the SDK uses. We bypass the
- * SDK because Bun + z-ai-web-dev-sdk 0.0.18 has intermittent crashes when
- * handling large GLM-4.7 responses (the SDK calls response.json() which
- * can OOM-crash Bun's HTTP stack on complex Persian / multilingual content
- * with many animation keywords). Calling fetch directly with an explicit
- * AbortSignal and parsing the response as text first (then JSON.parse)
- * gives us full control and resilience.
+ * Stream the AI completion for a page, retrying transient errors (429 / 5xx /
+ * timeout) but only BEFORE the first token is yielded — once streaming has
+ * started we cannot safely retry without duplicating output.
  */
-let _cachedZaiConfig: any = null;
-async function loadZaiConfig(): Promise<any> {
-  if (_cachedZaiConfig) return _cachedZaiConfig;
-  const fs = await import('fs/promises');
-  const path = await import('path');
-  const os = await import('os');
-  const candidates = [
-    path.join(process.cwd(), '.z-ai-config'),
-    path.join(os.homedir(), '.z-ai-config'),
-    '/etc/.z-ai-config',
-  ];
-  for (const p of candidates) {
-    try {
-      const txt = await fs.readFile(p, 'utf-8');
-      const cfg = JSON.parse(txt);
-      if (cfg.baseUrl && cfg.apiKey) {
-        _cachedZaiConfig = cfg;
-        return cfg;
-      }
-    } catch { /* ignore */ }
-  }
-  throw new Error('Z.AI config not found in .z-ai-config, ~/.z-ai-config, or /etc/.z-ai-config');
-}
-
-/**
- * Direct fetch to Z.AI chat completions, bypassing the SDK. Returns the
- * assistant message content. Throws Error with "timeout" in the message
- * if the request exceeds AI_REQUEST_TIMEOUT_MS.
- */
-async function callZaiDirect(
+async function streamPageContent(
   systemPrompt: string,
   userPrompt: string,
-  onTick: () => void
-): Promise<string> {
-  const cfg = await loadZaiConfig();
-  const url = `${cfg.baseUrl}/chat/completions`;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${cfg.apiKey}`,
-    'X-Z-AI-From': 'Z',
-  };
-  if (cfg.chatId) headers['X-Chat-Id'] = cfg.chatId;
-  if (cfg.userId) headers['X-User-Id'] = cfg.userId;
-  if (cfg.token) headers['X-Token'] = cfg.token;
-
-  const body = JSON.stringify({
-    model: 'glm-4.5-flash',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-    temperature: 0.7,
-    max_tokens: AI_MAX_TOKENS,
-  });
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
-  onTick();
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body,
-      signal: controller.signal,
-    });
-    onTick();
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API request failed with status ${response.status}: ${errorText.slice(0, 300)}`);
-    }
-
-    // Read as text FIRST, then JSON.parse. This is more resilient than
-    // response.json() because we can catch and report parse errors
-    // without crashing the Bun HTTP stack.
-    const text = await response.text();
-    onTick();
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(text);
-    } catch (parseErr: any) {
-      throw new Error(`Failed to parse AI response as JSON (len=${text.length}): ${String(parseErr?.message || parseErr).slice(0, 200)}`);
-    }
-
-    const content = parsed?.choices?.[0]?.message?.content || '';
-    if (!content || content.length < 200) {
-      throw new Error(`AI returned empty or too-short content (len=${content.length})`);
-    }
-    return content as string;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function callGlmWithRetry(
-  zai: Awaited<ReturnType<typeof ZAI.create>>,
-  req: GeneratePageRequest,
-  parsed: ParsedPrompt,
-  colors: { bg: string; surface: string; text: string; muted: string; accent: string; border: string; neonPink?: string },
-  headerFooter: { headerHtml: string; footerHtml: string; cssForHeaderFooter: string },
-  onTick: () => void
+  onDelta: (chunk: string) => void
 ): Promise<string> {
   let lastError: any = null;
-  // Build prompts ONCE — they're expensive (header/footer, industry images)
-  const systemPrompt = buildSystemPrompt();
-  const userPrompt = buildPagePrompt(req, parsed, colors, headerFooter, req.advancedOptions);
-  const promptBytes = Buffer.byteLength(systemPrompt + userPrompt, 'utf8');
-  console.log(`[generate] ${req.page} prompt size: ${promptBytes} bytes (sys=${systemPrompt.length} user=${userPrompt.length})`);
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    let yieldedAny = false;
     try {
-      onTick();
-      const tickInterval = setInterval(onTick, 5000);
-      try {
-        const content = await callZaiDirect(systemPrompt, userPrompt, onTick);
-        return content;
-      } finally {
-        clearInterval(tickInterval);
+      let acc = '';
+      for await (const chunk of streamChatDeltas(systemPrompt, userPrompt, {
+        maxTokens: AI_MAX_TOKENS,
+        timeoutMs: AI_REQUEST_TIMEOUT_MS,
+      })) {
+        yieldedAny = true;
+        acc += chunk;
+        onDelta(chunk);
       }
+      if (acc.length < 200) {
+        throw new Error(`AI returned empty or too-short content (len=${acc.length})`);
+      }
+      return acc;
     } catch (err: any) {
       lastError = err;
       const msg = String(err?.message || err);
-      const is429 = msg.includes('429') || msg.includes('Too many requests') || msg.includes('rate');
-      const is5xx = msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('500');
-      const isTimeout = msg.includes('timeout') || msg.includes('aborted') || msg.includes('ECONNRESET') || msg.includes('socket') || msg.includes('AbortError');
-      if (is429 || is5xx || isTimeout) {
+      const is429 = msg.includes('429') || msg.includes('Too many requests') || /rate/i.test(msg);
+      const is5xx = ['502', '503', '504', '500'].some(c => msg.includes(c));
+      const isTimeout =
+        msg.includes('timeout') || msg.includes('aborted') || msg.includes('ECONNRESET') || msg.includes('AbortError');
+      if (attempt < MAX_RETRIES - 1 && !yieldedAny && (is429 || is5xx || isTimeout)) {
         const wait = 3000 * Math.pow(2, attempt);
-        console.log(`[generate] ${req.page} attempt ${attempt + 1} failed (${msg.slice(0, 120)}), retrying in ${wait}ms`);
-        const steps = Math.ceil(wait / 2000);
-        for (let s = 0; s < steps; s++) {
-          onTick();
-          await sleep(2000);
-        }
+        console.log(`[generate] attempt ${attempt + 1} failed (${msg.slice(0, 120)}), retrying in ${wait}ms`);
+        await sleep(wait);
         continue;
       }
       throw err;
@@ -1975,169 +1830,135 @@ async function callGlmWithRetry(
   throw lastError || new Error('AI generation failed after retries');
 }
 
-// ─── Background job runner ────────────────────────────────────────────────
+// ─── Page generation pipeline (streaming) ────────────────────────────────────
 
-async function runGenerationJob(
-  jobId: string,
+interface PageGenResult {
+  page: { id: string; name: string; route: string; html: string; css: string; js: string };
+  siteName: string;
+  industry: string;
+  style: string;
+  projectId?: string;
+}
+
+/**
+ * Run the full generation pipeline for one page. Calls onDelta for every
+ * streamed AI chunk, then returns the structured result (html/css/js extracted
+ * and persisted to the DB when a userId is supplied).
+ */
+async function generatePageStream(
   req: GeneratePageRequest,
   resolvedSiteName: string,
-  userId?: string
-) {
-  const job = JOBS.get(jobId);
-  if (!job) return;
+  userId: string | undefined,
+  onDelta: (chunk: string) => void
+): Promise<PageGenResult> {
+  const parsed = parseUserPrompt(req.prompt, req.language || 'en');
 
-  try {
-    // ZAI SDK init is no longer needed — we use direct fetch via callZaiDirect
-    // which reads config from .z-ai-config file
-    job.status = 'generating';
-    job.updatedAt = Date.now();
-    JOBS.set(jobId, job);
+  const styleFallback = resolveStylePreset(req.style || 'dark').colors;
+  const baseColors = { ...styleFallback };
+  if (req.advancedOptions?.colorScheme) {
+    const cs = req.advancedOptions.colorScheme;
+    if (cs.background) baseColors.bg = cs.background;
+    if (cs.surface) baseColors.surface = cs.surface;
+    if (cs.text) baseColors.text = cs.text;
+    if (cs.muted) baseColors.muted = cs.muted;
+    if (cs.primary) baseColors.accent = cs.primary;
+    if (cs.accent && !cs.primary) baseColors.accent = cs.accent;
+  }
+  const colors = applyUserColors(baseColors, parsed);
 
-    // ── Parse user prompt ──
-    const parsed = parseUserPrompt(req.prompt, req.language || 'en');
+  const meta = INDUSTRY_META[req.industry || 'portfolio'];
+  const headerFooter = buildSharedHeaderFooter(
+    req.industry || 'portfolio',
+    resolvedSiteName,
+    meta.navItems,
+    colors,
+    parsed,
+    req.language || 'en'
+  );
 
-    // ── Apply user-specified colors (override style preset + advanced options) ──
-    const styleFallback = resolveStylePreset(req.style || 'dark').colors;
-    const baseColors = { ...styleFallback };
-    // Advanced options color scheme overrides style preset
-    if (req.advancedOptions?.colorScheme) {
-      const cs = req.advancedOptions.colorScheme;
-      if (cs.background) baseColors.bg = cs.background;
-      if (cs.surface) baseColors.surface = cs.surface;
-      if (cs.text) baseColors.text = cs.text;
-      if (cs.muted) baseColors.muted = cs.muted;
-      if (cs.primary) baseColors.accent = cs.primary;
-      if (cs.accent && !cs.primary) baseColors.accent = cs.accent;
-    }
-    const colors = applyUserColors(baseColors, parsed);
+  console.log(`[generate] ${req.page} parsed: hexColors=${parsed.hexColors.length} elements=${parsed.requiredElements.length} animations=${parsed.animations.length} subIndustry=${parsed.subIndustry || 'none'} language=${parsed.language}`);
 
-    // ── Build shared header/footer (consistent across all pages) ──
-    const meta = INDUSTRY_META[req.industry || 'portfolio'];
-    const headerFooter = buildSharedHeaderFooter(
-      req.industry || 'portfolio',
-      resolvedSiteName,
-      meta.navItems,
-      colors,
-      parsed,
-      req.language || 'en'
-    );
+  const v2Det = detectIndustryV2(req.prompt);
+  console.log(`[generate] industry-v2: ${v2Det.industry.id} (confidence=${v2Det.confidence.toFixed(2)}, matched=${v2Det.matchedKeywords.length} keywords, subIndustry=${v2Det.detectedSubIndustry || 'none'})`);
 
-    console.log(`[generate] job ${jobId} page=${req.page} parsed: hexColors=${parsed.hexColors.length} elements=${parsed.requiredElements.length} animations=${parsed.animations.length} subIndustry=${parsed.subIndustry || 'none'} language=${parsed.language}`);
+  const systemPrompt = buildSystemPrompt();
+  const userPrompt = buildPagePrompt(req, parsed, colors, headerFooter, req.advancedOptions);
+  const promptBytes = Buffer.byteLength(systemPrompt + userPrompt, 'utf8');
+  console.log(`[generate] ${req.page} prompt size: ${promptBytes} bytes (sys=${systemPrompt.length} user=${userPrompt.length})`);
 
-    // ── Phase 4: Log auto-detected industry (V2) ──
-    const v2Det = detectIndustryV2(req.prompt);
-    console.log(`[generate] job ${jobId} industry-v2: ${v2Det.industry.id} (confidence=${v2Det.confidence.toFixed(2)}, matched=${v2Det.matchedKeywords.length} keywords, subIndustry=${v2Det.detectedSubIndustry || 'none'})`);
-    if (job) {
-      job.industryV2 = v2Det.industry.id;
-      job.industryV2SubIndustry = v2Det.detectedSubIndustry;
-      job.industryV2Confidence = v2Det.confidence;
-      job.matchedKeywords = v2Det.matchedKeywords;
-      JOBS.set(jobId, job);
-    }
+  const content = await streamPageContent(systemPrompt, userPrompt, onDelta);
 
-    const content = await callGlmWithRetry(null as any, req, parsed, colors, headerFooter, () => {
-      const j = JOBS.get(jobId);
-      if (j) {
-        j.heartbeats++;
-        j.updatedAt = Date.now();
-        JOBS.set(jobId, j);
-      }
-    });
+  const htmlRaw = extractHtmlFromResponse(content);
+  if (!htmlRaw || htmlRaw.length < 200) {
+    throw new Error(`AI returned empty or invalid HTML for ${req.page} page`);
+  }
 
-    const htmlRaw = extractHtmlFromResponse(content);
-    if (!htmlRaw || htmlRaw.length < 200) {
-      throw new Error(`AI returned empty or invalid HTML for ${req.page} page`);
-    }
+  const animationIds = resolveAnimationIds(parsed);
+  let html = htmlRaw;
+  if (animationIds.length > 0) {
+    html = injectAnimationBundle(htmlRaw, animationIds);
+    console.log(`[generate] phase5: injected ${animationIds.length} animation(s): ${animationIds.join(', ')}`);
+  }
 
-    // ── Phase 5: Inject guaranteed-working animation library CSS/JS ──
-    // This runs AFTER the AI returns HTML. The injected CSS/JS uses scoped
-    // class names (.forge-glass, .forge-parallax-bg, etc.) so it never
-    // conflicts with the AI's own styles. The AI is also instructed via
-    // the prompt to use these class names, but even if it forgets, the
-    // JS auto-wires elements with [data-count-target], [data-shake-target],
-    // and .forge-parallax-bg selectors.
-    const animationIds = resolveAnimationIds(parsed);
-    let html = htmlRaw;
-    if (animationIds.length > 0) {
-      html = injectAnimationBundle(htmlRaw, animationIds);
-      console.log(`[generate] job ${jobId} phase5: injected ${animationIds.length} animation(s): ${animationIds.join(', ')}`);
-    }
+  const css = extractCssFromHtml(html);
+  const js = extractJsFromHtml(html);
+  const pageMeta = PAGE_META[req.page];
 
-    const css = extractCssFromHtml(html);
-    const js = extractJsFromHtml(html);
-    const pageMeta = PAGE_META[req.page];
-
-    let projectId: string | undefined;
-    if (userId) {
-      try {
-        const project = await db.project.create({
-          data: {
-            name: `${resolvedSiteName} — ${pageMeta.name}`,
-            description: req.prompt,
-            prompt: req.prompt,
-            framework: 'html',
-            userId,
-            status: 'generated',
-            theme: req.style || 'dark',
-          },
-        });
-        await db.page.create({
-          data: {
-            name: pageMeta.name,
-            route: pageMeta.route,
-            html, css, js,
-            projectId: project.id,
-          },
-        });
-        await db.version.create({
-          data: {
-            name: `Initial — ${pageMeta.name}`,
-            snapshot: html,
-            projectId: project.id,
-          },
-        });
-        projectId = project.id;
-      } catch (dbError) {
-        console.error('[generate] DB persist failed:', dbError);
-      }
-    }
-
-    const j = JOBS.get(jobId);
-    if (j) {
-      j.status = 'done';
-      j.updatedAt = Date.now();
-      j.result = {
-        page: {
-          id: `page-${req.page}`,
+  let projectId: string | undefined;
+  if (userId) {
+    try {
+      const project = await db.project.create({
+        data: {
+          name: `${resolvedSiteName} — ${pageMeta.name}`,
+          description: req.prompt,
+          prompt: req.prompt,
+          framework: 'html',
+          userId,
+          status: 'generated',
+          theme: req.style || 'dark',
+        },
+      });
+      await db.page.create({
+        data: {
           name: pageMeta.name,
           route: pageMeta.route,
           html, css, js,
+          projectId: project.id,
         },
-        siteName: resolvedSiteName,
-        industry: req.industry || 'portfolio',
-        style: req.style || 'dark',
-        projectId,
-      };
-      JOBS.set(jobId, j);
-    }
-  } catch (error: any) {
-    console.error(`[generate] job ${jobId} failed:`, error);
-    const j = JOBS.get(jobId);
-    if (j) {
-      j.status = 'error';
-      j.updatedAt = Date.now();
-      j.error = error?.message || 'AI generation failed';
-      JOBS.set(jobId, j);
+      });
+      await db.version.create({
+        data: {
+          name: `Initial — ${pageMeta.name}`,
+          snapshot: html,
+          projectId: project.id,
+        },
+      });
+      projectId = project.id;
+    } catch (dbError) {
+      console.error('[generate] DB persist failed:', dbError);
     }
   }
+
+  return {
+    page: { id: `page-${req.page}`, name: pageMeta.name, route: pageMeta.route, html, css, js },
+    siteName: resolvedSiteName,
+    industry: req.industry || 'portfolio',
+    style: req.style || 'dark',
+    projectId,
+  };
 }
 
-// ─── Route handlers ───────────────────────────────────────────────────────
+// ─── Route handlers ────────────────────────────────────────────────────────
+
+export const runtime = 'nodejs';
+export const maxDuration = 300;
+
+function sseEncode(event: string, data: unknown): Uint8Array {
+  return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
 
 export async function POST(request: NextRequest) {
   try {
-    cleanupOldJobs();
-
     const body = await request.json();
     const {
       prompt,
@@ -2148,12 +1969,10 @@ export async function POST(request: NextRequest) {
       language = 'en',
       advancedOptions,
     } = body as GeneratePageRequest;
+    const userId = (body as any)?.userId;
 
     if (!prompt || typeof prompt !== 'string') {
-      return NextResponse.json(
-        { error: 'prompt is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'prompt is required' }, { status: 400 });
     }
     if (!page || !PAGE_META[page]) {
       return NextResponse.json(
@@ -2162,24 +1981,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolvedSiteName = siteName || advancedOptions?.brandName || extractSiteNameFromPrompt(prompt, industry);
-    const userId = body.userId;
+    const av = await checkAiAvailability();
+    if (!av.available) {
+      return NextResponse.json({ error: aiUnavailableMessage(av.reason) }, { status: 503 });
+    }
 
-    // Pre-parse the prompt so we can return useful info to the client immediately
+    const resolvedSiteName =
+      siteName || advancedOptions?.brandName || extractSiteNameFromPrompt(prompt, industry);
     const parsed = parseUserPrompt(prompt, language);
 
-    const jobId = generateJobId();
-    const job: GenJob = {
-      id: jobId,
-      status: 'pending',
-      page,
-      startedAt: Date.now(),
-      updatedAt: Date.now(),
-      heartbeats: 0,
-    };
-    JOBS.set(jobId, job);
-
-    runGenerationJob(jobId, {
+    const req: GeneratePageRequest = {
       prompt,
       industry,
       style,
@@ -2187,72 +1998,49 @@ export async function POST(request: NextRequest) {
       siteName: resolvedSiteName,
       language,
       advancedOptions,
-    }, resolvedSiteName, userId).catch(err => {
-      console.error(`[generate] unhandled error in job ${jobId}:`, err);
-      const j = JOBS.get(jobId);
-      if (j) {
-        j.status = 'error';
-        j.error = String(err?.message || err);
-        j.updatedAt = Date.now();
-        JOBS.set(jobId, j);
-      }
+    };
+
+    const sse = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: string, data: unknown) => {
+          try { controller.enqueue(sseEncode(event, data)); } catch { /* closed */ }
+        };
+        try {
+          // 1) Parsed summary first so the UI reflects detection immediately
+          send('parsed', parsed);
+
+          // 2) Stream generated HTML token-by-token
+          const result = await generatePageStream(req, resolvedSiteName, userId, (chunk) => {
+            send('delta', { chunk });
+          });
+
+          // 3) Final structured result, then close
+          send('result', { result });
+          send('done', { ok: true });
+        } catch (err: any) {
+          console.error('[generate] stream error:', err);
+          send('error', { message: String(err?.message || err) });
+        } finally {
+          try { controller.close(); } catch { /* already closed */ }
+        }
+      },
     });
 
-    // Return jobId + parsed prompt summary so client can show what was detected
-    return NextResponse.json({
-      jobId,
-      status: 'pending',
-      page,
-      parsed: {
-        hexColors: parsed.hexColors,
-        themeKeywords: parsed.themeKeywords,
-        requiredElements: parsed.requiredElements,
-        animations: parsed.animations,
-        subIndustry: parsed.subIndustry,
-        isSinglePage: parsed.isSinglePage,
-        language: parsed.language,
-        detectedBrandName: parsed.detectedBrandName,
+    return new Response(sse, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
       },
     });
   } catch (error: any) {
     console.error('[generate] POST error:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Internal error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error?.message || 'Internal error' }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
-  const jobId = request.nextUrl.searchParams.get('jobId');
-
-  if (jobId) {
-    cleanupOldJobs();
-    const job = JOBS.get(jobId);
-    if (!job) {
-      return NextResponse.json(
-        { error: 'Job not found (it may have expired after 30 minutes)' },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json({
-      jobId: job.id,
-      status: job.status,
-      page: job.page,
-      startedAt: job.startedAt,
-      updatedAt: job.updatedAt,
-      heartbeats: job.heartbeats,
-      elapsedMs: Date.now() - job.startedAt,
-      error: job.error,
-      // Phase 4: V2 industry auto-detection
-      industryV2: job.industryV2,
-      industryV2SubIndustry: job.industryV2SubIndustry,
-      industryV2Confidence: job.industryV2Confidence,
-      matchedKeywords: job.matchedKeywords,
-      result: job.result,
-    });
-  }
-
   return NextResponse.json({
     industries: Object.entries(INDUSTRY_META).map(([id, meta]) => ({
       id,
@@ -2275,11 +2063,7 @@ export async function GET(request: NextRequest) {
       { id: 'es', label: 'Español', dir: 'ltr', font: 'Inter' },
       { id: 'fr', label: 'Français', dir: 'ltr', font: 'Inter' },
     ],
-    subIndustries: Object.entries(SUB_INDUSTRY_CUES).map(([id, c]) => ({
-      id,
-      label: c.label,
-    })),
-    // Phase 4: comprehensive industry catalog (40+ industries)
+    subIndustries: Object.entries(SUB_INDUSTRY_CUES).map(([id, c]) => ({ id, label: c.label })),
     industriesV2: ALL_INDUSTRIES.map(i => ({
       id: i.id,
       nameEn: i.nameEn,
@@ -2294,3 +2078,5 @@ export async function GET(request: NextRequest) {
     })),
   });
 }
+
+

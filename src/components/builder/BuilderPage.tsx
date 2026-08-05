@@ -1865,7 +1865,7 @@ function GeneratingPhase() {
             advancedOptions: advancedOpts,
           }
 
-          const startRes = await fetch('/api/generate', {
+                    const startRes = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
@@ -1878,65 +1878,59 @@ function GeneratingPhase() {
             throw new Error(errBody.error || `HTTP ${startRes.status}`)
           }
 
-          const startData = await startRes.json()
-          const jobId = startData?.jobId
-          if (!jobId) {
-            throw new Error('Server did not return a jobId')
-          }
-          // Store parsed prompt info from the first successful response
-          if (startData.parsed && !parsedPrompt) {
-            setParsedPrompt(startData.parsed)
-          }
-
-          // Poll until done/error
-          let data: any = null
+          // The server streams events via SSE: parsed → delta (live) → result → done/error
+          const reader = startRes.body!.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ''
+          let pageResult: any = null
           let streamError: string | null = null
-          const POLL_INTERVAL_MS = 2500
-          const MAX_POLL_DURATION_MS = 8 * 60 * 1000
-          const pollStart = Date.now()
+          let streamedChars = 0
+          const genStart = Date.now()
 
-          while (true) {
-            if (cancelled || cancelRef.current) return
-
-            const elapsed = Date.now() - pollStart
-            if (elapsed > MAX_POLL_DURATION_MS) {
-              throw new Error(`Timed out after ${Math.round(elapsed / 1000)}s waiting for ${pageInfo.name} page`)
+          streamLoop: while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            if (cancelled || cancelRef.current) {
+              try { reader.cancel() } catch {}
+              return
             }
+            buffer += decoder.decode(value, { stream: true })
 
-            if (elapsed > 0) {
-              await new Promise<void>(r => setTimeout(r, POLL_INTERVAL_MS))
-              if (cancelled || cancelRef.current) return
-            }
+            let delim: RegExpMatchArray | null
+            while ((delim = buffer.match(/\r?\n\r?\n/)) !== null) {
+              const rawEvent = buffer.slice(0, delim.index!)
+              buffer = buffer.slice(delim.index! + delim[0].length)
 
-            const statusRes = await fetch(`/api/generate?jobId=${encodeURIComponent(jobId)}`, {
-              method: 'GET',
-              headers: { 'Cache-Control': 'no-cache' },
-            })
-
-            if (!statusRes.ok) {
-              if (statusRes.status === 404) {
-                throw new Error('Generation job disappeared — please retry')
+              let ev = 'message'
+              const dataLines: string[] = []
+              for (const line of rawEvent.split(/\r?\n/)) {
+                if (line.startsWith('event:')) ev = line.slice(6).trim()
+                else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
               }
-              const errBody = await statusRes.json().catch(() => ({ error: `HTTP ${statusRes.status}` }))
-              throw new Error(errBody.error || `Status poll HTTP ${statusRes.status}`)
-            }
+              if (dataLines.length === 0) continue
+              const dataStr = dataLines.join('\n')
+              let data: any
+              try { data = JSON.parse(dataStr) } catch { data = dataStr }
 
-            const status = await statusRes.json()
-            if (cancelled || cancelRef.current) return
-
-            if (status.heartbeats !== undefined) {
-              setGenerationStatus(
-                `Generating ${pageInfo.name} page… (${status.heartbeats} AI ticks, ${Math.round((Date.now() - pollStart) / 1000)}s)`
-              )
-            }
-
-            if (status.status === 'done') {
-              data = status
-              break
-            }
-            if (status.status === 'error') {
-              streamError = status.error || 'Generation failed'
-              break
+              switch (ev) {
+                case 'parsed':
+                  if (!parsedPrompt) setParsedPrompt(data)
+                  break
+                case 'delta':
+                  streamedChars += (data?.chunk?.length) || 0
+                  setGenerationStatus(`Generating ${pageInfo.name}… (${streamedChars} chars, ${Math.round((Date.now() - genStart) / 1000)}s)`)
+                  break
+                case 'result':
+                  pageResult = data
+                  break streamLoop
+                case 'error':
+                  streamError = (data?.message || data?.error || 'Generation failed')
+                  break streamLoop
+                case 'done':
+                  break streamLoop
+                default:
+                  break
+              }
             }
           }
 
@@ -1945,19 +1939,19 @@ function GeneratingPhase() {
           if (streamError) {
             throw new Error(streamError)
           }
-          if (!data?.result?.page?.html) {
+          if (!pageResult?.result?.page?.html) {
             throw new Error('AI returned no HTML')
           }
 
-          if (data.result.siteName && !siteName) siteName = data.result.siteName
+          if (pageResult.result.siteName && !siteName) siteName = pageResult.result.siteName
 
           const completed: PageGenState = {
             id: pageInfo.id,
-            name: data.result.page.name || pageInfo.name,
+            name: pageResult.result.page.name || pageInfo.name,
             status: 'done',
-            html: data.result.page.html,
-            css: data.result.page.css || '',
-            js: data.result.page.js || '',
+            html: pageResult.result.page.html,
+            css: pageResult.result.page.css || '',
+            js: pageResult.result.page.js || '',
           }
 
           collected.push({
@@ -2275,10 +2269,10 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
     currentPreviewPage, setCurrentPreviewPage,
     setBuilderPhase, builderPrompt,
     navigate, addProject,
-    builderIndustry, builderStyle,
+        builderIndustry, builderStyle,
     builderAdvancedOptions,
     builderMode, selectedTemplateHtml,
-    addChatEntry,
+    addChatEntry, setGeneratedPages,
   } = useAppStore()
   const t = useTranslation()
 
@@ -2328,7 +2322,7 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
     }
   }, [currentPreviewPage, currentPage])
 
-  const handleSaveProject = () => {
+  const handleSaveProject = async () => {
     // Create a chat entry for this generation
     const chatId = `chat-${Date.now()}`
     addChatEntry({
@@ -2339,20 +2333,78 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
       projectId: undefined,
     })
 
-    const project = {
-      id: `proj-${Date.now()}`,
-      name: siteName,
-      description: builderPrompt,
-      prompt: builderPrompt,
-      thumbnail: '',
-      status: 'draft',
-      framework: 'html',
-      theme: `${builderIndustry}-${builderStyle}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    // Persist the project to the database via the /api/projects endpoint.
+    // The server resolves the authenticated user from the NextAuth session
+    // cookie and stores the project under their account. This means the
+    // project survives logout/login cycles and is tied to the user's email
+    // rather than just their browser's localStorage.
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: siteName,
+          description: builderPrompt,
+          prompt: builderPrompt,
+          industry: builderIndustry,
+          theme: `${builderIndustry}-${builderStyle}`,
+          framework: 'html',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      const saved = data.project
+      // Mirror the saved project into the local Zustand store so the UI
+      // updates immediately without waiting for a dashboard refetch.
+      const project = {
+        id: saved.id,
+        name: saved.name,
+        description: saved.description || undefined,
+        prompt: saved.prompt || undefined,
+        thumbnail: saved.thumbnail || '',
+        status: saved.status,
+        framework: saved.framework,
+        theme: saved.theme,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+      }
+      addProject(project)
+
+      // If we have generated pages, persist them as Page rows attached to
+      // the new project. This preserves the actual HTML/CSS/JS the user
+      // generated so it can be re-opened from the dashboard later.
+      if (generatedPages.length > 0) {
+        const primary = generatedPages[0]
+        try {
+          await fetch(`/api/projects/${saved.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              // Save thumbnail as a tiny preview snapshot (first 200 chars)
+              thumbnail: primary.html.slice(0, 200),
+              // Persist the full generated HTML/CSS/JS of the home page
+              pageName: primary.name,
+              pageHtml: primary.html,
+              pageCss: primary.css,
+              pageJs: primary.js,
+            }),
+          })
+        } catch {
+          // Non-fatal: page content update is best-effort.
+        }
+      }
+
+      toast({ title: t('builder.preview.saved'), description: t('builder.preview.savedDesc', { name: siteName }) })
+    } catch (err: any) {
+      toast({
+        title: 'Save failed',
+        description: err?.message || 'Could not save project to your account',
+        variant: 'destructive',
+      })
     }
-    addProject(project)
-    toast({ title: t('builder.preview.saved'), description: t('builder.preview.savedDesc', { name: siteName }) })
   }
 
   const handleExport = () => {
@@ -2390,8 +2442,30 @@ function PreviewPhase({ sidebarOpen }: { sidebarOpen: boolean }) {
     setBuilderPhase('prompt')
   }
 
-  const handleEdit = () => {
+    const handleEdit = () => {
     if (!currentPage) return
+    // When editing a ready-made template, make sure its HTML is loaded into
+    // generatedPages so the editor finds it by currentPreviewPage instead of
+    // falling back to a generic default site.
+    if (isTemplateMode && selectedTemplateHtml) {
+      setGeneratedPages([{
+        id: 'template',
+        name: t('builder.template'),
+        route: '/',
+        html: selectedTemplateHtml,
+        css: '',
+        js: '',
+        status: 'draft',
+        theme: 'light',
+        framework: 'nextjs',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        thumbnail: null,
+        description: null,
+        prompt: null,
+        industry: null,
+      }])
+    }
     setCurrentPreviewPage(currentPage.id)
     navigate('editor')
   }

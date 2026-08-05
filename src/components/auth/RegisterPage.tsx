@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-  Github,
   Chrome,
   Mail,
   Lock,
@@ -278,7 +277,7 @@ export function RegisterPage() {
 
     try {
       // Step 1: Register the user in the database (creates bcrypt-hashed password)
-      const registerRes = await fetch('/api/auth', {
+      const registerRes = await fetch('/api/auth-local', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -339,10 +338,6 @@ export function RegisterPage() {
     // No need to setIsLoading(false) — page will redirect to Google
   }
 
-  const handleGithubRegister = async () => {
-    setError('GitHub sign-in is not configured yet. Please use Google or email/password.')
-  }
-
   return (
     <div className="min-h-screen flex justify-center bg-background p-4 sm:p-6 py-8">
       <motion.div
@@ -400,7 +395,7 @@ export function RegisterPage() {
                 )}
               </AnimatePresence>
 
-              {/* Social buttons */}
+              {/* Social buttons — Google only */}
               <motion.div variants={fadeInUp} className="space-y-2.5 mb-3">
                 <Button
                   variant="outline"
@@ -410,15 +405,6 @@ export function RegisterPage() {
                 >
                   <Chrome className="size-4 mr-2" />
                   Continue with Google
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleGithubRegister}
-                  disabled={isLoading}
-                  className="h-10 w-full bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-200 rounded-lg"
-                >
-                  <Github className="size-4 mr-2" />
-                  Continue with GitHub
                 </Button>
               </motion.div>
 
@@ -641,20 +627,18 @@ export function RegisterPage() {
                   ) : null}
                   {isLoading ? 'Creating account...' : 'Create account'}
                 </Button>
-              </motion.form>
 
-              {/* Footer link */}
-              <motion.div variants={fadeInUp} className="mt-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Already have an account?{' '}
+                {/* Already have an account link */}
+                <div className="text-center mt-3">
                   <button
+                    type="button"
                     onClick={() => navigate('login')}
-                    className="text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
+                    className="min-h-[44px] inline-flex items-center px-2 text-xs text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
-                    Sign in
+                    Already have an account? Sign in
                   </button>
-                </p>
-              </motion.div>
+                </div>
+              </motion.form>
             </div>
 
             {/* ── Divider (visible on md+) ────────────── */}

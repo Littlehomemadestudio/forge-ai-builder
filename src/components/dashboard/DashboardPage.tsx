@@ -6,6 +6,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useAppStore, type DashboardTab } from '@/lib/store'
 import { useTranslation } from '@/lib/useTranslation'
 import { isRtl, type UiLanguage } from '@/lib/i18n'
+import { readLocal, writeLocal } from '@/lib/localStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -96,6 +97,10 @@ interface ActivityItem {
 
 const INDUSTRIES = ['portfolio', 'saas', 'restaurant', 'ecommerce', 'blog', 'agency', 'event', 'personal'] as const
 
+// Local persistence key for dashboard data — a JSON blob that survives reloads
+// and keeps working even when the server/API is unavailable.
+const DATA_CACHE_KEY = 'dashboard:v1'
+
 const INDUSTRY_ICON_MAP: Record<string, React.ElementType> = {
   portfolio: PenTool,
   saas: BarChart3,
@@ -173,49 +178,83 @@ export function DashboardPage() {
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([])
 
   // ─── Data fetching ────────────────────────────────────────────────────────
-  const userId = user?.id || 'demo-user'
+     // Resolve the current authenticated user — never trust a client-supplied id.
+  const sessionUserId = user?.id || null
+
+  const buildActivity = (list: ProjectData[]): ActivityItem[] =>
+    list.flatMap((p: ProjectData) => [
+      {
+        id: `act-create-${p.id}`,
+        type: 'project_created' as const,
+        message: `Created "${p.name}"`,
+        timestamp: new Date(p.createdAt).getTime(),
+      },
+      ...(p.status === 'published' ? [{
+        id: `act-pub-${p.id}`,
+        type: 'project_published' as const,
+        message: `Published "${p.name}"`,
+        timestamp: new Date(p.updatedAt).getTime(),
+      }] : []),
+    ]).sort((a, b) => b.timestamp - a.timestamp)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    try {
-      const [projRes, userRes] = await Promise.all([
-        fetch(`/api/projects?userId=${userId}`),
-        fetch(`/api/user?userId=${userId}`),
-      ])
-      if (!projRes.ok || !userRes.ok) throw new Error('Fetch failed')
-      const projData = await projRes.json()
-      const userDataResp = await userRes.json()
-      setProjects(projData.projects || [])
-      setUserData(userDataResp.user || null)
+    // 1) Always start from the local cache so the page opens with data even when
+    //    the server is unreachable or the user can't be found (e.g. not signed in).
+    const cached = readLocal<{ projects: ProjectData[]; user: UserData | null }>(DATA_CACHE_KEY)
+    if (cached) {
+      setProjects(cached.projects || [])
+      setUserData(cached.user || null)
+      setActivityItems(buildActivity(cached.projects || []))
+    } else {
+      setProjects([])
+      setUserData(null)
+      setActivityItems([])
+    }
 
-      // Generate activity items from project data
-      const activities: ActivityItem[] = (projData.projects || []).flatMap((p: ProjectData) => [
-        {
-          id: `act-create-${p.id}`,
-          type: 'project_created' as const,
-          message: `Created "${p.name}"`,
-          timestamp: new Date(p.createdAt).getTime(),
-        },
-        ...(p.status === 'published' ? [{
-          id: `act-pub-${p.id}`,
-          type: 'project_published' as const,
-          message: `Published "${p.name}"`,
-          timestamp: new Date(p.updatedAt).getTime(),
-        }] : []),
+    try {
+      // 2) Fetch from the server. We do NOT pass a client-supplied userId — the
+      //    backend resolves the user from the NextAuth session cookie so a stale
+      //    or fake id can never trigger 401/404 network errors.
+      const [projRes, userRes] = await Promise.all([
+        fetch(`/api/projects`),
+        fetch(`/api/user`),
       ])
-      setActivityItems(activities.sort((a, b) => b.timestamp - a.timestamp))
+      // Treat 401 (not authenticated) as "no data" rather than a hard failure.
+      const projData = projRes.ok ? await projRes.json() : { projects: [] }
+      const userDataResp = userRes.ok ? await userRes.json() : { user: null }
+      const freshProjects = projData.projects || []
+      const freshUser = userDataResp.user || null
+      setProjects(freshProjects)
+      setUserData(freshUser)
+      setActivityItems(buildActivity(freshProjects))
+      // 3) Persist the freshest valid snapshot so a later reload / offline still works.
+      writeLocal(DATA_CACHE_KEY, { projects: freshProjects, user: freshUser })
     } catch {
-      toast({ title: t('dashboard.fetchError'), variant: 'destructive' })
+      // 4) Server failed (network, etc.). The local cache (if any) is
+      //    already applied above, so the site still opens with previous data. Only
+      //    surface an error when there is truly nothing to show.
+      if (!cached) {
+        toast({ title: t('dashboard.fetchError'), variant: 'destructive' })
+      }
     } finally {
       setLoading(false)
     }
-  }, [t, userId])
+  }, [t])
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchData()
     }
   }, [fetchData, isAuthenticated])
+
+  // 4) Write-through: keep the local cache in sync with every projects/user change
+  //    (create / update / delete / status), so data survives even if a later save fails.
+  useEffect(() => {
+    if (!loading) {
+      writeLocal(DATA_CACHE_KEY, { projects, user: userData })
+    }
+  }, [projects, userData, loading])
 
   // ─── CRUD handlers ────────────────────────────────────────────────────────
   const handleCreate = async () => {
@@ -230,7 +269,6 @@ export function DashboardPage() {
           description: newDescription.trim() || null,
           industry: newIndustry || null,
           theme: newTheme,
-          userId,
         }),
       })
       if (!res.ok) throw new Error('Create failed')
@@ -249,8 +287,8 @@ export function DashboardPage() {
         message: `Created "${data.project.name}"`,
         timestamp: Date.now(),
       }, ...prev])
-      // Refresh user data to update project count
-      const userRes = await fetch(`/api/user?userId=${userId}`)
+            // Refresh user data to update project count (session-resolved server-side)
+      const userRes = await fetch(`/api/user`)
       if (userRes.ok) {
         const ud = await userRes.json()
         setUserData(ud.user || null)
@@ -276,7 +314,7 @@ export function DashboardPage() {
         timestamp: Date.now(),
       }, ...prev])
       setDeleteTarget(null)
-      const userRes = await fetch(`/api/user?userId=${userId}`)
+            const userRes = await fetch(`/api/user`)
       if (userRes.ok) {
         const ud = await userRes.json()
         setUserData(ud.user || null)

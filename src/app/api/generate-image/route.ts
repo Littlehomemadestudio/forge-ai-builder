@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateImageViaSdk, generatePlaceholderSvg } from '@/lib/industry/image-provider';
+import { getCuratedImagesForIndustry, generatePlaceholderSvg } from '@/lib/industry/image-provider';
 import { getIndustryById } from '@/lib/industry';
 import type { ImageCategory } from '@/lib/industry/types';
 
-// ─── POST /api/generate-image ────────────────────────────────────────────
-// AI-generates an industry-specific image using z-ai-web-dev-sdk.
-// Falls back to SVG placeholder if generation fails.
-//
-// Body:
-//   {
-//     industryId: string,
-//     category: ImageCategory,   // 'hero' | 'product' | 'lifestyle' | ...
-//     prompt?: string,            // custom prompt (overrides industry default)
-//     size?: '1024x1024' | '1344x768' | '1440x720' | ...,
-//     language?: 'en' | 'fa',
-//     fallbackToPlaceholder?: boolean   // default true
-//   }
+// ─── POST /api/generate-image ──────────────────────────────────────────────
+// Cerebras has no image endpoint, so we always answer via the curated library
+// (Unsplash) or, as a last resort, a deterministic SVG placeholder. Never
+// errors out — there is always an image.
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+// Body: { industryId: string, category?: ImageCategory, language?: 'en'|'fa', fallbackToPlaceholder?: boolean }
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,9 +19,6 @@ export async function POST(req: NextRequest) {
     const {
       industryId,
       category = 'product',
-      prompt,
-      size,
-      language = 'en',
       fallbackToPlaceholder = true,
     } = body;
 
@@ -44,53 +37,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build prompt if not provided
-    const finalPrompt = prompt || (
-      language === 'fa'
-        ? `تصویر حرفه‌ای ${category} برای وب‌سایت ${meta.nameFa}. ${
-            meta.imageSearchKeywords[category as ImageCategory]?.join('، ') || ''
-          }. مدرن، باکیفیت، ${category === 'hero' ? 'قالب بنر عریض' : 'ترکیب استاندارد'}.`
-        : `Professional ${category} image for ${meta.nameEn} website. ${
-            meta.imageSearchKeywords[category as ImageCategory]?.join(', ') || ''
-          }. Modern, high-quality, ${category === 'hero' ? 'wide banner format' : 'standard composition'}.`
-    );
-
-    // Pick size based on category (banner for hero, square for product)
-    const finalSize = size || (
-      category === 'hero' ? '1344x768' :
-      category === 'lifestyle' ? '1152x864' :
-      '1024x1024'
-    );
-
-    console.log(`[generate-image] generating for ${industryId}/${category} (${language})`);
-    const generatedUrl = await generateImageViaSdk(finalPrompt, finalSize as any);
-
-    if (generatedUrl) {
+    // Tier 1: curated library (always succeeds, no API call)
+    const curated = getCuratedImagesForIndustry(industryId, category as ImageCategory, 1);
+    if (curated.length > 0) {
       return NextResponse.json({
         success: true,
-        url: generatedUrl,
-        source: 'generated',
+        url: curated[0].url,
+        source: 'curated',
         industry: { id: meta.id, nameEn: meta.nameEn, nameFa: meta.nameFa },
         category,
-        prompt: finalPrompt,
       });
     }
 
-    // Fallback: SVG placeholder
+    // Tier 2: SVG placeholder (always succeeds)
     if (fallbackToPlaceholder) {
-      const placeholderUrl = generatePlaceholderSvg(meta.id, category as ImageCategory);
+      const placeholderUrl = generatePlaceholderSvg(industryId, category as ImageCategory);
       return NextResponse.json({
         success: true,
         url: placeholderUrl,
         source: 'placeholder',
         industry: { id: meta.id, nameEn: meta.nameEn, nameFa: meta.nameFa },
         category,
-        note: 'AI generation failed; using SVG placeholder',
+        note: 'No curated image available; using SVG placeholder',
       });
     }
 
     return NextResponse.json(
-      { success: false, error: 'AI image generation failed and fallback disabled' },
+      { success: false, error: 'No image available' },
       { status: 500 }
     );
   } catch (err: any) {
